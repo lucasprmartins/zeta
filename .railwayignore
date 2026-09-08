@@ -1,0 +1,37 @@
+# Histórico Git
+.git/
+
+# Dependências, builds e caches
+**/node_modules/
+**/dist/
+**/*.bun-build
+**/*.tsbuildinfo
+**/.cache/
+**/.eslintcache
+**/.stylelintcache
+
+# Ambiente — exemplos também ficam fora do contexto de deploy
+**/.env
+**/.env.*
+
+# Testes e logs gerados
+**/coverage/
+**/logs/
+**/*.log
+
+# Gerados pelo TanStack Router
+**/.tanstack/
+apps/client/src/routeTree.gen.ts
+
+# Configuração local de agentes
+.agents/
+.codex/
+
+# Arquivos do sistema e temporários de edição
+**/.DS_Store
+**/._*
+**/Thumbs.db
+**/Desktop.ini
+**/*.swp
+**/*.swo
+**/*~

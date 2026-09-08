@@ -1,0 +1,42 @@
+{
+  "name": "zeta",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.4.2",
+  "engines": {
+    "bun": ">=1.4.2"
+  },
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "bun run --parallel --filter \"@zeta/*\" dev",
+    "dev:server": "bun run --filter @zeta/server dev",
+    "dev:client": "bun run --filter @zeta/client dev",
+    "build": "bun run --filter \"@zeta/*\" build",
+    "typecheck": "bun run --filter \"@zeta/*\" typecheck && bun run railway:typecheck && bun run --bun tsc --noEmit -p scripts/tsconfig.json",
+    "test": "bun run --filter \"@zeta/*\" test && bun test scripts/tests",
+    "test:integration": "bun run --filter @zeta/server test:integration",
+    "check": "bun run typecheck && bun run test && bun run build",
+    "db:generate": "bun run --filter @zeta/server db:generate",
+    "db:migrate": "bun run --filter @zeta/server db:migrate",
+    "db:studio": "bun run --filter @zeta/server db:studio",
+    "db:push": "bun run --filter @zeta/server db:push",
+    "db:pull": "bun run --filter @zeta/server db:pull",
+    "db:check": "bun run --filter @zeta/server db:check",
+    "railway:typecheck": "bun run --bun tsc --noEmit -p .railway/tsconfig.json",
+    "railway:plan": "railway config plan",
+    "railway:apply": "railway config apply",
+    "setup": "bun run scripts/setup.ts",
+    "db": "docker compose up -d --wait postgres",
+    "publish:github": "bun run scripts/publish.ts"
+  },
+  "trustedDependencies": [
+    "esbuild"
+  ],
+  "devDependencies": {
+    "@types/bun": "1.4.1",
+    "railway": "3.11.0",
+    "typescript": "7.0.2"
+  }
+}

@@ -1,0 +1,35 @@
+# Dependências — o bun.lock deve permanecer versionado
+node_modules/
+
+# Builds e caches
+dist/
+*.bun-build
+*.tsbuildinfo
+.cache/
+.eslintcache
+.stylelintcache
+
+# Arquivos gerados pelo TanStack Router
+.tanstack/
+/apps/client/src/routeTree.gen.ts
+
+# Ambiente local e segredos — mantenha os exemplos versionados
+.env
+.env.*
+!.env.example
+
+# Testes e cobertura
+coverage/
+
+# Logs locais
+logs/
+*.log
+
+# Sistema operacional e arquivos temporários de edição
+.DS_Store
+._*
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+*~

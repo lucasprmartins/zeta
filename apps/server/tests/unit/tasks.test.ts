@@ -1,0 +1,66 @@
+import { expect, test } from "bun:test";
+import { Task, InvalidTaskError } from "@server/domain/tasks/entities/task";
+import { createTask } from "@server/domain/tasks/application/create-task";
+import { listTasks } from "@server/domain/tasks/application/list-tasks";
+import { updateTask } from "@server/domain/tasks/application/update-task";
+import { setTaskStatus } from "@server/domain/tasks/application/set-task-status";
+import { deleteTask } from "@server/domain/tasks/application/delete-task";
+import { TaskNotFoundError } from "@server/domain/tasks/application/task-not-found";
+import { InMemoryTaskRepository } from "../helpers/in-memory-task-repository";
+
+const input = { id: "task-1", ownerId: "owner-1", title: " Revisar API ", description: " Detalhes ", createdAt: "2026-09-05T12:00:00.000Z" };
+const later = "2026-09-05T13:00:00.000Z";
+test("normaliza a tarefa e protege seu estado interno", () => {
+  const task = Task.create(input);
+  expect(task.toJSON()).toMatchObject({ title: "Revisar API", description: "Detalhes", status: "pending", completedAt: null });
+  const snapshot = task.toJSON();
+  Object.assign(snapshot, { title: "Alterado" });
+  expect(task.toJSON().title).toBe("Revisar API");
+  for (const title of [" ", "x".repeat(121)]) expect(() => Task.create({ ...input, title })).toThrow(InvalidTaskError);
+  expect(() => Task.create({ ...input, description: "x".repeat(2001) })).toThrow(InvalidTaskError);
+  expect(() => Task.create({ ...input, createdAt: "invalid" })).toThrow(InvalidTaskError);
+});
+test("concluir é idempotente; reabrir limpa a conclusão sem mudar a criação", () => {
+  const task = Task.create(input);
+  const completed = task.complete(later);
+  expect(completed.toJSON()).toMatchObject({ status: "completed", completedAt: later, updatedAt: later });
+  expect(completed.complete("2026-09-06T12:00:00.000Z").toJSON()).toEqual(completed.toJSON());
+  const reopened = completed.reopen(later);
+  expect(reopened.toJSON()).toMatchObject({ status: "pending", completedAt: null, createdAt: input.createdAt });
+  expect(task.toJSON().status).toBe("pending");
+  expect(() => Task.restore({ ...completed.toJSON(), completedAt: null })).toThrow(InvalidTaskError);
+  expect(() => task.edit({ title: "Título", description: "" }, "2025-01-01T00:00:00Z")).toThrow(InvalidTaskError);
+});
+test("casos de uso persistem as regras e isolam o proprietário em todas as operações", async () => {
+  const tasks = new InMemoryTaskRepository();
+  const create = createTask({ tasks, generateId: () => input.id, now: () => input.createdAt });
+  await expect(create({ ownerId: input.ownerId, title: " ", description: "" })).rejects.toThrow(InvalidTaskError);
+  expect(tasks.items).toHaveLength(0);
+  await create(input);
+  const foreign = { id: input.id, ownerId: "someone-else" };
+  await expect(updateTask(tasks, () => later)({ ...foreign, title: "Invadido", description: "" })).rejects.toThrow(TaskNotFoundError);
+  await expect(setTaskStatus(tasks, () => later)({ ...foreign, status: "completed" })).rejects.toThrow(TaskNotFoundError);
+  await expect(deleteTask(tasks)(foreign)).rejects.toThrow(TaskNotFoundError);
+  expect((await listTasks(tasks)({ ownerId: foreign.ownerId })).total).toBe(0);
+  const edited = await updateTask(tasks, () => later)({ ...input, title: " Novo título ", description: "Texto" });
+  expect(edited).toMatchObject({ title: "Novo título", status: "pending", updatedAt: later });
+  await setTaskStatus(tasks, () => later)({ ...input, status: "completed" });
+  expect(tasks.items[0]?.toJSON().status).toBe("completed");
+  await deleteTask(tasks)(input);
+  expect(tasks.items).toHaveLength(0);
+});
+test("filtra e pagina sem misturar tarefas de outros proprietários", async () => {
+  const tasks = new InMemoryTaskRepository();
+  for (let i = 0; i < 25; i++) await tasks.save(Task.create({ ...input, id: `task-${i.toString().padStart(2, "0")}` }));
+  await tasks.save(Task.create({ ...input, id: "completed" }).complete(later));
+  await tasks.save(Task.create({ ...input, id: "other", ownerId: "other" }));
+  const list = listTasks(tasks);
+  const first = await list({ ownerId: input.ownerId, status: "pending" });
+  const second = await list({ ownerId: input.ownerId, status: "pending", page: 2 });
+  expect(first.items).toHaveLength(20);
+  expect(first.total).toBe(25);
+  expect(second.items).toHaveLength(5);
+  expect(new Set([...first.items, ...second.items].map((task) => task.id)).size).toBe(25);
+  expect((await list({ ownerId: input.ownerId, status: "completed" })).total).toBe(1);
+  await expect(list({ ownerId: input.ownerId, page: -1 })).rejects.toThrow(InvalidTaskError);
+});
