@@ -1,3 +1,4 @@
+import { PageContent } from "@/components/layout/page-content";
 import { useEffect } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
@@ -18,7 +19,7 @@ export function DashboardPage({ userId }: { userId: string }) {
   const error = pending.error ?? completed.error;
   const total = (pending.data?.total ?? 0) + (completed.data?.total ?? 0);
   const progress = total ? Math.round((completed.data?.total ?? 0) / total * 100) : 0;
-  return <div className="mx-auto w-full max-w-7xl space-y-7 px-5 py-7 sm:px-8 sm:py-9">
+  return <PageContent>
     <PageHeader title="Dashboard" description="Uma visão geral das suas tarefas."
       actions={<Link to="/tasks" search={{ status: "all" }} className={buttonVariants({ size: "sm" })}>Gerenciar tarefas<ArrowUpRightIcon className="size-4" /></Link>} />
     {error ? <ErrorNotice message="Não foi possível carregar o resumo." retry={() => { void pending.refetch(); void completed.refetch(); }} /> : loading || !pending.data || !completed.data ? <Loading label="Carregando seu resumo…" /> : <>
@@ -48,5 +49,5 @@ export function DashboardPage({ userId }: { userId: string }) {
 
       </div>
     </>}
-  </div>;
+  </PageContent>;
 }

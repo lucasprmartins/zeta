@@ -1,3 +1,4 @@
+import { PageContent } from "@/components/layout/page-content";
 import { useCallback, useEffect, useState } from "react";
 import { useMutation, useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckSquareIcon, PlusIcon, ArrowClockwiseIcon } from "@phosphor-icons/react";
@@ -57,7 +58,7 @@ export function TasksPage({ userId, filter, onFilter }: {
     if (hasNextPage && !isFetching) void fetchNextPage({ cancelRefetch: false });
   }, [fetchNextPage, hasNextPage, isFetching]);
 
-  return <div className="mx-auto w-full max-w-7xl space-y-7 px-5 py-7 sm:px-8 sm:py-9">
+  return <PageContent>
     <PageHeader title="Tarefas" description="Tudo o que você precisa fazer, em um só lugar."
       actions={<Button size="sm" onClick={() => openEditor("new")}><PlusIcon />Nova tarefa</Button>} />
 
@@ -110,5 +111,5 @@ export function TasksPage({ userId, filter, onFilter }: {
       {remove.error && <div className="mb-4"><ErrorNotice message={errorMessage(remove.error)} /></div>}
       <div className="modal-actions flex flex-col-reverse justify-end gap-2 sm:flex-row [&>button]:w-full sm:[&>button]:w-auto"><Button data-modal-autofocus variant="outline" disabled={remove.isPending} onClick={() => setDeleting(null)}>Cancelar</Button><Button disabled={remove.isPending} onClick={() => remove.mutate({ id: deleting.id })}>{remove.isPending ? "Excluindo…" : "Excluir tarefa"}</Button></div>
     </Modal>}
-  </div>;
+  </PageContent>;
 }
