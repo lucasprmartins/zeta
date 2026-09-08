@@ -58,13 +58,15 @@ export function AppSidebar({ collapsed = false, user, leaving, onSignOut, onNavi
     </nav>
 
     <div className="shrink-0 space-y-3 border-t p-3">
-      <div className="flex min-w-0 items-center gap-3 px-2 py-1" title={collapsed ? `${user.name} · ${user.email}` : undefined}>
+      <Link to="/profile" onClick={onNavigate} aria-label={`Editar perfil de ${user.name}`} title="Editar perfil"
+        activeOptions={{ exact: true }} activeProps={{ className: "bg-sidebar-active", "aria-current": "page" }}
+        className="flex min-h-11 min-w-0 items-center gap-3 rounded-md px-2 py-1 transition-colors hover:bg-sidebar-active focus-visible:outline-2 focus-visible:outline-offset-2">
         <span className="flex size-8 shrink-0 items-center justify-center rounded-md border bg-white text-xs font-medium" aria-hidden="true">{user.name.trim().slice(0, 1).toUpperCase()}</span>
         <div aria-hidden={collapsed} className={cn("w-36", labelClass)}>
           <p className="truncate text-xs font-medium">{user.name}</p>
           <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{user.email}</p>
         </div>
-      </div>
+      </Link>
       <Button
         variant="ghost"
         size="sm"

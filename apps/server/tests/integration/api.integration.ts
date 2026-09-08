@@ -217,3 +217,47 @@ test("contas sem username continuam válidas e podem definir um pelo Better Auth
   const unauthorized = await request("/api/auth/update-user", { username: "no.session" });
   expect(unauthorized.status).toBe(401);
 });
+
+test("perfil atualiza nome e senha da sessão, revogando outros acessos", async () => {
+  const email = "profile-edit@example.com";
+  const oldPassword = "test-password-long-enough-123";
+  const newPassword = "new-profile-password-456";
+  const first = await signUp(email);
+  const other = await request("/api/auth/sign-in/email", { email, password: oldPassword });
+  const otherCookie = other.headers.getSetCookie().map((value) => value.split(";")[0]).join("; ");
+  expect(other.status).toBe(200);
+  expect((await request("/api/auth/update-user", { name: "Nome atualizado" })).status).toBe(401);
+  expect((await request("/api/auth/update-user", { name: "Nome atualizado" }, first.cookie)).status).toBe(200);
+  const profile = await (await request("/api/auth/get-session", undefined, first.cookie)).json();
+  expect(profile.user).toMatchObject({ id: first.data.user.id, email, name: "Nome atualizado" });
+  expect((await request("/api/auth/change-password", { currentPassword: oldPassword, newPassword })).status).toBe(401);
+  const invalid = await request("/api/auth/change-password", { currentPassword: "incorrect-password", newPassword }, first.cookie);
+  expect(invalid.status).toBe(400);
+  expect((await invalid.json()).code).toBe("INVALID_PASSWORD");
+  const change = await request("/api/auth/change-password", { currentPassword: oldPassword, newPassword, revokeOtherSessions: true }, first.cookie);
+  expect(change.status).toBe(200);
+  const renewedCookie = change.headers.getSetCookie().map((value) => value.split(";")[0]).join("; ");
+  expect((await request("/api/tasks", undefined, renewedCookie)).status).toBe(200);
+  expect((await request("/api/tasks", undefined, otherCookie)).status).toBe(401);
+  expect((await request("/api/auth/sign-in/email", { email, password: oldPassword })).status).toBe(401);
+  expect((await request("/api/auth/sign-in/email", { email, password: newPassword })).status).toBe(200);
+}, 30000);
+
+test("perfil altera username, rejeita duplicados e permite login com o novo identificador", async () => {
+  const first = await signUp("profile-username@example.com");
+  const second = await signUp("profile-username-other@example.com");
+  expect((await request("/api/auth/update-user", { username: "profile.before" }, first.cookie)).status).toBe(200);
+  expect((await request("/api/auth/update-user", { username: "profile.taken" }, second.cookie)).status).toBe(200);
+  const duplicate = await request("/api/auth/update-user", { username: "profile.taken" }, first.cookie);
+  expect(duplicate.status).toBe(400);
+  expect((await duplicate.json()).code).toBe("USERNAME_IS_ALREADY_TAKEN");
+  expect((await request("/api/auth/update-user", { username: "invalid username" }, first.cookie)).status).toBe(400);
+  expect((await request("/api/auth/update-user", { name: "Profile Updated", username: "Profile.After" }, first.cookie)).status).toBe(200);
+  const session = await (await request("/api/auth/get-session", undefined, first.cookie)).json();
+  expect(session.user).toMatchObject({ id: first.data.user.id, email: "profile-username@example.com", name: "Profile Updated", username: "profile.after" });
+  const password = "test-password-long-enough-123";
+  expect((await request("/api/auth/sign-in/username", { username: "profile.before", password })).status).toBe(401);
+  expect((await request("/api/auth/sign-in/username", { username: "profile.after", password })).status).toBe(200);
+  const other = await (await request("/api/auth/get-session", undefined, second.cookie)).json();
+  expect(other.user.username).toBe("profile.taken");
+}, 30000);

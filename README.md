@@ -105,7 +105,7 @@ Arquivos `.env` candidatos ao commit bloqueiam a publicação; revise também ou
 
 - **API modular:** Elysia, domínio em TypeScript puro e Drizzle sobre PostgreSQL, com migrations versionadas.
 - **Contratos tipados:** oRPC conecta cliente e servidor; REST e Scalar usam as mesmas procedures.
-- **Autenticação:** Better Auth com sessão em cookies, cadastro e login por email ou nome de usuário.
+- **Autenticação:** Better Auth com sessão em cookies, cadastro, login por email ou nome de usuário e edição de perfil em `/profile` (nome exibido, username e senha, pelo bloco da conta na sidebar).
 - **Interface:** React, Vite 8, rotas por arquivo, componentes shadcn/ui, Phosphor Icons e Tailwind CSS 4.
 - **Experiência mobile:** navegação em painel lateral, formulários adaptados, áreas de toque e foco acessível.
 - **Dados:** TanStack Query, rolagem infinita reutilizável, invalidação e isolamento do cache por identidade.

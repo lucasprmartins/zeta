@@ -33,7 +33,7 @@ export function Workspace() {
   if (!session.data) return <Navigate to="/login" replace />;
 
   const user = session.data.user;
-  return <AppShell title={pathname === "/dashboard" ? "Dashboard" : "Tarefas"} user={user} leaving={leaving} onSignOut={() => void signOut()}>
+  return <AppShell title={pathname === "/profile" ? "Perfil" : pathname === "/dashboard" ? "Dashboard" : "Tarefas"} user={user} leaving={leaving} onSignOut={() => void signOut()}>
     {error && <div className="mx-auto max-w-7xl px-5 pt-6 sm:px-8"><ErrorNotice message={error} /></div>}
     <Outlet />
   </AppShell>;
