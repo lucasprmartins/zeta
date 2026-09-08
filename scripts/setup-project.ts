@@ -7,7 +7,7 @@ export const validName = (name: string) => /^[a-z][a-z0-9-]{0,49}$/.test(name);
 const identityFiles = [
   "package.json", "apps/server/package.json", "apps/client/package.json",
   "apps/server/Dockerfile", "apps/client/Dockerfile", ".railway/railway.ts",
-  "apps/client/src/lib/rpc.ts", "apps/client/src/components/brand.tsx",
+  "apps/client/src/lib/rpc.ts", "apps/client/src/features/auth/auth-page.tsx", "apps/client/src/components/brand.tsx",
   "apps/client/src/components/layout/app-sidebar.tsx", "apps/client/src/components/layout/app-shell.tsx",
   "apps/client/index.html",
 ];

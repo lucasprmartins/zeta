@@ -8,6 +8,20 @@ import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth";
 import { queryClient } from "@/lib/query";
 
+const rememberedIdentifierKey = "zeta:remembered-identifier";
+
+function readRememberedIdentifier() {
+  try { return localStorage.getItem(rememberedIdentifierKey)?.slice(0, 254) ?? ""; }
+  catch { return ""; }
+}
+
+function rememberIdentifier(identifier: string | null) {
+  try {
+    if (identifier) localStorage.setItem(rememberedIdentifierKey, identifier);
+    else localStorage.removeItem(rememberedIdentifierKey);
+  } catch { /* O login continua disponível quando o armazenamento está bloqueado. */ }
+}
+
 const authErrors: Record<string, string> = {
   INVALID_EMAIL_OR_PASSWORD: "Email, nome de usuário ou senha incorretos.",
   INVALID_USERNAME_OR_PASSWORD: "Email, nome de usuário ou senha incorretos.",
@@ -26,6 +40,8 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
   const signingUp = mode === "register";
   const navigate = useNavigate();
   const session = authClient.useSession();
+  const [rememberedIdentifier] = useState(readRememberedIdentifier);
+  const [remember, setRemember] = useState(Boolean(rememberedIdentifier));
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,6 +63,7 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
         setError(authErrors[result.error.code ?? ""] ?? (signingUp ? "Não foi possível criar sua conta. Confira os dados e tente novamente." : "Não foi possível entrar. Confira os dados e tente novamente."));
         return;
       }
+      if (!signingUp) rememberIdentifier(remember ? identifier : null);
       await queryClient.cancelQueries();
       queryClient.clear();
       await session.refetch();
@@ -78,9 +95,18 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
               <div className="space-y-2"><label htmlFor="email" className="text-sm font-medium">Email</label><Input id="email" name="email" type="email" autoComplete="email" autoCapitalize="none" spellCheck={false} placeholder="voce@exemplo.com" required maxLength={254} /></div>
             </> : <div className="space-y-2">
               <label htmlFor="identifier" className="text-sm font-medium">Email ou nome de usuário</label>
-              <Input id="identifier" name="identifier" type="text" autoComplete="username" autoCapitalize="none" spellCheck={false} placeholder="voce@exemplo.com ou seu.usuario" required maxLength={254} />
+              <Input id="identifier" name="identifier" defaultValue={rememberedIdentifier} type="text" autoComplete="username" autoCapitalize="none" spellCheck={false} placeholder="voce@exemplo.com ou seu.usuario" required maxLength={254} />
             </div>}
             <div className="space-y-2"><label htmlFor="password" className="text-sm font-medium">Senha</label><Input id="password" name="password" type="password" autoComplete={signingUp ? "new-password" : "current-password"} placeholder={signingUp ? "Pelo menos 8 caracteres" : "Sua senha"} required minLength={signingUp ? 8 : 1} maxLength={128} /></div>
+            {!signingUp && <div>
+              <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm" htmlFor="remember-identifier">
+                <input id="remember-identifier" type="checkbox" checked={remember} onChange={(event) => {
+                  setRemember(event.target.checked);
+                  if (!event.target.checked) rememberIdentifier(null);
+                }} className="size-4 shrink-0 cursor-pointer rounded border-input accent-primary focus-visible:outline-2 focus-visible:outline-offset-2" />
+                Lembrar-me
+              </label>
+            </div>}
           </fieldset>
           {error && <ErrorNotice message={error} />}
           <Button type="submit" className="w-full" disabled={pending}>{pending ? <><SpinnerGapIcon className="animate-spin" />{signingUp ? "Criando conta…" : "Entrando…"}</> : <>{signingUp ? "Criar conta" : "Entrar"}<ArrowRightIcon className="ml-auto" /></>}</Button>

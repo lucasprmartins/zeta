@@ -184,7 +184,7 @@ Para gerar rotas manualmente, execute `bun run --cwd apps/client routes:generate
 
 Os `.env.example` são a referência de configuração. O servidor exige `DATABASE_URL`, `BETTER_AUTH_URL` e `BETTER_AUTH_SECRET`; `TRUSTED_ORIGINS` contém as origens permitidas. Nunca coloque segredos em variáveis públicas do frontend.
 
-O cliente usa caminhos relativos. No desenvolvimento, Vite encaminha `/api`, `/rpc`, `/openapi`, `/health` e `/ready` para a API em 3000; `API_PROXY_TARGET` permite alterar esse destino. Em produção, o runtime do cliente faz o proxy na mesma origem pública. Better Auth valida sessão e origem no servidor; não é necessário guardar tokens no localStorage.
+O cliente usa caminhos relativos. No desenvolvimento, Vite encaminha `/api`, `/rpc`, `/openapi`, `/health` e `/ready` para a API em 3000; `API_PROXY_TARGET` permite alterar esse destino. Em produção, o runtime do cliente faz o proxy na mesma origem pública. Better Auth valida sessão e origem no servidor; não é necessário guardar tokens no localStorage. A opção “Lembrar-me” salva somente o email ou username após entrar com sucesso; desmarcar apaga essa preferência. Senhas não são armazenadas e a duração da sessão permanece a do Better Auth.
 
 A referência interativa fica em `/openapi` e a especificação em `/openapi/json`. Entre pelo cliente e teste os endpoints no Scalar usando a mesma origem. A configuração atual disponibiliza a documentação também em produção; restrinja-a conforme o público da sua API. Recuperação de senha, envio de email e provedores sociais precisam de configuração própria.
 

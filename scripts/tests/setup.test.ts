@@ -6,7 +6,7 @@ import { assertLocalDatabase, prepareEnvironment, readServerEnvironment, renameP
 const roots: string[] = [];
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(), "zeta-setup-test-")); roots.push(root);
-  for (const path of ["package.json", "apps/server/package.json", "apps/client/package.json", "apps/server/Dockerfile", "apps/client/Dockerfile", ".railway/railway.ts", "apps/client/src/lib/rpc.ts", "apps/client/src/components/brand.tsx", "apps/client/src/components/layout/app-sidebar.tsx", "apps/client/src/components/layout/app-shell.tsx", "apps/client/index.html"]) {
+  for (const path of ["package.json", "apps/server/package.json", "apps/client/package.json", "apps/server/Dockerfile", "apps/client/Dockerfile", ".railway/railway.ts", "apps/client/src/lib/rpc.ts", "apps/client/src/features/auth/auth-page.tsx", "apps/client/src/components/brand.tsx", "apps/client/src/components/layout/app-sidebar.tsx", "apps/client/src/components/layout/app-shell.tsx", "apps/client/index.html"]) {
     await mkdir(dirname(join(root, path)), { recursive: true });
     await writeFile(join(root, path), path === "package.json" ? '{"name":"zeta"}' : '@zeta/server zeta:sidebar-collapsed Zeta zeta apps application');
   }

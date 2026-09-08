@@ -117,7 +117,7 @@ As procedures definem método, caminho, resumo e tags com `.route()`. Os schemas
 
 Better Auth gerencia usuários, senhas e sessões em cookies. As tabelas de autenticação são infraestrutura, não entidades de negócio. Não guarde tokens de sessão em localStorage nem crie uma segunda implementação de autenticação.
 
-O servidor habilita `username()` e o cliente registra `usernameClient()`. O login usa um único campo: entradas com `@` chamam `signIn.email`; as demais chamam `signIn.username`. Não tente os dois métodos sequencialmente nem consulte a existência pública da conta antes do login.
+O servidor habilita `username()` e o cliente registra `usernameClient()`. O login usa um único campo: entradas com `@` chamam `signIn.email`; as demais chamam `signIn.username`. Não tente os dois métodos sequencialmente nem consulte a existência pública da conta antes do login. “Lembrar-me” guarda apenas o identificador após login bem-sucedido, em localStorage com namespace da aplicação; desmarcar remove o valor salvo imediatamente. Não armazene senha ou sessão nessa preferência nem altere a duração da sessão por causa dela. O setup também renomeia esse namespace.
 
 O cadastro da interface exige username de 3 a 30 caracteres, com letras ASCII, números, ponto ou sublinhado, enviado por `signUp.email`. O plugin valida e normaliza no servidor; o banco garante unicidade. `username` e `displayUsername` são opcionais na tabela para preservar contas anteriores, que continuam entrando por email. O domínio recebe o ID da sessão, nunca o username como substituto da identidade.
 
