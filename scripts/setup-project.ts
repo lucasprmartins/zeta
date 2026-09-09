@@ -9,7 +9,7 @@ const identityFiles = [
   "apps/server/Dockerfile", "apps/client/Dockerfile", ".railway/railway.ts",
   "apps/client/src/lib/rpc.ts", "apps/client/src/components/theme-provider.tsx", "apps/client/src/features/auth/auth-page.tsx", "apps/client/src/components/brand.tsx",
   "apps/client/src/components/layout/app-sidebar.tsx", "apps/client/src/components/layout/app-shell.tsx",
-  "apps/client/index.html",
+  "packages/access/package.json", "apps/server/src/infrastructure/auth/access.ts", "apps/client/src/lib/access.ts", "apps/client/index.html",
 ];
 
 export async function renameProject(root: string, name: string) {

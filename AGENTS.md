@@ -25,7 +25,7 @@ Confira código, manifests e configurações antes de presumir versões ou compo
 
 ## Organização e dependências
 
-Monorepo com workspaces Bun em `apps/*`:
+Monorepo com workspaces Bun em `apps/*` e `packages/*`:
 
 | Área | Responsabilidade |
 | --- | --- |
@@ -36,6 +36,7 @@ Monorepo com workspaces Bun em `apps/*`:
 | `apps/client` | React, Vite, TanStack Router/Query, Tailwind, shadcn/ui e Phosphor |
 | `client/src/{app,routes,features}` | Layouts com sessão, rotas por arquivo e funcionalidades |
 | `client/src/components` | Layouts e primitivas de UI compartilhadas |
+| `packages/access` | Catálogo público de permissões e configuração das operações nativas do Better Auth |
 
 Os caminhos `server/` e `client/` da tabela são relativos a `apps/`; versões e nomes dos workspaces estão nos manifests.
 
@@ -56,6 +57,12 @@ Os caminhos `server/` e `client/` da tabela são relativos a `apps/`; versões e
 - Ao alterar username, envie também `displayUsername`. Na leitura, use o username canônico se o nome de exibição antigo divergir dele; preserve capitalização quando equivalentes.
 - “Lembrar-me” salva somente o identificador após login bem-sucedido; desmarcar o remove imediatamente, sem mudar a duração da sessão.
 - Recuperação de senha, verificação de email e provedores sociais exigem configuração própria; aparecer no Scalar não significa estar operacional.
+
+## Autorização por permissões
+
+`packages/access` define ações e rótulos públicos; concessões dos papéis ficam no banco. Use permissões, não nomes de papéis, nas funcionalidades. Procedures aplicam `requirePermission`; navegação, páginas e controles usam `usePermissions`, `PermissionBoundary` e `Can` dentro de `AccessProvider`. A API consulta as concessões atuais em cada requisição. O cliente consulta `/access/me` e limpa dados afetados quando elas mudam. `admin` recebe automaticamente todas as ações do catálogo; `user` e papéis personalizados usam concessões explícitas. Esse acesso total não altera o escopo dos dados: papéis não concedem acesso aos registros de outro proprietário.
+
+O módulo `domain/authorization` administra papéis globais e atribuições; o plugin Admin do Better Auth mantém operações nativas limitadas de contas/sessões. Todas as atribuições, inclusive via CLI, passam pelo mesmo fluxo transacional para preservar o último administrador. Não reabilite mutações alternativas do plugin que contornem essas regras. Consulte [docs/authorization.md](docs/authorization.md) para extensão e operação.
 
 ## Banco
 

@@ -6,6 +6,8 @@ Este documento descreve a implementação e seus pontos de extensão. As conven�
 
 O monorepo usa workspaces Bun: `apps/server` contém a API e `apps/client`, a aplicação React e seu runtime de produção. A raiz concentra scripts, lockfile e configuração TypeScript compartilhada; cada app declara suas dependências.
 
+`packages/access` compartilha o catálogo público de ações. `domain/authorization` implementa papéis globais e atribuições por contratos independentes de frameworks; o repositório Drizzle persiste `access_role` e o vínculo em `auth_user.role`. A API resolve permissões atuais após validar a sessão Better Auth. O cliente consome `/api/access/me`, sem deduzir concessões pelo nome do papel. Política, transações e extensão estão em [authorization.md](authorization.md).
+
 ```text
 React → cliente oRPC → HTTP → aplicação → entidades
                                ↓
@@ -56,7 +58,7 @@ Better Auth controla contas, senhas e sessões em cookies. O cliente usa `lib/au
 
 `changePassword` exige a senha atual, valida a confirmação na interface e revoga as outras sessões. Após sucesso, os campos são limpos. “Lembrar-me” guarda somente o identificador após entrar; desmarcar remove a preferência, sem alterar a duração da sessão.
 
-`app/workspace.tsx` verifica a sessão e conecta `AppShell` ao `Outlet`. `app/root-layout.tsx` cancela consultas e limpa o cache quando a identidade muda, inclusive entre abas. Não existe uma segunda cópia da sessão em store.
+`app/workspace.tsx` verifica a sessão e conecta `AppShell` ao `Outlet`. `app/root-layout.tsx` cancela consultas e limpa o cache quando o ID ou papel da sessão muda, inclusive entre abas. `AccessProvider` consulta as concessões na entrada, no foco e a cada 15 segundos enquanto a aba está ativa. Mudanças na definição do papel também cancelam e reiniciam consultas afetadas. Não existe uma segunda cópia da sessão em store.
 
 ## Cliente: rotas e consultas
 
@@ -78,6 +80,7 @@ routes/
     dashboard.tsx
     tasks.tsx                # Filtro status na URL
     profile.tsx
+    admin/users.tsx           # Usuários e papéis; view/q na URL
 ```
 
 `tsr.config.json` centraliza geração e code splitting. O plugin TanStack no Vite e o script `routes:generate` produzem `routeTree.gen.ts`, importado por `app/router.tsx`; a árvore não é versionada.

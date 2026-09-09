@@ -1,3 +1,4 @@
+import { AccessProvider } from "@/components/permission-boundary";
 import { useState } from "react";
 import { Navigate, Outlet, useRouterState } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
@@ -33,8 +34,8 @@ export function Workspace() {
   if (!session.data) return <Navigate to="/login" replace />;
 
   const user = session.data.user;
-  return <AppShell title={pathname === "/profile" ? "Perfil" : pathname === "/dashboard" ? "Dashboard" : "Tarefas"} user={user} leaving={leaving} onSignOut={() => void signOut()}>
+  return <AccessProvider key={user.id} userId={user.id}><AppShell title={pathname.startsWith("/admin/") ? "Administração" : pathname === "/profile" ? "Perfil" : pathname === "/dashboard" ? "Dashboard" : "Tarefas"} user={user} leaving={leaving} onSignOut={() => void signOut()}>
     {error && <div className="mx-auto max-w-7xl px-5 pt-6 sm:px-8"><ErrorNotice message={error} /></div>}
     <Outlet />
-  </AppShell>;
+  </AppShell></AccessProvider>;
 }

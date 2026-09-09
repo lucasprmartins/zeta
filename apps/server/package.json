@@ -21,7 +21,8 @@
     "db:studio": "bun run --bun drizzle-kit studio",
     "db:push": "bun run --bun drizzle-kit push",
     "db:pull": "bun run --bun drizzle-kit pull",
-    "db:check": "bun run --bun drizzle-kit check"
+    "db:check": "bun run --bun drizzle-kit check",
+    "auth:set-role": "bun scripts/set-role.ts"
   },
   "dependencies": {
     "@elysiajs/openapi": "1.4.16",
@@ -29,7 +30,8 @@
     "@orpc/server": "1.15.0",
     "better-auth": "1.7.2",
     "drizzle-orm": "0.45.2",
-    "elysia": "1.4.30"
+    "elysia": "1.4.30",
+    "@zeta/access": "workspace:*"
   },
   "devDependencies": {
     "@types/bun": "1.4.1",

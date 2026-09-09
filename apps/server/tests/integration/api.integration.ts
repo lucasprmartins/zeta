@@ -261,3 +261,138 @@ test("perfil altera username, rejeita duplicados e permite login com o novo iden
   const other = await (await request("/api/auth/get-session", undefined, second.cookie)).json();
   expect(other.user.username).toBe("profile.taken");
 }, 30000);
+
+test("papéis não podem ser forjados e alterações valem em sessões existentes", async () => {
+  const first = await signUp("roles-owner@example.com");
+  const second = await signUp("roles-other@example.com");
+  const adminAccount = await signUp("roles-admin@example.com");
+  expect(first.data.user.role).toBe("user");
+  const legacy = await database.db.execute(sql`select role from auth_user where id = 'legacy-owner'`);
+  expect(legacy[0]?.role).toBe("user");
+
+  const forged = await request("/api/auth/sign-up/email", { name: "Forged", email: "roles-forged@example.com", password: "test-password-long-enough-123", role: "admin" });
+  expect(forged.status).toBe(400);
+  await request("/api/auth/update-user", { role: "admin" }, first.cookie);
+  expect((await (await request("/api/auth/get-session", undefined, first.cookie)).json()).user.role).toBe("user");
+  expect((await request("/api/auth/admin/set-role", { userId: first.data.user.id, role: "admin" }, first.cookie)).status).toBe(403);
+
+  // Promoção restrita ao fixture: nenhuma conta real recebe privilégios.
+  await database.db.execute(sql`update auth_user set role = 'admin' where id = ${adminAccount.data.user.id}`);
+  expect((await request("/api/auth/admin/set-role", { userId: first.data.user.id, role: "admin" }, adminAccount.cookie)).status).toBe(403);
+  expect((await request(`/api/access/users/${first.data.user.id}/role`, { roleId: "admin" }, adminAccount.cookie, "PATCH")).status).toBe(200);
+  expect((await (await request("/api/auth/get-session", undefined, first.cookie)).json()).user.role).toBe("admin");
+  const created = await request("/api/tasks", { title: "Private task" }, second.cookie);
+  const task = await created.json();
+  expect(created.status).toBe(200);
+  expect((await request(`/api/tasks/${task.id}`, { title: "Forbidden owner" }, first.cookie, "PATCH")).status).toBe(404);
+  const listed = await (await request("/api/tasks", undefined, first.cookie)).json();
+  expect(listed.items).toEqual([]);
+  expect((await request("/api/auth/admin/impersonate-user", { userId: second.data.user.id }, first.cookie)).status).toBe(403);
+
+  expect((await request(`/api/access/users/${first.data.user.id}/role`, { roleId: "user" }, adminAccount.cookie, "PATCH")).status).toBe(200);
+  expect((await request("/api/auth/admin/set-role", { userId: second.data.user.id, role: "admin" }, first.cookie)).status).toBe(403);
+  await database.db.execute(sql`update auth_user set role = 'unconfigured' where id = ${first.data.user.id}`);
+  expect((await request("/api/tasks", undefined, first.cookie)).status).toBe(403);
+  expect((await request("/api/tasks", { title: "Denied" }, first.cookie)).status).toBe(403);
+}, 30000);
+
+
+test("painel cria papéis dinâmicos, revoga concessões e protege a administração", async () => {
+  const manager = await signUp("dynamic-admin@example.com");
+  const operator = await signUp("dynamic-operator@example.com");
+  const outsider = await signUp("dynamic-outsider@example.com");
+  await database.db.execute(sql`update auth_user set role = 'admin' where id = ${manager.data.user.id}`);
+  const save = (body: unknown, cookie = manager.cookie) => request("/api/access/roles", body, cookie);
+  const assign = (userId: string, roleId: string) => request(`/api/access/users/${userId}/role`, { roleId }, manager.cookie, "PATCH");
+  expect((await request("/api/access/roles")).status).toBe(401);
+  expect((await request("/api/access/roles", undefined, operator.cookie)).status).toBe(403);
+  expect((await save({ name: "Forged", grants: ["tasks:read"] }, operator.cookie)).status).toBe(403);
+  expect((await save({ name: "Escalation", grants: ["access:manage"] })).status).toBe(400);
+  expect((await save({ name: "Unknown", grants: ["tasks:everything"] })).status).toBe(400);
+  const editedAdmin = await save({ id: "admin", name: "Administrador", color: "#AABBCC", grants: [] });
+  expect(editedAdmin.status).toBe(200);
+  expect(await editedAdmin.json()).toMatchObject({ color: "#aabbcc", protected: true });
+  const adminAccess = await (await request("/api/access/me", undefined, manager.cookie)).json();
+  expect(adminAccess.grants).toContain("tasks:create");
+  expect(adminAccess.grants).toContain("access:manage");
+  expect((await request("/api/tasks", { title: "Admin continua com acesso total" }, manager.cookie)).status).toBe(200);
+
+  expect((await save({ name: "Bad color", grants: [], color: "red" })).status).toBe(400);
+  expect((await request("/api/access/roles/user", undefined, manager.cookie, "DELETE")).status).toBe(403);
+  const created = await save({ name: "Operador", grants: ["tasks:read", "tasks:create"] });
+  expect(created.status).toBe(200);
+  const role = await created.json();
+  expect(role.protected).toBe(false);
+  expect((await save({ name: "operador", grants: [] })).status).toBe(409);
+  expect((await assign(operator.data.user.id, role.id)).status).toBe(200);
+  expect((await assign(outsider.data.user.id, "missing-role")).status).toBe(404);
+  expect((await request(`/api/access/roles/${role.id}`, undefined, manager.cookie, "DELETE")).status).toBe(409);
+  const me = await (await request("/api/access/me", undefined, operator.cookie)).json();
+  expect(me).toMatchObject({ roleId: role.id, grants: ["tasks:create", "tasks:read"] });
+  expect((await request("/api/tasks", { title: "Operador" }, operator.cookie)).status).toBe(200);
+  const ownTask = (await (await request("/api/tasks", undefined, operator.cookie)).json()).items[0];
+  expect((await request(`/api/tasks/${ownTask.id}`, { title: "Sem edição" }, operator.cookie, "PATCH")).status).toBe(403);
+  expect((await request("/api/access/users", undefined, operator.cookie)).status).toBe(403);
+  expect((await request("/api/auth/admin/list-users", undefined, operator.cookie)).status).toBe(403);
+  expect((await request("/api/auth/admin/ban-user", { userId: manager.data.user.id }, manager.cookie)).status).toBe(403);
+  expect((await save({ id: role.id, name: "Operador", grants: ["tasks:read"] })).status).toBe(200);
+  // A mesma sessão e o mesmo papel perdem a ação imediatamente na API.
+  expect((await request("/api/tasks", { title: "Revogado" }, operator.cookie)).status).toBe(403);
+  expect((await (await request("/api/access/me", undefined, operator.cookie)).json()).grants).toEqual(["tasks:read"]);
+  expect((await (await request("/api/tasks", undefined, outsider.cookie)).json()).items).toEqual([]);
+  expect((await assign(operator.data.user.id, "user")).status).toBe(200);
+  expect((await request(`/api/access/roles/${role.id}`, undefined, manager.cookie, "DELETE")).status).toBe(200);
+  expect((await assign(operator.data.user.id, role.id)).status).toBe(404);
+  const users = await (await request("/api/access/users?search=dynamic-operator", undefined, manager.cookie)).json();
+  expect(users.items).toHaveLength(1);
+  expect(users.items[0]).toMatchObject({ id: operator.data.user.id, role: "user" });
+  // Metadados da UI são publicados junto aos papéis, sem dados de contas para usuários comuns.
+  const roles = await (await request("/api/access/roles", undefined, manager.cookie)).json();
+  expect(roles.catalog[0].actions[0].id).toBe("tasks:read");
+}, 30000);
+
+test("mutações concorrentes não removem o último administrador", async () => {
+  const first = await signUp("last-admin-first@example.com");
+  const second = await signUp("last-admin-second@example.com");
+  // Escopo isolado desta suíte: remove admins dos fixtures anteriores.
+  await database.db.execute(sql`update auth_user set role = 'user' where role = 'admin'`);
+  await database.db.execute(sql`update auth_user set role = 'admin' where id in (${first.data.user.id}, ${second.data.user.id})`);
+  const outcomes = await Promise.all([
+    request(`/api/access/users/${first.data.user.id}/role`, { roleId: "user" }, first.cookie, "PATCH"),
+    request(`/api/access/users/${second.data.user.id}/role`, { roleId: "user" }, second.cookie, "PATCH"),
+  ]);
+  expect(outcomes.map((response) => response.status).sort()).toEqual([200, 409]);
+  const remaining = await database.db.execute(sql`select id from auth_user where role = 'admin' and banned = false`);
+  expect(remaining).toHaveLength(1);
+  const account = remaining[0]!.id === first.data.user.id ? first : second;
+  const demoted = remaining[0]!.id === first.data.user.id ? second : first;
+  expect((await request(`/api/access/users/${account.data.user.id}/role`, { roleId: "user" }, account.cookie, "PATCH")).status).toBe(409);
+  expect((await request("/api/access/roles", { name: "No access", grants: [] }, demoted.cookie)).status).toBe(403);
+}, 30000);
+
+
+test("persiste cores e pagina usuários em grupos contíguos por papel", async () => {
+  const manager = await signUp("groups-admin@example.com");
+  await database.db.execute(sql`update auth_user set role = 'admin' where id = ${manager.data.user.id}`);
+  const groupA = await (await request("/api/access/roles", { name: "000 Grupo A", color: "#123ABC", grants: ["tasks:read"] }, manager.cookie)).json();
+  const groupB = await (await request("/api/access/roles", { name: "001 Grupo B", color: "#CC5500", grants: [] }, manager.cookie)).json();
+  expect(groupA.color).toBe("#123abc");
+  for (let i = 0; i < 23; i++) {
+    const id = `group-fixture-${i}`;
+    const role = i < 12 ? groupA.id : groupB.id;
+    // Nomes em ordem inversa comprovam que o papel precede o nome da conta.
+    await database.db.execute(sql`insert into auth_user (id, name, email, role) values (${id}, ${i < 12 ? "Zeta" : "Alpha"}, ${id + "@example.com"}, ${role})`);
+  }
+  const page1 = await (await request("/api/access/users?page=1", undefined, manager.cookie)).json();
+  const page2 = await (await request("/api/access/users?page=2", undefined, manager.cookie)).json();
+  expect(page1.items).toHaveLength(20);
+  expect(page1.items.slice(0, 12).every((user: { role: string }) => user.role === groupA.id)).toBe(true);
+  expect(page1.items.slice(12).every((user: { role: string }) => user.role === groupB.id)).toBe(true);
+  expect(page2.items.slice(0, 3).every((user: { role: string }) => user.role === groupB.id)).toBe(true);
+  expect(new Set([...page1.items, ...page2.items].map((user: { id: string }) => user.id)).size).toBe(page1.items.length + page2.items.length);
+  const changed = await request("/api/access/roles", { id: groupA.id, name: "000 Grupo editado", color: "#00AA11", grants: ["tasks:create"] }, manager.cookie);
+  expect(changed.status).toBe(200);
+  const listing = await (await request("/api/access/roles", undefined, manager.cookie)).json();
+  expect(listing.roles.find((role: { id: string }) => role.id === groupA.id)).toMatchObject({ name: "000 Grupo editado", color: "#00aa11", grants: ["tasks:create"] });
+  expect(listing.roles.find((role: { id: string }) => role.id === "user").color).toBe("#737373");
+}, 30000);

@@ -1,0 +1,1 @@
+ALTER TABLE "access_role" ADD COLUMN "color" text DEFAULT '#737373' NOT NULL;

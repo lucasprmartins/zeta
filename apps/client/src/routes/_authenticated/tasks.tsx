@@ -1,3 +1,5 @@
+import { PermissionBoundary } from "@/components/permission-boundary";
+import { permissions } from "@/lib/access";
 import { createFileRoute } from "@tanstack/react-router";
 import { TasksPage } from "@/features/tasks/tasks-page";
 import type { TaskFilter } from "@/features/tasks/queries";
@@ -14,7 +16,7 @@ function TasksRoute() {
   const { data } = authClient.useSession();
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  return data ? <TasksPage key={data.user.id} userId={data.user.id} filter={search.status}
+  return data ? <PermissionBoundary permission={permissions.tasks.read}><TasksPage key={data.user.id} userId={data.user.id} filter={search.status}
     onFilter={(status) => { void navigate({ search: { status } }); }}
-    /> : null;
+    /></PermissionBoundary> : null;
 }

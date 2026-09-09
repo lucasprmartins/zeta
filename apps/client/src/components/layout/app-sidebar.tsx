@@ -1,16 +1,24 @@
+import { usePermissions } from "@/components/permission-boundary";
+import { permissions, type Permission } from "@/lib/access";
 import { Link } from "@tanstack/react-router";
-import { LayoutIcon, CheckSquareIcon, SignOutIcon, type Icon as PhosphorIcon } from "@phosphor-icons/react";
+import { UsersIcon, LayoutIcon, CheckSquareIcon, SignOutIcon, type Icon as PhosphorIcon } from "@phosphor-icons/react";
 import { BlockMark } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-// Registre aqui as entradas dos próximos módulos do aplicativo.
-const navigation: { label: string; to: "/dashboard" | "/tasks"; icon: PhosphorIcon }[] = [
-  { label: "Dashboard", to: "/dashboard", icon: LayoutIcon },
-  { label: "Tarefas", to: "/tasks", icon: CheckSquareIcon },
+// Grupos vazios não aparecem para contas sem as permissões correspondentes.
+type NavigationItem = { label: string; to: "/dashboard" | "/tasks" | "/admin/users"; icon: PhosphorIcon; permission: Permission };
+const navigation: { label: string; items: NavigationItem[] }[] = [
+  { label: "Workspace", items: [
+    { label: "Dashboard", to: "/dashboard", icon: LayoutIcon, permission: permissions.tasks.read },
+    { label: "Tarefas", to: "/tasks", icon: CheckSquareIcon, permission: permissions.tasks.read },
+  ] },
+  { label: "Administração", items: [
+    { label: "Usuários", to: "/admin/users", icon: UsersIcon, permission: permissions.access.manage },
+  ] },
 ];
 
-export type SidebarUser = { name: string; email: string };
+export type SidebarUser = { name: string; email: string; role?: string | null | undefined };
 
 type Props = {
   collapsed?: boolean;
@@ -21,6 +29,8 @@ type Props = {
 };
 
 export function AppSidebar({ collapsed = false, user, leaving, onSignOut, onNavigate }: Props) {
+  const { can } = usePermissions();
+  const groups = navigation.map((group) => ({ ...group, items: group.items.filter((item) => can(item.permission)) })).filter((group) => group.items.length > 0);
   // Preserve o espaço dos rótulos para que os ícones não mudem de posição.
   const labelClass = cn("shrink-0 whitespace-nowrap transition-opacity duration-150", collapsed ? "opacity-0" : "opacity-100 delay-75");
 
@@ -32,13 +42,14 @@ export function AppSidebar({ collapsed = false, user, leaving, onSignOut, onNavi
       </Link>
     </div>
 
-    <nav aria-label="Navegação principal" className="flex-1 overflow-x-hidden overflow-y-auto px-3 py-6">
+    <nav aria-label="Navegação principal" className="flex-1 space-y-7 overflow-x-hidden overflow-y-auto px-3 py-6">
+      {groups.map((group) => <section key={group.label} aria-label={group.label}>
       <div className="relative mb-3">
-        <p aria-hidden={collapsed} className={cn("px-2 text-[10px] font-medium uppercase tracking-widest text-muted-foreground", labelClass)}>Workspace</p>
+        <p aria-hidden={collapsed} className={cn("px-2 text-[10px] font-medium uppercase tracking-widest text-muted-foreground", labelClass)}>{group.label}</p>
         <span aria-hidden="true" className={cn("pointer-events-none absolute left-3 top-1/2 h-px w-6 -translate-y-1/2 bg-border transition-opacity duration-150", collapsed ? "opacity-100 delay-150" : "opacity-0")} />
       </div>
       <ul className="space-y-1">
-        {navigation.map(({ label, to, icon: Icon }) => <li key={to}>
+        {group.items.map(({ label, to, icon: Icon }) => <li key={to}>
           <Link
             to={to}
             search={to === "/tasks" ? { status: "all" } : {}}
@@ -55,6 +66,7 @@ export function AppSidebar({ collapsed = false, user, leaving, onSignOut, onNavi
           </Link>
         </li>)}
       </ul>
+      </section>)}
     </nav>
 
     <div className="shrink-0 space-y-3 border-t p-3">

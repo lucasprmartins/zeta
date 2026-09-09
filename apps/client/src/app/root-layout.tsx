@@ -1,3 +1,4 @@
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { useEffect, useRef } from "react";
 import { Outlet } from "@tanstack/react-router";
 import { authClient } from "@/lib/auth";
@@ -6,7 +7,7 @@ import { queryClient } from "@/lib/query";
 export function RootLayout() {
   const { data, isPending } = authClient.useSession();
   const previousUser = useRef<string | null | undefined>(undefined);
-  const userId = data?.user.id ?? null;
+  const userId = data ? JSON.stringify([data.user.id, data.user.role]) : null;
   useEffect(() => {
     if (isPending) return;
     if (previousUser.current !== undefined && previousUser.current !== userId) {
@@ -16,5 +17,5 @@ export function RootLayout() {
     }
     previousUser.current = userId;
   }, [userId, isPending]);
-  return <Outlet />;
+  return <TooltipProvider><Outlet /></TooltipProvider>;
 }

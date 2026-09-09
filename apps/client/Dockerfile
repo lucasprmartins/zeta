@@ -3,6 +3,7 @@ WORKDIR /app
 COPY package.json bun.lock ./
 COPY apps/server/package.json ./apps/server/package.json
 COPY apps/client/package.json ./apps/client/package.json
+COPY packages/access/package.json ./packages/access/package.json
 RUN bun install --frozen-lockfile
 COPY . .
 RUN bun run --filter @zeta/client build

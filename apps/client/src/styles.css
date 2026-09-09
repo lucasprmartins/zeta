@@ -182,3 +182,17 @@
     padding-right: env(safe-area-inset-right);
   }
 }
+
+
+@keyframes accordion-down {
+  from { height: 0; }
+  to { height: var(--radix-accordion-content-height); }
+}
+@keyframes accordion-up {
+  from { height: var(--radix-accordion-content-height); }
+  to { height: 0; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  [data-slot="accordion-content"][data-state="open"] { animation: accordion-down 180ms ease-out; }
+  [data-slot="accordion-content"][data-state="closed"] { animation: accordion-up 180ms ease-out; }
+}

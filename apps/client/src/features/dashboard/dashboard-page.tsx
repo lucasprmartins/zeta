@@ -1,3 +1,5 @@
+import { usePermissions } from "@/components/permission-boundary";
+import { permissions } from "@/lib/access";
 import { Card } from "@/components/ui/card";
 import { Empty, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty";
 import { DashboardSkeleton } from "./dashboard-skeleton";
@@ -11,13 +13,14 @@ import { ErrorNotice } from "@/components/feedback";
 import { buttonVariants } from "@/components/ui/button";
 import { tasksQuery } from "@/features/tasks/queries";
 import { authClient } from "@/lib/auth";
-import { isUnauthorized } from "@/lib/query";
+import { isForbidden, isUnauthorized } from "@/lib/query";
 
 export function DashboardPage({ userId }: { userId: string }) {
+  const { can } = usePermissions();
   const session = authClient.useSession();
   const pending = useQuery(tasksQuery(userId, "pending", 1));
   const completed = useQuery(tasksQuery(userId, "completed", 1));
-  useEffect(() => { if (isUnauthorized(pending.error) || isUnauthorized(completed.error)) void session.refetch(); }, [pending.error, completed.error, session.refetch]);
+  useEffect(() => { if ([pending.error, completed.error].some((error) => isUnauthorized(error) || isForbidden(error))) void session.refetch(); }, [pending.error, completed.error, session.refetch]);
   const loading = pending.isPending || completed.isPending;
   const error = pending.error ?? completed.error;
   const total = (pending.data?.total ?? 0) + (completed.data?.total ?? 0);
@@ -46,7 +49,7 @@ export function DashboardPage({ userId }: { userId: string }) {
         </section>
         <section className="overflow-hidden rounded-xl border" aria-labelledby="recent-tasks">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4"><div><h2 id="recent-tasks" className="text-sm font-semibold">Pendentes recentes</h2><p className="mt-1 text-xs text-muted-foreground">As últimas tarefas que você adicionou.</p></div><Link to="/tasks" search={{ status: "pending" }} className="text-xs font-medium hover:underline">Ver todas →</Link></div>
-          {pending.data.items.length === 0 ? <Empty><EmptyMedia><CheckSquareIcon aria-hidden="true" /></EmptyMedia><EmptyTitle>{total === 0 ? "Pronto para começar?" : "Tudo concluído por aqui."}</EmptyTitle><EmptyDescription>{total === 0 ? "Acesse Tarefas e registre seu primeiro passo." : "Suas próximas tarefas aparecerão neste espaço."}</EmptyDescription></Empty> :
+          {pending.data.items.length === 0 ? <Empty><EmptyMedia><CheckSquareIcon aria-hidden="true" /></EmptyMedia><EmptyTitle>{total === 0 ? can(permissions.tasks.create) ? "Pronto para começar?" : "Nenhuma tarefa pendente" : "Tudo concluído por aqui."}</EmptyTitle><EmptyDescription>{total === 0 && can(permissions.tasks.create) ? "Acesse Tarefas e registre seu primeiro passo." : "Suas próximas tarefas aparecerão neste espaço."}</EmptyDescription></Empty> :
             <ul className="divide-y">{pending.data.items.slice(0, 5).map((task) => <li key={task.id} className="flex items-start gap-3 px-5 py-4"><CircleIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" weight="regular" /><div className="min-w-0"><p className="break-words text-sm font-medium">{task.title}</p>{task.description && <p className="mt-1 truncate text-xs text-muted-foreground">{task.description}</p>}</div></li>)}</ul>}
         </section>
 

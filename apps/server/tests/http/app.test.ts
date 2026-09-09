@@ -8,7 +8,7 @@ import { createApp } from "@server/interfaces/http/app";
 import { createRouter } from "@server/interfaces/http/rpc/router";
 import { InMemoryTaskRepository } from "../helpers/in-memory-task-repository";
 
-async function setup(options: { databaseDown?: boolean; failSave?: boolean } = {}) {
+async function setup(options: { databaseDown?: boolean; failSave?: boolean; role?: string } = {}) {
   const tasks = new InMemoryTaskRepository();
   if (options.failSave) tasks.save = async () => { throw new Error("sensitive database detail"); };
   const app = await createApp({
@@ -23,7 +23,7 @@ async function setup(options: { databaseDown?: boolean; failSave?: boolean } = {
       handle: async (request) => Response.json({ body: await request.json() }),
       resolveUser: async (headers) => {
         const id = headers.get("x-test-user");
-        return id ? { id } : null;
+        return id ? { id, role: options.role ?? "user", grants: options.role === "unknown" ? [] : ["tasks:read", "tasks:create", "tasks:update", "tasks:set-status", "tasks:delete"] } : null;
       },
     },
     checkDatabase: async () => { if (options.databaseDown) throw new Error("db down"); },
@@ -56,6 +56,16 @@ describe("HTTP e RPC", () => {
     const { rpc, tasks } = await setup();
     expect((await rpc("create", { title: "API" })).status).toBe(401);
     expect((await rpc("list")).status).toBe(401);
+    expect(tasks.items).toHaveLength(0);
+  });
+
+  test("nega todos os endpoints de tarefas sem permissão, inclusive REST", async () => {
+    const { rpc, app, tasks } = await setup({ role: "unknown" });
+    const id = "00000000-0000-4000-8000-000000000001";
+    for (const [operation, input] of [["list", {}], ["create", { title: "Denied" }], ["update", { id, title: "Denied" }], ["setStatus", { id, status: "completed" }], ["delete", { id }]] as const) {
+      expect((await rpc(operation, input, "user-1")).status).toBe(403);
+    }
+    expect((await app.handle(new Request("http://localhost/api/tasks", { headers: { "x-test-user": "user-1" } }))).status).toBe(403);
     expect(tasks.items).toHaveLength(0);
   });
 

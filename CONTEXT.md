@@ -18,3 +18,15 @@ _Avoid_: Fechada, arquivada
 
 **Reabrir (Reopen)**: Devolver uma tarefa concluída ao estado pendente, removendo sua data de conclusão.
 _Avoid_: Restaurar, desfazer exclusão
+
+
+## Controle de acesso
+
+**Papel (Role)**: Conjunto nomeado de ações permitidas, atribuído a uma conta. Não altera a propriedade dos dados.
+_Avoid_: Cargo, organização
+
+**Permissão (Permission)**: Autorização para uma ação específica de uma funcionalidade, como consultar ou criar tarefas.
+_Avoid_: Acesso total, nível
+
+**Administrador (Admin)**: Usuário autorizado a configurar papéis e atribuí-los às contas. Suas tarefas continuam privadas, como as dos demais usuários.
+_Avoid_: Proprietário de todas as tarefas

@@ -1,3 +1,5 @@
+import { Can, usePermissions } from "@/components/permission-boundary";
+import { permissions } from "@/lib/access";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Empty, EmptyMedia, EmptyTitle, EmptyDescription, EmptyContent } from "@/components/ui/empty";
 import { TasksSkeleton } from "./tasks-skeleton";
@@ -11,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { PageHeader } from "@/components/layout/page-header";
 import { authClient } from "@/lib/auth";
-import { isUnauthorized } from "@/lib/query";
+import { isForbidden, isUnauthorized } from "@/lib/query";
 import { rpc } from "@/lib/rpc";
 import { taskKeys, infiniteTasksQuery, type Task, type TaskFilter } from "./queries";
 import { TaskForm } from "./task-form";
@@ -21,6 +23,7 @@ export function TasksPage({ userId, filter, onFilter }: {
   userId: string; filter: TaskFilter;
   onFilter: (filter: TaskFilter) => void;
 }) {
+  const { can } = usePermissions();
   const client = useQueryClient();
   const session = authClient.useSession();
   const [editor, setEditor] = useState<Task | "new" | null>(null);
@@ -43,12 +46,13 @@ export function TasksPage({ userId, filter, onFilter }: {
     mutationFn: (input: { id: string }) => rpc.tasks.delete(input),
     onSuccess: async () => { setDeleting(null); await refresh(); },
   });
-  const errorMessage = (error: unknown) => isUnauthorized(error) ? "Sua sessão expirou. Entre novamente." : "Não foi possível salvar. Tente novamente.";
+  const errorMessage = (error: unknown) => isUnauthorized(error) ? "Sua sessão expirou. Entre novamente." : isForbidden(error) ? "Sua conta não tem permissão para esta ação." : "Não foi possível salvar. Tente novamente.";
   useEffect(() => {
-    if ([tasks.error, create.error, edit.error, status.error, remove.error].some(isUnauthorized)) void session.refetch();
+    if ([tasks.error, create.error, edit.error, status.error, remove.error].some((error) => isUnauthorized(error) || isForbidden(error))) void session.refetch();
   }, [tasks.error, create.error, edit.error, status.error, remove.error, session.refetch]);
 
   function openEditor(task: Task | "new") {
+    if (!can(task === "new" ? permissions.tasks.create : permissions.tasks.update)) return;
     create.reset(); edit.reset(); setEditor(task);
   }
   const saving = create.isPending || edit.isPending;
@@ -63,7 +67,7 @@ export function TasksPage({ userId, filter, onFilter }: {
 
   return <PageContent>
     <PageHeader title="Tarefas" description="Tudo o que você precisa fazer, em um só lugar."
-      actions={<Button size="sm" onClick={() => openEditor("new")}><PlusIcon />Nova tarefa</Button>} />
+      actions={<Can permission={permissions.tasks.create}><Button size="sm" onClick={() => openEditor("new")}><PlusIcon />Nova tarefa</Button></Can>} />
 
     <section aria-label="Lista de tarefas" className="overflow-hidden rounded-xl border">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
@@ -83,9 +87,9 @@ export function TasksPage({ userId, filter, onFilter }: {
         items.length === 0 ?
           <Empty className="min-h-80">
             <EmptyMedia><CheckSquareIcon weight="regular" aria-hidden="true" /></EmptyMedia>
-            <EmptyTitle>{filter === "all" ? "Seu próximo passo começa aqui" : filter === "pending" ? "Nenhuma tarefa pendente" : "Ainda não há tarefas concluídas"}</EmptyTitle>
-            <EmptyDescription>{filter === "all" ? "Crie sua primeira tarefa. Você pode adicionar detalhes e marcar como concluída quando terminar." : "Use os filtros para acompanhar suas outras tarefas."}</EmptyDescription>
-            <EmptyContent><Button variant="outline" size="sm" onClick={() => filter === "all" ? openEditor("new") : onFilter("all")}>{filter === "all" ? "Criar primeira tarefa" : "Ver todas as tarefas"}</Button></EmptyContent>
+            <EmptyTitle>{filter === "all" ? can(permissions.tasks.create) ? "Seu próximo passo começa aqui" : "Nenhuma tarefa encontrada" : filter === "pending" ? "Nenhuma tarefa pendente" : "Ainda não há tarefas concluídas"}</EmptyTitle>
+            <EmptyDescription>{filter === "all" ? can(permissions.tasks.create) ? "Crie sua primeira tarefa. Você pode adicionar detalhes e marcar como concluída quando terminar." : "Suas tarefas aparecerão neste espaço." : "Use os filtros para acompanhar suas outras tarefas."}</EmptyDescription>
+            <EmptyContent>{(filter !== "all" || can(permissions.tasks.create)) && <Button variant="outline" size="sm" onClick={() => filter === "all" ? openEditor("new") : onFilter("all")}>{filter === "all" ? "Criar primeira tarefa" : "Ver todas as tarefas"}</Button>}</EmptyContent>
           </Empty> : <>
             <div aria-hidden="true" className="hidden items-center gap-3 border-b bg-sidebar px-4 py-2.5 text-[11px] font-medium text-muted-foreground sm:flex">
               <span className="w-10 shrink-0" /><span className="flex-1">Tarefa</span><span className="w-24">Estado</span><span className="hidden w-28 lg:block">Criada em</span><span className="w-[72px] text-right">Ações</span>
@@ -105,11 +109,11 @@ export function TasksPage({ userId, filter, onFilter }: {
           </>}
     </section>
 
-    {editor !== null && <Modal title={editor === "new" ? "Nova tarefa" : "Editar tarefa"} description={editor === "new" ? "O que você quer realizar?" : "Atualize o título e os detalhes da tarefa."} pending={saving} onClose={() => setEditor(null)}>
+    {editor !== null && can(editor === "new" ? permissions.tasks.create : permissions.tasks.update) && <Modal title={editor === "new" ? "Nova tarefa" : "Editar tarefa"} description={editor === "new" ? "O que você quer realizar?" : "Atualize o título e os detalhes da tarefa."} pending={saving} onClose={() => setEditor(null)}>
       <TaskForm key={editor === "new" ? "new" : editor.id} {...(editor === "new" ? {} : { initial: editor })} pending={saving} error={editorError ? errorMessage(editorError) : null}
         onCancel={() => setEditor(null)} onSubmit={(fields) => editor === "new" ? create.mutate(fields) : edit.mutate({ id: editor.id, ...fields })} />
     </Modal>}
-    {deleting && <Modal variant="confirmation" title="Excluir tarefa?" description="Esta ação é permanente e não pode ser desfeita." pending={remove.isPending} onClose={() => setDeleting(null)}>
+    {deleting && can(permissions.tasks.delete) && <Modal variant="confirmation" title="Excluir tarefa?" description="Esta ação é permanente e não pode ser desfeita." pending={remove.isPending} onClose={() => setDeleting(null)}>
       <p className="mb-6 break-words rounded-lg border bg-sidebar p-4 text-sm font-medium">{deleting.title}</p>
       {remove.error && <div className="mb-4"><ErrorNotice message={errorMessage(remove.error)} /></div>}
       <div className="modal-actions flex flex-col-reverse justify-end gap-2 sm:flex-row [&>button]:w-full sm:[&>button]:w-auto"><Button data-modal-autofocus variant="outline" disabled={remove.isPending} onClick={() => setDeleting(null)}>Cancelar</Button><Button disabled={remove.isPending} onClick={() => remove.mutate({ id: deleting.id })}>{remove.isPending ? "Excluindo…" : "Excluir tarefa"}</Button></div>

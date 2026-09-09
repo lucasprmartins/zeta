@@ -1,3 +1,7 @@
+import { effectiveRoleGrants } from "./domain/authorization/entities/role";
+import { manageAccess } from "./domain/authorization/application/manage-access";
+import { createAccessRepository } from "./infrastructure/repositories/drizzle-access-repository";
+import { permissionIds } from "./infrastructure/auth/access";
 import { updateTask } from "@server/domain/tasks/application/update-task";
 import { setTaskStatus } from "@server/domain/tasks/application/set-task-status";
 import { deleteTask } from "@server/domain/tasks/application/delete-task";
@@ -14,6 +18,7 @@ import { createRouter } from "./interfaces/http/rpc/router";
 // Único ponto que conhece e conecta as implementações concretas.
 export async function bootstrap(env: Env) {
   const database = createDatabase(env.databaseUrl);
+  const access = createAccessRepository(database.db);
   const tasks = new DrizzleTaskRepository(database.db);
   const router = createRouter({
     create: createTask({ tasks, generateId: () => crypto.randomUUID(), now: () => new Date().toISOString() }),
@@ -21,11 +26,14 @@ export async function bootstrap(env: Env) {
     update: updateTask(tasks, () => new Date().toISOString()),
     setStatus: setTaskStatus(tasks, () => new Date().toISOString()),
     delete: deleteTask(tasks),
-  });
+  }, manageAccess(access, permissionIds, () => crypto.randomUUID()));
   try {
     const app = await createApp({
       router,
-      authentication: createAuthentication(database.db, env),
+      authentication: createAuthentication(database.db, env, async (roleId) => {
+        const role = await access.role(roleId);
+        return role ? effectiveRoleGrants(role, permissionIds) : [];
+      }),
       checkDatabase: async () => { await database.db.execute(sql`select 1`); },
     });
     return { app, closeDatabase: database.close };

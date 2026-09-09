@@ -8,6 +8,10 @@ const timestamps = () => ({
 export const user = pgTable("auth_user", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
+  role: text("role").default("user").notNull(),
+  banned: boolean("banned").default(false).notNull(),
+  banReason: text("ban_reason"),
+  banExpires: timestamp("ban_expires", { withTimezone: true }),
   username: text("username").unique(),
   displayUsername: text("display_username"),
   email: text("email").notNull().unique(),
@@ -20,6 +24,7 @@ export const session = pgTable("auth_session", {
   id: text("id").primaryKey(),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   token: text("token").notNull().unique(),
+  impersonatedBy: text("impersonated_by"),
   ipAddress: text("ip_address"),
   userAgent: text("user_agent"),
   userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
