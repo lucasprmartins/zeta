@@ -75,6 +75,8 @@ Cada procedure define seu método, caminho e descrição com `.route()`. `OpenAP
 
 ## Cliente
 
+O TanStack Router usa `RouteError` e `RouteNotFound` como estados globais de falha e 404. A composição `RouteFeedback` centraliza o conteúdo na viewport ou na área abaixo do cabeçalho quando o shell está presente. Falhas apresentam uma orientação, a mensagem técnica em vermelho e ações de recuperação, navegação e cópia para suporte. A recuperação usa `router.invalidate()` e o reset dos boundaries para repetir loaders; isso não substitui o tratamento de erros de consultas e mutations nas features.
+
 O perfil envia username e displayUsername juntos ao Better Auth e trata divergências de dados antigos na leitura. Sonner, montado na raiz dentro do provider de tema, apresenta os resultados de edição de perfil e senha; erros de consultas continuam no conteúdo com Alert.
 
 Os formulários compõem `Field`, `FieldLabel`, `FieldDescription`, `Input` e `Textarea`, preservando IDs, descrições e validação nativa. `Card` padroniza superfícies e `Empty` os estados sem dados. `ErrorNotice` compõe `Alert`; skeletons específicos das features preservam a estrutura durante a busca inicial. Os filtros de tarefas usam `ToggleGroup` sobre Radix, com seleção única obrigatória controlada pela URL e navegação por teclado. Esses componentes usam os tokens locais e não conhecem consultas ou regras de negócio.

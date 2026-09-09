@@ -158,6 +158,8 @@ Os arquivos de rota conectam telas de `features`, parâmetros e layouts. Mantenh
 
 `app/router.tsx` importa `routeTree.gen.ts`. O plugin TanStack vem antes do plugin React no Vite. `tsr.config.json` centraliza a geração e o code splitting. O Vite gera a árvore durante o desenvolvimento; `routes:generate` roda antes do typecheck/build. Não edite nem versione `routeTree.gen.ts` ou `.tanstack/`.
 
+`RouteError` e `RouteNotFound` são os fallbacks globais do router e da rota raiz. Reutilize `RouteFeedback` para manter título, orientação, detalhes e ações centralizados na área disponível; dentro do shell, a altura desconta o cabeçalho. A tentativa de recuperação invalida o router para executar loaders novamente e reseta os boundaries de Query e Router. Mostre apenas a mensagem do erro, em vermelho pelo token `error-detail`, sem serializar stack, cause ou objetos de resposta; mensagens lançadas no frontend não devem conter segredos. Erros de mutations e consultas tratadas pelas features mantêm seu feedback local ou toast.
+
 `app/workspace.tsx` verifica a sessão e conecta `AppShell` ao `Outlet`; a autorização real permanece no servidor. `app/root-layout.tsx` cancela consultas e limpa o cache quando muda a identidade da sessão, incluindo mudanças entre abas.
 
 Better Auth cuida da sessão; TanStack Query cuida dos dados de negócio. As chaves incluem usuário, formato da consulta e filtro; consultas comuns também incluem a página. Nunca compartilhe uma chave entre consultas comuns e infinitas. Mutations não são repetidas automaticamente e invalidam as consultas afetadas no escopo autorizado, inclusive resumos e indicadores que dependam dos mesmos dados. Não mantenha uma cópia da sessão em um store próprio.

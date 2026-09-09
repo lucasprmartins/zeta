@@ -22,6 +22,7 @@
   --accent: #ebebeb;
   --accent-foreground: #171717;
   --destructive: #262626;
+  --error-detail: #b91c1c;
   --border: #e5e5e5;
   --input: #d4d4d4;
   --ring: #737373;
@@ -44,6 +45,7 @@
   --accent: #303030;
   --accent-foreground: #fafafa;
   --destructive: #e5e5e5;
+  --error-detail: #fca5a5;
   --border: #333333;
   --input: #525252;
   --ring: #a3a3a3;
@@ -65,6 +67,7 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-error-detail: var(--error-detail);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -87,6 +90,8 @@
 
 
 .task-progress { appearance: none; background: var(--border); }
+.route-feedback { min-height: 100svh; }
+#main-content .route-feedback { min-height: calc(100svh - 4rem); }
 .task-progress::-webkit-progress-bar { background: var(--border); }
 .task-progress::-webkit-progress-value { background: var(--primary); border-radius: 999px; }
 .task-progress::-moz-progress-bar { background: var(--primary); border-radius: 999px; }
