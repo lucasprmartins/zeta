@@ -246,15 +246,15 @@ test("perfil atualiza nome e senha da sessão, revogando outros acessos", async 
 test("perfil altera username, rejeita duplicados e permite login com o novo identificador", async () => {
   const first = await signUp("profile-username@example.com");
   const second = await signUp("profile-username-other@example.com");
-  expect((await request("/api/auth/update-user", { username: "profile.before" }, first.cookie)).status).toBe(200);
+  expect((await request("/api/auth/update-user", { username: "profile.before", displayUsername: "profile.before" }, first.cookie)).status).toBe(200);
   expect((await request("/api/auth/update-user", { username: "profile.taken" }, second.cookie)).status).toBe(200);
   const duplicate = await request("/api/auth/update-user", { username: "profile.taken" }, first.cookie);
   expect(duplicate.status).toBe(400);
   expect((await duplicate.json()).code).toBe("USERNAME_IS_ALREADY_TAKEN");
   expect((await request("/api/auth/update-user", { username: "invalid username" }, first.cookie)).status).toBe(400);
-  expect((await request("/api/auth/update-user", { name: "Profile Updated", username: "Profile.After" }, first.cookie)).status).toBe(200);
+  expect((await request("/api/auth/update-user", { name: "Profile Updated", username: "Profile.After", displayUsername: "Profile.After" }, first.cookie)).status).toBe(200);
   const session = await (await request("/api/auth/get-session", undefined, first.cookie)).json();
-  expect(session.user).toMatchObject({ id: first.data.user.id, email: "profile-username@example.com", name: "Profile Updated", username: "profile.after" });
+  expect(session.user).toMatchObject({ id: first.data.user.id, email: "profile-username@example.com", name: "Profile Updated", username: "profile.after", displayUsername: "Profile.After" });
   const password = "test-password-long-enough-123";
   expect((await request("/api/auth/sign-in/username", { username: "profile.before", password })).status).toBe(401);
   expect((await request("/api/auth/sign-in/username", { username: "profile.after", password })).status).toBe(200);

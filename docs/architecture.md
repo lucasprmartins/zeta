@@ -75,6 +75,10 @@ Cada procedure define seu método, caminho e descrição com `.route()`. `OpenAP
 
 ## Cliente
 
+O perfil envia username e displayUsername juntos ao Better Auth e trata divergências de dados antigos na leitura. Sonner, montado na raiz dentro do provider de tema, apresenta os resultados de edição de perfil e senha; erros de consultas continuam no conteúdo com Alert.
+
+Os formulários compõem `Field`, `FieldLabel`, `FieldDescription`, `Input` e `Textarea`, preservando IDs, descrições e validação nativa. `Card` padroniza superfícies e `Empty` os estados sem dados. `ErrorNotice` compõe `Alert`; skeletons específicos das features preservam a estrutura durante a busca inicial. Os filtros de tarefas usam `ToggleGroup` sobre Radix, com seleção única obrigatória controlada pela URL e navegação por teclado. Esses componentes usam os tokens locais e não conhecem consultas ou regras de negócio.
+
 O `ThemeProvider` adapta o padrão shadcn/ui para Vite. O controle no cabeçalho e nas telas de acesso alterna apenas entre claro e escuro e sincroniza a preferência entre abas. Sem escolha salva, acompanha o tema do sistema; uma escolha manual persiste no navegador e prevalece sobre o sistema. Os tokens de `styles.css` definem ambas as paletas; um script em `index.html` aplica a escolha antes da renderização. O setup renomeia o namespace da preferência nos dois arquivos.
 
 `apps/client/src/routes` define as rotas por arquivo do TanStack Router. `app/router.tsx` inicializa o router a partir da árvore gerada; os layouts ficam em `app`. As telas e consultas continuam nas respectivas `features`.

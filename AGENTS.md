@@ -119,6 +119,8 @@ Better Auth gerencia usuários, senhas e sessões em cookies. As tabelas de aute
 
 O servidor habilita `username()` e o cliente registra `usernameClient()`. O login usa um único campo: entradas com `@` chamam `signIn.email`; as demais chamam `signIn.username`. Não tente os dois métodos sequencialmente nem consulte a existência pública da conta antes do login. “Lembrar-me” guarda apenas o identificador após login bem-sucedido, em localStorage com namespace da aplicação; desmarcar remove o valor salvo imediatamente. Não armazene senha ou sessão nessa preferência nem altere a duração da sessão por causa dela. O setup também renomeia esse namespace.
 
+Ao editar o username no perfil, envie `username` e `displayUsername` juntos no `updateUser`: o plugin não sincroniza automaticamente o nome de exibição nas atualizações. O formulário deve usar o username canônico quando um displayUsername antigo divergir dele, preservando a capitalização quando forem equivalentes.
+
 O cadastro da interface exige username de 3 a 30 caracteres, com letras ASCII, números, ponto ou sublinhado, enviado por `signUp.email`. O plugin valida e normaliza no servidor; o banco garante unicidade. `username` e `displayUsername` são opcionais na tabela para preservar contas anteriores, que continuam entrando por email. O domínio recebe o ID da sessão, nunca o username como substituto da identidade.
 
 Recuperação de senha, verificação de email e provedores sociais precisam de configuração própria. Um endpoint aparecer no Scalar não significa que seu provedor esteja configurado.
@@ -179,6 +181,21 @@ Os textos de login e cadastro devem se limitar ao acesso e à criação da conta
 O tema segue o ThemeProvider do shadcn/ui para Vite, com alternância apenas entre claro e escuro. Sem preferência salva, acompanha o sistema; após a escolha manual, a preferência do navegador prevalece. `ModeToggle` fica no cabeçalho e nas telas de acesso; `zeta:theme` persiste a preferência e é renomeado pelo setup. O script inicial em `index.html` evita flashes e deve manter a mesma chave e resolução do provider. Use tokens semânticos para que componentes funcionem nos dois temas.
 
 A identidade visual é centralizada nos tokens de `styles.css`; a configuração existente usa preto, branco e cinzas. Mudanças de marca devem partir desses tokens, preservando contraste, hierarquia visual e adaptação a telas menores. A marca fica em `components/brand.tsx`, o favicon em `public/favicon.svg` e o título em `index.html`.
+
+### Composição com shadcn/ui
+
+Use shadcn/ui como primeira escolha para construir e evoluir a UI/UX. Não limite sua utilização a botões, inputs e cards: avalie os componentes e padrões disponíveis de acordo com a interação que a tela precisa oferecer.
+
+- Antes de criar um componente, confira `components/ui`, os componentes compartilhados e as composições das features. Reutilize ou estenda o que já resolve a necessidade, sem criar uma segunda implementação equivalente.
+- Quando faltar um comportamento, consulte o catálogo e a documentação oficial do shadcn/ui usando `find-docs`. Considere, por exemplo, Dropdown Menu para ações secundárias, Tabs para painéis relacionados, Tooltip para ajuda complementar, Skeleton para carregamento e Alert Dialog para confirmações. Escolha pelo comportamento e pela acessibilidade necessários, não apenas pela aparência.
+- Incorpore somente os componentes utilizados pela funcionalidade em desenvolvimento. Adapte o código oficial em `components/ui`, respeitando `components.json`, licença, tokens de tema e Phosphor Icons. Não instale o catálogo inteiro antecipadamente. Novas dependências de produção continuam exigindo confirmação.
+- Componha as telas nas features a partir desses componentes. Primitivos de UI não devem conhecer regras de negócio, autenticação, endpoints ou consultas. Centralize variantes reutilizáveis no componente, evitando estilos e comportamentos duplicados nas páginas.
+- Uma implementação própria precisa de uma necessidade concreta que os componentes existentes ou do shadcn não atendam. Ao evoluir uma tela, avalie substituir controles improvisados pela composição adequada, mantendo o escopo da mudança e preservando os fluxos existentes.
+- As adaptações locais têm contratos próprios: confira suas props antes de copiar exemplos oficiais. A adoção de um componente não pode regredir navegação por teclado, foco, leitores de tela, temas, áreas de toque ou experiência mobile. Preserve especialmente os comportamentos de sidebar e modal descritos abaixo, mesmo ao mudar sua implementação.
+
+O `Toaster` de Sonner fica uma única vez dentro do `ThemeProvider`. Use `toast.success` e `toast.error` para resultados de ações explícitas, como salvar perfil ou senha, com mensagens em português e sem dados sensíveis. Erros de carregamento que precisam permanecer na tela continuam usando `ErrorNotice`/ `Alert`; não substitua rótulos e instruções dos campos por notificações temporárias.
+
+### Layout e interação
 
 - Use `AppShell`, `AppSidebar`, `PageContent`, `PageHeader` e `AuthLayout` para a estrutura comum. Todas as páginas autenticadas usam `PageContent`: largura máxima de 1280 px, padding horizontal de 20 px no celular e 32 px a partir de `sm`, vertical de 28/36 px e espaço entre blocos de 28 px. `AuthLayout` reutiliza o mesmo `pagePadding` para login/cadastro, mantendo seu formulário centralizado. Não duplique esses valores nas features; organize formulários em uma grade interna com descrição e campos quando necessário, sem deslocar o container da página. Layouts não consultam dados de negócio.
 - Componentes shadcn/ui são código local em `components/ui`, com licença preservada. Use as variantes existentes de `Button`; ele é um botão nativo e não implementa `asChild`. Para links com aparência de botão, use `buttonVariants`.

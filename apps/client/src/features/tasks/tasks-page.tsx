@@ -1,9 +1,12 @@
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Empty, EmptyMedia, EmptyTitle, EmptyDescription, EmptyContent } from "@/components/ui/empty";
+import { TasksSkeleton } from "./tasks-skeleton";
 import { PageContent } from "@/components/layout/page-content";
 import { useCallback, useEffect, useState } from "react";
 import { useMutation, useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckSquareIcon, PlusIcon, ArrowClockwiseIcon } from "@phosphor-icons/react";
 import { InfiniteScroll } from "@/components/infinite-scroll";
-import { ErrorNotice, Loading } from "@/components/feedback";
+import { ErrorNotice } from "@/components/feedback";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { PageHeader } from "@/components/layout/page-header";
@@ -64,10 +67,10 @@ export function TasksPage({ userId, filter, onFilter }: {
 
     <section aria-label="Lista de tarefas" className="overflow-hidden rounded-xl border">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
-        <div className="grid w-full grid-cols-3 gap-1 sm:flex sm:w-auto" aria-label="Filtrar tarefas">
+        <ToggleGroup type="single" value={filter} onValueChange={(value) => { if (value === "all" || value === "pending" || value === "completed") onFilter(value); }} className="grid w-full grid-cols-3 sm:flex sm:w-auto" aria-label="Filtrar tarefas">
           {([["all", "Todas"], ["pending", "Pendentes"], ["completed", "Concluídas"]] as const).map(([value, label]) =>
-            <Button key={value} variant="ghost" size="sm" className={`px-2 text-xs sm:px-3 sm:text-sm ${filter === value ? "bg-muted" : "text-muted-foreground"}`} aria-pressed={filter === value} onClick={() => onFilter(value)}>{label}</Button>)}
-        </div>
+            <ToggleGroupItem key={value} value={value} className="px-2 text-xs sm:px-3 sm:text-sm">{label}</ToggleGroupItem>)}
+        </ToggleGroup>
         <div className="flex w-full items-center justify-between gap-3 sm:w-auto">
           <span className="text-xs text-muted-foreground">{tasks.data ? `${total} ${total === 1 ? "tarefa" : "tarefas"}` : ""}</span>
           <Button variant="ghost" size="icon" className="size-8" aria-label="Atualizar tarefas" title="Atualizar tarefas" disabled={tasks.isFetching} onClick={() => void tasks.refetch()}><ArrowClockwiseIcon className={tasks.isFetching ? "animate-spin" : ""} /></Button>
@@ -75,15 +78,15 @@ export function TasksPage({ userId, filter, onFilter }: {
       </div>
       {status.error && <div className="border-b p-4"><ErrorNotice message={errorMessage(status.error)} /></div>}
       {tasks.isRefetchError && tasks.data && <div className="border-b p-4"><ErrorNotice message="Não foi possível atualizar a lista." retry={() => void tasks.refetch()} /></div>}
-      {tasks.isPending ? <Loading label="Buscando tarefas…" /> : tasks.isError && !tasks.data ?
+      {tasks.isPending ? <TasksSkeleton /> : tasks.isError && !tasks.data ?
         <div className="p-6"><ErrorNotice message="Não foi possível carregar suas tarefas." retry={() => void tasks.refetch()} /></div> :
         items.length === 0 ?
-          <div className="flex min-h-80 flex-col items-center justify-center px-6 py-12 text-center">
-            <span className="mb-5 rounded-xl border bg-sidebar p-3"><CheckSquareIcon className="size-6" weight="regular" /></span>
-            <h2 className="font-medium">{filter === "all" ? "Seu próximo passo começa aqui" : filter === "pending" ? "Nenhuma tarefa pendente" : "Ainda não há tarefas concluídas"}</h2>
-            <p className="mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">{filter === "all" ? "Crie sua primeira tarefa. Você pode adicionar detalhes e marcar como concluída quando terminar." : "Use os filtros para acompanhar suas outras tarefas."}</p>
-            <Button className="mt-5" variant="outline" size="sm" onClick={() => filter === "all" ? openEditor("new") : onFilter("all")}>{filter === "all" ? "Criar primeira tarefa" : "Ver todas as tarefas"}</Button>
-          </div> : <>
+          <Empty className="min-h-80">
+            <EmptyMedia><CheckSquareIcon weight="regular" aria-hidden="true" /></EmptyMedia>
+            <EmptyTitle>{filter === "all" ? "Seu próximo passo começa aqui" : filter === "pending" ? "Nenhuma tarefa pendente" : "Ainda não há tarefas concluídas"}</EmptyTitle>
+            <EmptyDescription>{filter === "all" ? "Crie sua primeira tarefa. Você pode adicionar detalhes e marcar como concluída quando terminar." : "Use os filtros para acompanhar suas outras tarefas."}</EmptyDescription>
+            <EmptyContent><Button variant="outline" size="sm" onClick={() => filter === "all" ? openEditor("new") : onFilter("all")}>{filter === "all" ? "Criar primeira tarefa" : "Ver todas as tarefas"}</Button></EmptyContent>
+          </Empty> : <>
             <div aria-hidden="true" className="hidden items-center gap-3 border-b bg-sidebar px-4 py-2.5 text-[11px] font-medium text-muted-foreground sm:flex">
               <span className="w-10 shrink-0" /><span className="flex-1">Tarefa</span><span className="w-24">Estado</span><span className="hidden w-28 lg:block">Criada em</span><span className="w-[72px] text-right">Ações</span>
             </div>

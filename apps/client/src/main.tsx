@@ -1,3 +1,4 @@
+import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
@@ -9,4 +10,4 @@ import "./styles.css";
 
 const element = document.getElementById("root");
 if (!element) throw new Error("Elemento root ausente.");
-createRoot(element).render(<StrictMode><ThemeProvider><QueryClientProvider client={queryClient}><RouterProvider router={router} /></QueryClientProvider></ThemeProvider></StrictMode>);
+createRoot(element).render(<StrictMode><ThemeProvider><QueryClientProvider client={queryClient}><RouterProvider router={router} /></QueryClientProvider><Toaster /></ThemeProvider></StrictMode>);

@@ -1,3 +1,4 @@
+import { Field, FieldLabel, FieldDescription } from "@/components/ui/field";
 import { useState, type FormEvent } from "react";
 import { Link, Navigate, useNavigate } from "@tanstack/react-router";
 import { ArrowRightIcon, SpinnerGapIcon } from "@phosphor-icons/react";
@@ -85,19 +86,19 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
   >
         <form onSubmit={submit} className="space-y-5" aria-label={signingUp ? "Criar conta" : "Entrar"}>
           <fieldset disabled={pending} className="space-y-5">
-            {signingUp && <div className="space-y-2"><label htmlFor="name" className="text-sm font-medium">Seu nome</label><Input id="name" name="name" autoComplete="name" placeholder="Como podemos chamar você?" required maxLength={100} pattern=".*\S.*" /></div>}
+            {signingUp && <Field><FieldLabel htmlFor="name">Seu nome</FieldLabel><Input id="name" name="name" autoComplete="name" placeholder="Como podemos chamar você?" required maxLength={100} pattern=".*\S.*" /></Field>}
             {signingUp ? <>
-              <div className="space-y-2">
-                <label htmlFor="username" className="text-sm font-medium">Nome de usuário</label>
+              <Field>
+                <FieldLabel htmlFor="username">Nome de usuário</FieldLabel>
                 <Input id="username" name="username" autoComplete="username" autoCapitalize="none" spellCheck={false} placeholder="seu.usuario" required minLength={3} maxLength={30} pattern="[a-zA-Z0-9_.]+" aria-describedby="username-help" />
-                <p id="username-help" className="text-xs leading-relaxed text-muted-foreground">3 a 30 caracteres: letras sem acentos, números, ponto ou sublinhado.</p>
-              </div>
-              <div className="space-y-2"><label htmlFor="email" className="text-sm font-medium">Email</label><Input id="email" name="email" type="email" autoComplete="email" autoCapitalize="none" spellCheck={false} placeholder="voce@exemplo.com" required maxLength={254} /></div>
-            </> : <div className="space-y-2">
-              <label htmlFor="identifier" className="text-sm font-medium">Email ou nome de usuário</label>
+                <FieldDescription id="username-help">3 a 30 caracteres: letras sem acentos, números, ponto ou sublinhado.</FieldDescription>
+              </Field>
+              <Field><FieldLabel htmlFor="email">Email</FieldLabel><Input id="email" name="email" type="email" autoComplete="email" autoCapitalize="none" spellCheck={false} placeholder="voce@exemplo.com" required maxLength={254} /></Field>
+            </> : <Field>
+              <FieldLabel htmlFor="identifier">Email ou nome de usuário</FieldLabel>
               <Input id="identifier" name="identifier" defaultValue={rememberedIdentifier} type="text" autoComplete="username" autoCapitalize="none" spellCheck={false} placeholder="voce@exemplo.com ou seu.usuario" required maxLength={254} />
-            </div>}
-            <div className="space-y-2"><label htmlFor="password" className="text-sm font-medium">Senha</label><Input id="password" name="password" type="password" autoComplete={signingUp ? "new-password" : "current-password"} placeholder={signingUp ? "Pelo menos 8 caracteres" : "Sua senha"} required minLength={signingUp ? 8 : 1} maxLength={128} /></div>
+            </Field>}
+            <Field><FieldLabel htmlFor="password">Senha</FieldLabel><Input id="password" name="password" type="password" autoComplete={signingUp ? "new-password" : "current-password"} placeholder={signingUp ? "Pelo menos 8 caracteres" : "Sua senha"} required minLength={signingUp ? 8 : 1} maxLength={128} /></Field>
             {!signingUp && <div>
               <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm" htmlFor="remember-identifier">
                 <input id="remember-identifier" type="checkbox" checked={remember} onChange={(event) => {
