@@ -75,6 +75,8 @@ Cada procedure define seu método, caminho e descrição com `.route()`. `OpenAP
 
 ## Cliente
 
+O `ThemeProvider` adapta o padrão shadcn/ui para Vite. O controle no cabeçalho e nas telas de acesso alterna apenas entre claro e escuro e sincroniza a preferência entre abas. Sem escolha salva, acompanha o tema do sistema; uma escolha manual persiste no navegador e prevalece sobre o sistema. Os tokens de `styles.css` definem ambas as paletas; um script em `index.html` aplica a escolha antes da renderização. O setup renomeia o namespace da preferência nos dois arquivos.
+
 `apps/client/src/routes` define as rotas por arquivo do TanStack Router. `app/router.tsx` inicializa o router a partir da árvore gerada; os layouts ficam em `app`. As telas e consultas continuam nas respectivas `features`.
 
 ```text

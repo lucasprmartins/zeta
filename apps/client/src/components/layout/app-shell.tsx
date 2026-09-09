@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { CaretRightIcon, ListIcon, SidebarSimpleIcon, XIcon } from "@phosphor-icons/react";
+import { ModeToggle } from "@/components/mode-toggle";
 import { Button } from "@/components/ui/button";
 import { AppSidebar, type SidebarUser } from "./app-sidebar";
 
@@ -65,6 +66,7 @@ export function AppShell({ title, user, leaving, onSignOut, children }: Props) {
         <nav aria-label="Localização" className="min-w-0 text-xs">
           <ol className="flex items-center gap-2"><li className="hidden text-muted-foreground sm:block">Workspace</li><li className="hidden sm:block" aria-hidden="true"><CaretRightIcon className="size-3 text-muted-foreground" /></li><li aria-current="page" className="truncate font-medium">{title}</li></ol>
         </nav>
+        <div className="ml-auto"><ModeToggle /></div>
       </header>
       <main id="main-content" tabIndex={-1} className="outline-none">{children}</main>
     </div>

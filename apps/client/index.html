@@ -7,6 +7,16 @@
     <meta name="description" content="Seu espaço para organizar tarefas." />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>Zeta</title>
+    <script>
+      (() => {
+        let theme = "system";
+        try { theme = localStorage.getItem("zeta:theme") || "system"; } catch {}
+        const resolved = theme === "light" || theme === "dark"
+          ? theme : (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        document.documentElement.classList.add(resolved);
+        document.documentElement.style.colorScheme = resolved;
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

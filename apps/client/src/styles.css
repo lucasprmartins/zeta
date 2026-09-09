@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:is(.dark *));
+
 :root {
   font-family: "Inter", "Avenir Next", "Segoe UI", sans-serif;
   font-synthesis: none;
@@ -24,6 +26,27 @@
   --input: #d4d4d4;
   --ring: #737373;
   --radius: 0.5rem;
+}
+
+.dark {
+  --background: #171717;
+  --sidebar: #141414;
+  --sidebar-active: #292929;
+  --foreground: #fafafa;
+  --card: #1c1c1c;
+  --card-foreground: #fafafa;
+  --primary: #fafafa;
+  --primary-foreground: #171717;
+  --secondary: #292929;
+  --secondary-foreground: #fafafa;
+  --muted: #262626;
+  --muted-foreground: #a3a3a3;
+  --accent: #303030;
+  --accent-foreground: #fafafa;
+  --destructive: #e5e5e5;
+  --border: #333333;
+  --input: #525252;
+  --ring: #a3a3a3;
 }
 
 @theme inline {
@@ -57,7 +80,7 @@
   button, a, input { -webkit-tap-highlight-color: transparent; }
   button:not(:disabled), a { cursor: pointer; }
   a:focus-visible { outline: 2px solid var(--ring); outline-offset: 4px; }
-  ::selection { background: #262626; color: #ffffff; }
+  ::selection { background: var(--foreground); color: var(--background); }
 }
 
 

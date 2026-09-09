@@ -12,7 +12,7 @@ export function TaskItem({ task, pending, onStatus, onDelete, onEdit }: {
   return <li className="group grid grid-cols-[44px_minmax(0,1fr)] items-start gap-2 border-b px-3 py-3 last:border-b-0 hover:bg-sidebar/70 sm:flex sm:items-center sm:gap-3 sm:px-4">
     <button type="button" role="checkbox" aria-checked={completed} aria-label={`${completed ? "Reabrir" : "Concluir"} ${task.title}`} disabled={pending} onClick={() => onStatus(task)}
       className="flex size-11 shrink-0 sm:size-10 items-center justify-center rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50">
-      <span className={`flex size-5 items-center justify-center rounded border ${completed ? "border-primary bg-primary text-white" : "border-neutral-400 bg-white group-hover:border-neutral-700"}`}>
+      <span className={`flex size-5 items-center justify-center rounded border ${completed ? "border-primary bg-primary text-primary-foreground" : "border-input bg-background group-hover:border-foreground"}`}>
         {pending ? <SpinnerGapIcon className="size-3 animate-spin" /> : completed && <CheckIcon className="size-3.5" />}
       </span>
     </button>

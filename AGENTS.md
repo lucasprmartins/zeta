@@ -176,6 +176,8 @@ Use rolagem infinita como padrão para listagens que carregam mais registros con
 
 Os textos de login e cadastro devem se limitar ao acesso e à criação da conta, sem acoplamento às funcionalidades de negócio.
 
+O tema segue o ThemeProvider do shadcn/ui para Vite, com alternância apenas entre claro e escuro. Sem preferência salva, acompanha o sistema; após a escolha manual, a preferência do navegador prevalece. `ModeToggle` fica no cabeçalho e nas telas de acesso; `zeta:theme` persiste a preferência e é renomeado pelo setup. O script inicial em `index.html` evita flashes e deve manter a mesma chave e resolução do provider. Use tokens semânticos para que componentes funcionem nos dois temas.
+
 A identidade visual é centralizada nos tokens de `styles.css`; a configuração existente usa preto, branco e cinzas. Mudanças de marca devem partir desses tokens, preservando contraste, hierarquia visual e adaptação a telas menores. A marca fica em `components/brand.tsx`, o favicon em `public/favicon.svg` e o título em `index.html`.
 
 - Use `AppShell`, `AppSidebar`, `PageContent`, `PageHeader` e `AuthLayout` para a estrutura comum. Todas as páginas autenticadas usam `PageContent`: largura máxima de 1280 px, padding horizontal de 20 px no celular e 32 px a partir de `sm`, vertical de 28/36 px e espaço entre blocos de 28 px. `AuthLayout` reutiliza o mesmo `pagePadding` para login/cadastro, mantendo seu formulário centralizado. Não duplique esses valores nas features; organize formulários em uma grade interna com descrição e campos quando necessário, sem deslocar o container da página. Layouts não consultam dados de negócio.
