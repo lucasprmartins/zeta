@@ -27,5 +27,5 @@ export function can(grants: readonly string[] | undefined, required: Permission)
 export const accessControl = createAccessControl(defaultStatements);
 export const roles = {
   user: accessControl.newRole({}),
-  admin: accessControl.newRole({ user: ["list", "get"], session: ["list", "revoke"] }),
+  admin: accessControl.newRole({ user: ["list", "get", "create", "update", "set-email", "set-password"], session: ["list", "revoke"] }),
 };

@@ -4,13 +4,17 @@ A autenticação pertence ao Better Auth. A autorização de funcionalidades usa
 
 ## Política
 
-- `user` e `admin` são papéis protegidos, criados pela migration. Novas contas recebem `user`; ninguém vira administrador automaticamente.
-- Apenas `admin` administra papéis e atribuições. `access:manage` é reservado; papéis personalizados só recebem ações do catálogo de funcionalidades.
+- `user` e `admin` são papéis protegidos, criados pela migration. Cadastros públicos recebem `user`; a criação administrativa exige um papel explícito. Ninguém vira administrador automaticamente.
+- Apenas `admin` administra contas, papéis e atribuições. `access:manage` é reservado; papéis personalizados só recebem ações do catálogo de funcionalidades.
 - `user` e papéis personalizados podem ter nome, cor e permissões de funcionalidades editados pelo painel. `admin` permite editar apenas nome e cor: recebe automaticamente todas as ações atuais e futuras do catálogo, além de `access:manage`; sua lista persistida de concessões não limita esse acesso. A cor usa hexadecimal de seis dígitos e aparece junto ao nome, nunca como único identificador. `user` e `admin` preservam seus IDs e não podem ser excluídos; `admin` sempre conserva `access:manage`. Papéis personalizados podem ser criados e excluídos. O nome tem até 60 caracteres; há no máximo 100 papéis, incluindo os protegidos. A lista de papéis é carregada por inteiro para edição/seleção; usuários usam rolagem infinita de 20 itens por página, ordenados por nome do papel, ID do papel, nome e ID do usuário. A interface agrupa os itens carregados por ID do papel; os grupos continuam nas próximas páginas e não representam contagens totais.
 - Papéis atribuídos não podem ser excluídos. Reatribua seus usuários primeiro. O último administrador ativo não pode perder seu papel; contas bloqueadas não contam nessa proteção.
 - Permissões liberam ações, não outros proprietários. Administradores também mantêm tarefas privadas. Concessões desconhecidas ou removidas do catálogo não liberam acesso.
 
-O plugin Admin continua com consulta de contas e listagem/revogação de sessões para `admin`. Atribuição de papel, bloqueio, exclusão, impersonação e redefinição administrativa de senha não estão autorizados por seus endpoints. Isso impede contornar o módulo de autorização; não reabilite esses caminhos sem integrar as mesmas proteções.
+O painel cria e edita nome, username, e-mail, papel e senha por `/api/access/users` (POST) e `/api/access/users/{userId}` (PATCH), também disponíveis em RPC. A busca filtra a lista por trechos de nome, nome de usuário ou e-mail, sem diferenciar maiúsculas e sem interpretar curingas. O filtro fica em `q` na URL e é aplicado no servidor antes da paginação; a edição abre pelo botão de cada usuário.
+
+`infrastructure/auth/manage-users.ts` usa as APIs internas do Better Auth em uma transação Drizzle, com o mesmo lock das atribuições de papel. Validações, credenciais, atribuição e revogação de sessões são atômicas. Alterar o e-mail remove sua verificação; omitir senha preserva a credencial. Redefinir senha encerra todas as sessões do alvo, inclusive a atual se o administrador editar a própria conta. O gerador usa Web Crypto; senhas ficam somente no formulário e não no cache de mutations.
+
+O plugin Admin permite consulta de contas e listagem/revogação de sessões para `admin`. Criação, edição e redefinição de senha são habilitadas para chamadas internas, mas seus caminhos HTTP nativos estão em `disabledPaths`, impedindo contornar a transação do painel. Atribuição nativa de papel, bloqueio, exclusão e impersonação continuam sem permissão.
 
 ## Pontos de extensão
 

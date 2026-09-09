@@ -1,3 +1,4 @@
+import type { UserFields, UserManagement } from "../user-management";
 import { ORPCError, type } from "@orpc/server";
 import type { JSONSchema } from "@orpc/openapi";
 import type { manageAccess } from "@server/domain/authorization/application/manage-access";
@@ -30,9 +31,16 @@ const assignInput = documented(type<{ userId: string; roleId: string }>((input) 
 const usersInput = documented(type<{ page?: number; search?: string } | undefined, { page: number; search: string }>((input) => {
   const data = input == null ? {} : object(input);
   const page = data.page === undefined ? 1 : Number(data.page);
-  if (!Number.isSafeInteger(page) || page < 1 || page > 1000000 || (data.search !== undefined && (typeof data.search !== "string" || data.search.length > 120))) throw new ORPCError("BAD_REQUEST");
+  if (!Number.isSafeInteger(page) || page < 1 || page > 1000000 || (data.search !== undefined && (typeof data.search !== "string" || data.search.length > 254))) throw new ORPCError("BAD_REQUEST");
   return { page, search: typeof data.search === "string" ? data.search.trim() : "" };
-}), { type: "object", properties: { page: { type: "integer", minimum: 1, maximum: 1000000 }, search: { type: "string", maxLength: 120 } } });
+}), { type: "object", properties: { page: { type: "integer", minimum: 1, maximum: 1000000 }, search: { type: "string", maxLength: 254 } } });
+const userSchema: JSONSchema = { type: "object", required: ["id", "name", "username", "email", "role", "banned"], properties: { id: textSchema, name: textSchema, username: { type: ["string", "null"] }, email: textSchema, role: { type: ["string", "null"] }, banned: { type: ["boolean", "null"] } } };
+const userFieldsSchema = { type: "object", required: ["name", "username", "email", "roleId"], properties: { userId: textSchema, name: textSchema, username: textSchema, email: textSchema, roleId: textSchema, password: { type: "string", minLength: 8, maxLength: 128, writeOnly: true } } } satisfies JSONSchema;
+function parseUser(input: unknown): UserFields {
+  const data = object(input);
+  if (data.password !== undefined && typeof data.password !== "string") throw new ORPCError("BAD_REQUEST");
+  return { name: text(data.name), username: text(data.username, 30), email: text(data.email, 254), roleId: text(data.roleId), ...(data.password === undefined ? {} : { password: data.password as string }) };
+}
 const route = { tags: ["Controle de acesso"], spec: (operation: import("@orpc/openapi").OpenAPI.OperationObject) => ({ ...operation, security: [{ sessionCookie: [] }] }) };
 const procedure = protectedProcedure.errors({ BAD_REQUEST: {}, UNAUTHORIZED: {}, FORBIDDEN: {}, NOT_FOUND: {}, CONFLICT: {} }).use(async ({ next }) => {
   try { return await next(); } catch (error) {
@@ -40,8 +48,9 @@ const procedure = protectedProcedure.errors({ BAD_REQUEST: {}, UNAUTHORIZED: {},
     throw error;
   }
 });
-export function createAccessRouter(service?: ReturnType<typeof manageAccess>) {
+export function createAccessRouter(service?: ReturnType<typeof manageAccess>, users?: UserManagement) {
   const getService = () => { if (!service) throw new ORPCError("INTERNAL_SERVER_ERROR"); return service; };
+  const getUsers = () => { if (!users) throw new ORPCError("INTERNAL_SERVER_ERROR"); return users; };
   const admin = procedure.use(requirePermission(permissions.access.manage));
   return {
     me: procedure.route({ ...route, method: "GET", path: "/access/me", summary: "Minhas permissões atuais" })
@@ -54,9 +63,15 @@ export function createAccessRouter(service?: ReturnType<typeof manageAccess>) {
       .handler(({ input, context }) => getService().save(context.user.id, input)),
     deleteRole: admin.route({ ...route, method: "DELETE", path: "/access/roles/{id}", summary: "Excluir papel sem usuários" }).input(idInput).output(documented(type<{ id: string }>(), { type: "object", properties: { id: textSchema }, required: ["id"] }))
       .handler(({ input, context }) => getService().remove(context.user.id, input.id)),
-    users: admin.route({ ...route, method: "GET", path: "/access/users", summary: "Listar usuários para atribuição de papel" }).input(usersInput)
-      .output(documented(type<{ items: AccessUser[]; hasMore: boolean }>(), { type: "object", required: ["items", "hasMore"], properties: { hasMore: { type: "boolean" }, items: { type: "array", items: { type: "object", required: ["id", "name", "email", "role", "banned"], properties: { id: textSchema, name: textSchema, email: textSchema, role: textSchema, banned: { type: "boolean" } } } } } }))
+    users: admin.route({ ...route, method: "GET", path: "/access/users", summary: "Listar usuários agrupados por papel" }).input(usersInput)
+      .output(documented(type<{ items: AccessUser[]; hasMore: boolean }>(), { type: "object", required: ["items", "hasMore"], properties: { hasMore: { type: "boolean" }, items: { type: "array", items: userSchema } } }))
       .handler(({ input, context }) => getService().listUsers(context.user.id, input.page, input.search)),
+    createUser: admin.route({ ...route, method: "POST", path: "/access/users", summary: "Criar usuário" })
+      .input(documented(type<UserFields>(parseUser), { ...userFieldsSchema, required: [...userFieldsSchema.required, "password"] })).output(documented(type<AccessUser>(), userSchema))
+      .handler(({ input, context }) => getUsers().create(context.headers, input)),
+    updateUser: admin.route({ ...route, method: "PATCH", path: "/access/users/{userId}", summary: "Editar usuário e acesso" })
+      .input(documented(type<UserFields & { userId: string }>((input) => ({ ...parseUser(input), userId: text(object(input).userId) })), { ...userFieldsSchema, required: ["userId", "name", "username", "email", "roleId"] })).output(documented(type<AccessUser>(), userSchema))
+      .handler(({ input, context }) => getUsers().update(context.headers, input)),
     assignRole: admin.route({ ...route, method: "PATCH", path: "/access/users/{userId}/role", summary: "Atribuir papel a um usuário" }).input(assignInput)
       .output(documented(type<{ userId: string; roleId: string }>(), { type: "object", required: ["userId", "roleId"], properties: { userId: textSchema, roleId: textSchema } }))
       .handler(({ input, context }) => getService().assign(context.user.id, input.userId, input.roleId)),

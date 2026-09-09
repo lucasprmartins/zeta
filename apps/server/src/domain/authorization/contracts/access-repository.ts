@@ -1,5 +1,5 @@
 import type { AccessRole } from "../entities/role";
-export type AccessUser = { id: string; name: string; email: string; role: string; banned: boolean };
+export type AccessUser = { id: string; name: string; email: string; username: string | null; role: string; banned: boolean };
 export interface AccessStore {
   role(id: string): Promise<AccessRole | null>;
   roles(): Promise<AccessRole[]>;

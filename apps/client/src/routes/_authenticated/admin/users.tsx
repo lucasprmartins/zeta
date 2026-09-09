@@ -7,7 +7,7 @@ export const Route = createFileRoute("/_authenticated/admin/users")({
   component: Page,
   validateSearch: (search: Record<string, unknown>): { q?: string; view?: "roles" } => ({
     ...(search.view === "roles" ? { view: "roles" } : {}),
-    ...(typeof search.q === "string" && search.q.trim() && search.q.length <= 120 ? { q: search.q.trim() } : {}),
+    ...(typeof search.q === "string" && search.q.trim() && search.q.length <= 254 ? { q: search.q.trim() } : {}),
   }),
 });
 function Page() {

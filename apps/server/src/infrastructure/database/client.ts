@@ -10,4 +10,5 @@ export function createDatabase(url: string) {
   return { db, close: () => client.close({ timeout: 5 }) };
 }
 
+export type DatabaseConnection = Omit<Database, "$client">;
 export type Database = ReturnType<typeof createDatabase>["db"];

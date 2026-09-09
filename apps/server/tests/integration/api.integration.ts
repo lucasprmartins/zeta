@@ -343,7 +343,7 @@ test("painel cria papéis dinâmicos, revoga concessões e protege a administra�
   expect((await assign(operator.data.user.id, "user")).status).toBe(200);
   expect((await request(`/api/access/roles/${role.id}`, undefined, manager.cookie, "DELETE")).status).toBe(200);
   expect((await assign(operator.data.user.id, role.id)).status).toBe(404);
-  const users = await (await request("/api/access/users?search=dynamic-operator", undefined, manager.cookie)).json();
+  const users = await (await request("/api/access/users?search=dynamic-operator%40example.com", undefined, manager.cookie)).json();
   expect(users.items).toHaveLength(1);
   expect(users.items[0]).toMatchObject({ id: operator.data.user.id, role: "user" });
   // Metadados da UI são publicados junto aos papéis, sem dados de contas para usuários comuns.
@@ -390,9 +390,72 @@ test("persiste cores e pagina usuários em grupos contíguos por papel", async (
   expect(page1.items.slice(12).every((user: { role: string }) => user.role === groupB.id)).toBe(true);
   expect(page2.items.slice(0, 3).every((user: { role: string }) => user.role === groupB.id)).toBe(true);
   expect(new Set([...page1.items, ...page2.items].map((user: { id: string }) => user.id)).size).toBe(page1.items.length + page2.items.length);
+  const filtered = await (await request("/api/access/users?search=group-fixture&page=2", undefined, manager.cookie)).json();
+  expect(filtered.items).toHaveLength(3);
+  expect(filtered.hasMore).toBe(false);
+  expect(filtered.items.every((item: { email: string }) => item.email.includes("group-fixture"))).toBe(true);
   const changed = await request("/api/access/roles", { id: groupA.id, name: "000 Grupo editado", color: "#00AA11", grants: ["tasks:create"] }, manager.cookie);
   expect(changed.status).toBe(200);
   const listing = await (await request("/api/access/roles", undefined, manager.cookie)).json();
   expect(listing.roles.find((role: { id: string }) => role.id === groupA.id)).toMatchObject({ name: "000 Grupo editado", color: "#00aa11", grants: ["tasks:create"] });
   expect(listing.roles.find((role: { id: string }) => role.id === "user").color).toBe("#737373");
+}, 30000);
+
+test("admin gerencia contas atomicamente e filtra contas por nome, nome de usuário e e-mail", async () => {
+  const manager = await signUp("accounts-admin@example.com");
+  const outsider = await signUp("accounts-outsider@example.com");
+  await database.db.execute(sql`update auth_user set role = 'user' where role = 'admin'`);
+  await database.db.execute(sql`update auth_user set role = 'admin' where id = ${manager.data.user.id}`);
+  const fields = { name: "Conta gerenciada", username: "managed.account", email: "managed@example.com", password: "initial-password-123", roleId: "user" };
+  const create = (body: unknown, cookie = manager.cookie) => request("/api/access/users", body, cookie);
+  expect((await request("/api/access/users", fields)).status).toBe(401);
+  expect((await create(fields, outsider.cookie)).status).toBe(403);
+  for (const path of ["create-user", "update-user", "set-user-password"]) expect((await request(`/api/auth/admin/${path}`, fields, manager.cookie)).status).toBe(404);
+  const role = await (await request("/api/access/roles", { name: "Contas gerenciadas", grants: ["tasks:read"] }, manager.cookie)).json();
+  const custom = await create({ ...fields, username: "other.managed", email: "other-managed@example.com", roleId: role.id });
+  expect(custom.status).toBe(200);
+  expect((await custom.json()).role).toBe(role.id);
+  const created = await create(fields);
+  expect(created.status).toBe(200);
+  const account = await created.json();
+  expect(account).toMatchObject({ name: fields.name, username: fields.username, email: fields.email, role: "user" });
+  expect(account.password).toBeUndefined();
+  const login = (username: string, password: string) => request("/api/auth/sign-in/username", { username, password });
+  const signed = await login(fields.username, fields.password);
+  expect(signed.status).toBe(200);
+  const cookie = signed.headers.getSetCookie().map((value) => value.split(";")[0]).join("; ");
+  const lookup = (identifier: string, actor = manager.cookie) => request(`/api/access/users?search=${encodeURIComponent(identifier)}`, undefined, actor);
+  expect((await lookup("MANAGED.ACCOUNT")).status).toBe(200);
+  expect((await lookup("MANAGED@EXAMPLE.COM")).status).toBe(200);
+  for (const identifier of ["managed", "CONTA GERENCI", "MANAGED.ACC", "MANAGED@EXAMPLE"]) {
+    const result = await (await lookup(identifier)).json();
+    expect(result.items.some((item: { id: string }) => item.id === account.id)).toBe(true);
+  }
+  for (const identifier of ["inexistente123", "%", "_no-match_", "\\"]) expect((await (await lookup(identifier)).json()).items).toEqual([]);
+  expect((await lookup(fields.username, outsider.cookie)).status).toBe(403);
+  const update = (body: unknown) => request(`/api/access/users/${account.id}`, body, manager.cookie, "PATCH");
+  // Dados válidos não são parcialmente salvos quando o username conflita.
+  expect((await create({ ...fields, email: "different@example.com" })).status).toBe(409);
+  expect((await update({ ...fields, email: outsider.data.user.email, name: "Não salvar" })).status).toBe(409);
+  expect((await update({ ...fields, name: "Não salvar", password: "short" })).status).toBe(400);
+  expect((await update({ ...fields, username: "other.managed", name: "Não salvar" })).status).toBe(409);
+  expect((await (await lookup(fields.username)).json()).items[0].name).toBe(fields.name);
+  // Sem nova senha, mantém credencial e sessão, mesmo com username inalterado.
+  const { password: _, ...withoutPassword } = fields;
+  expect((await update({ ...withoutPassword, name: "Atualizado" })).status).toBe(200);
+  expect((await request("/api/access/me", undefined, cookie)).status).toBe(200);
+  const changed = { ...fields, name: "Novo nome", username: "new.account", email: "new-managed@example.com", password: "replacement-password-123" };
+  expect((await update(changed)).status).toBe(200);
+  expect((await request("/api/access/me", undefined, cookie)).status).toBe(401);
+  expect((await login(fields.username, fields.password)).status).not.toBe(200);
+  expect((await login(changed.username, changed.password)).status).toBe(200);
+  expect((await request("/api/auth/sign-in/email", { email: changed.email, password: changed.password })).status).toBe(200);
+  expect((await (await lookup(fields.email)).json()).items.some((item: { email: string }) => item.email === fields.email)).toBe(false);
+  expect((await (await lookup(changed.username)).json()).items[0].name).toBe(changed.name);
+  // Falha tardia na atribuição reverte também senha, dados e revogação de sessões.
+  const demotion = await request(`/api/access/users/${manager.data.user.id}`, { name: "Não salvar", username: "rollback.admin", email: manager.data.user.email, password: "replacement-password-123", roleId: "user" }, manager.cookie, "PATCH");
+  expect(demotion.status).toBe(409);
+  expect((await request("/api/access/me", undefined, manager.cookie)).status).toBe(200);
+  expect((await (await lookup("rollback.admin")).json()).items).toEqual([]);
+  expect((await request("/api/auth/sign-in/email", { email: manager.data.user.email, password: "test-password-long-enough-123" })).status).toBe(200);
 }, 30000);

@@ -9,8 +9,8 @@ function setup() {
     ["user", { id: "user", name: "Usuário", color: "#737373", grants: ["tasks:read"], protected: true }],
   ]);
   const users = new Map<string, AccessUser>([
-    ["a", { id: "a", name: "Admin", email: "a@test", role: "admin", banned: false }],
-    ["u", { id: "u", name: "User", email: "u@test", role: "user", banned: false }],
+    ["a", { id: "a", name: "Admin", email: "a@test", username: null, role: "admin", banned: false }],
+    ["u", { id: "u", name: "User", email: "u@test", username: null, role: "user", banned: false }],
   ]);
   const repository: AccessRepository = {
     role: async (id) => roles.get(id) ?? null,

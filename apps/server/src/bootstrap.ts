@@ -1,3 +1,4 @@
+import { createUserManagement } from "./infrastructure/auth/manage-users";
 import { effectiveRoleGrants } from "./domain/authorization/entities/role";
 import { manageAccess } from "./domain/authorization/application/manage-access";
 import { createAccessRepository } from "./infrastructure/repositories/drizzle-access-repository";
@@ -26,7 +27,7 @@ export async function bootstrap(env: Env) {
     update: updateTask(tasks, () => new Date().toISOString()),
     setStatus: setTaskStatus(tasks, () => new Date().toISOString()),
     delete: deleteTask(tasks),
-  }, manageAccess(access, permissionIds, () => crypto.randomUUID()));
+  }, manageAccess(access, permissionIds, () => crypto.randomUUID()), createUserManagement(database.db, env));
   try {
     const app = await createApp({
       router,
