@@ -1,281 +1,134 @@
 # Guia de trabalho do projeto
 
-Este arquivo descreve as convenções de arquitetura, os fluxos técnicos e os acordos de desenvolvimento do monorepo. Regras de negócio e decisões de produto pertencem à documentação do domínio, não às convenções da base.
+## Contexto e fontes
 
-Antes de implementar uma mudança:
+Este guia reúne convenções de desenvolvimento. Consulte os documentos conforme a mudança:
 
-- Leia `README.md` para operação local e `docs/architecture.md` para detalhes da implementação.
-- Consulte `CONTEXT.md` para o vocabulário, as regras e os limites do domínio. Confronte essa documentação com os módulos, casos de uso e testes envolvidos na mudança.
-- Confira os manifests, as rotas e as configurações antes de presumir nomes, versões ou comportamentos. Uma funcionalidade existente não estabelece requisitos para todos os outros módulos.
-- Se houver divergência entre documentação, código e pedido do usuário, identifique-a e ajuste o contexto junto com a implementação; não perpetue regras antigas por estarem documentadas aqui.
+- [README.md](README.md): ambiente local, comandos, setup e publicação.
+- [docs/architecture.md](docs/architecture.md): estrutura, fluxos e comportamentos da interface.
+- [CONTEXT.md](CONTEXT.md): vocabulário e regras do domínio.
+- [.railway/README.md](.railway/README.md): infraestrutura e deploy.
 
-`CLAUDE.md` é um link simbólico relativo para `AGENTS.md`. Edite este arquivo como fonte única das instruções; não substitua o link por uma cópia independente.
+Confira código, manifests e configurações antes de presumir versões ou comportamentos. Resolva divergências com o pedido do usuário e atualize a documentação correspondente. Não trate regras de uma funcionalidade como requisitos universais.
 
-## Acordos de desenvolvimento
+`CLAUDE.md` é um symlink relativo para este arquivo; preserve-o. Mantenha aqui apenas convenções transversais, sem repetir tutoriais ou registrar cada alteração de implementação.
 
-- Use Bun como runtime, gerenciador de pacotes e executor de scripts. Não introduza npm, pnpm, Yarn ou seus lockfiles.
-- Mantenha um único `bun.lock` na raiz. Instale dependências no workspace que as utiliza; preserve versões exatas como nos manifests existentes.
-- Peça confirmação antes de adicionar novas dependências de produção. Ferramentas de build, tipos e ferramentas locais de banco ficam em `devDependencies`.
-- Mantenha TypeScript estrito e ESM. Use `import type` para tipos; não enfraqueça o `tsconfig` para contornar erros.
-- Prefira funções, interfaces e composição explícita. Não acrescente camadas, abstrações genéricas ou dependências sem uma necessidade concreta.
-- Preserve alterações existentes e configurações locais. Não sobrescreva `.env` nem exponha segredos em código, logs, documentação ou respostas.
-- Para documentação atual de bibliotecas e CLIs, use a skill global `find-docs` com o CLI instalado `ctx7` diretamente: primeiro `ctx7 library`, depois `ctx7 docs`. Não use Context7 MCP nem `npx ctx7`. Se a ferramenta não estiver disponível, informe a limitação e consulte fontes oficiais.
-- Ao alterar arquitetura, comandos ou fluxos, atualize a documentação correspondente e este guia quando necessário.
+## Acordos
 
-## Stack e organização
+- Use Bun para runtime, dependências e scripts, com um único `bun.lock` na raiz. Instale no workspace consumidor, com versões exatas; não atualize versões incidentalmente nem introduza outros gerenciadores.
+- Peça confirmação antes de adicionar dependências de produção. Build, tipos e ferramentas locais de banco ficam em `devDependencies`.
+- Use TypeScript estrito, ESM e `import type`. Não enfraqueça tipos ou configurações para contornar erros.
+- Prefira funções, interfaces e composição explícita. Não introduza DI containers, repositories base, buses ou abstrações genéricas sem necessidade concreta.
+- Preserve alterações existentes, arquivos locais e segredos. Não sobrescreva `.env` nem exponha credenciais em código, logs ou respostas.
+- Para documentação atual, use `find-docs` com o CLI global: `ctx7 library`, depois `ctx7 docs`. Não use Context7 MCP nem `npx ctx7`; se indisponível, informe e consulte fontes oficiais.
 
-A raiz contém os workspaces nativos do Bun (`apps/*`), os comandos comuns, `bun.lock`, `tsconfig.base.json` e `compose.yaml`.
+## Organização e dependências
 
-- `apps/server`: Bun, TypeScript 7, Elysia, Drizzle ORM, oRPC, Better Auth e PostgreSQL.
-- `apps/client`: React, TypeScript 7, Vite 8, TanStack Router, TanStack Query, Tailwind CSS 4, componentes shadcn/ui adaptados e Phosphor Icons.
-- As versões exatas ficam nos respectivos `package.json`. Não atualize versões incidentalmente ao implementar uma funcionalidade.
+Monorepo com workspaces Bun em `apps/*`:
 
-```text
-apps/server/
-  src/
-    domain/<modulo>/
-      entities/                     # Estado e invariantes
-      contracts/                    # Interfaces necessárias aos casos de uso
-      application/                  # Casos de uso
-    infrastructure/
-      auth/better-auth.ts           # Better Auth e adapter Drizzle
-      database/
-        client.ts                   # Pool Bun SQL + Drizzle
-        schema/                     # Tabelas de autenticação e negócio
-        migrations/                 # SQL, snapshots e meta/_journal.json
-      repositories/                 # Implementações Drizzle dos contratos
-    interfaces/http/
-      authentication.ts             # Contrato de autenticação do transporte
-      rpc/                          # Router, procedures, contexto e schemas
-      openapi/                      # Documento OpenAPI e organização do Scalar
-      app.ts                        # Elysia e handlers
-    config/env.ts                   # Validação das variáveis de ambiente
-    bootstrap.ts                    # Composição das implementações
-    client.ts                       # Exportação pública somente de tipos
-    main.ts                         # Inicialização HTTP e encerramento
-  scripts/migrate.ts
-  drizzle.config.ts
-  tests/{unit,http,integration,helpers}/
-apps/client/
-  src/
-    app/                            # Inicialização do router e layouts com sessão
-    routes/                         # Rotas por arquivo
-    features/<funcionalidade>/      # Telas, consultas e componentes da funcionalidade
-    components/layout/              # Shell, sidebar e cabeçalhos
-    components/ui/                  # Primitivos compartilhados
-    components/brand.tsx            # Marca em SVG e tipografia
-    lib/                            # Clientes de auth, RPC, Query e utilitários
-    styles.css                      # Tailwind e tokens visuais
-  components.json                   # Configuração shadcn/ui
-  tsr.config.json                   # Geração de rotas
-  vite.config.ts                    # Plugins, alias e proxy local
-```
-
-`<modulo>` e `<funcionalidade>` representam nomes definidos pelo domínio; não são diretórios literais. Consulte os `package.json` para os nomes dos workspaces.
-
-## Servidor: direção das dependências
-
-O domínio usa apenas TypeScript, sem Bun, Node, Elysia, Drizzle, oRPC ou Better Auth. `tsconfig.domain.json` verifica essa separação sem tipos de runtime.
-
-- Entidades validam invariantes e controlam o estado. Não são tabelas Drizzle nem DTOs HTTP.
-- Contratos descrevem as necessidades da aplicação. Não exponha queries, tabelas, sessões ou tipos de bibliotecas nesses contratos.
-- Aplicação coordena entidades e contratos. Repositórios, relógio e geração de IDs são injetados por parâmetros; não acesse banco, relógio global ou runtime diretamente nos casos de uso.
-- Infraestrutura implementa os contratos e converte registros em entidades. A persistência fica em `infrastructure/repositories`.
-- HTTP valida entradas, resolve a identidade e traduz erros de domínio para erros RPC. As procedures recebem casos de uso, não o banco.
-- `bootstrap.ts` é o ponto de composição: cria banco, repositórios, casos de uso, autenticação e aplicação HTTP. `main.ts` cuida do processo.
-
-Não há container de DI, repository base, bus ou hierarquia de classes abstratas. Não introduza essas estruturas por convenção. O domínio se organiza em entidades, contratos e aplicação.
-
-Use `@server/` para imports entre camadas do servidor; ele aponta para `apps/server/src`. Imports locais podem continuar relativos. Dentro do domínio, preserve imports relativos e sua independência.
-
-## Domínio e autorização
-
-Organize cada módulo de negócio em `domain/<modulo>`, usando entidades, contratos e aplicação conforme a necessidade. Defina nomes, invariantes, transições de estado e casos de uso a partir dos requisitos do produto. Não presuma que todo módulo possui proprietário individual, estados de conclusão, operações CRUD ou as mesmas regras de validação.
-
-Mantenha o vocabulário e as regras de negócio em `CONTEXT.md`; use os testes do domínio para verificar invariantes e comportamentos. Ao introduzir ou substituir um módulo, atualize esse contexto e os fluxos afetados. Não replique limites de campos, estados ou indicadores de uma funcionalidade sem que façam sentido para a nova.
-
-A identidade do chamador vem da sessão validada no transporte. Nos recursos privados por usuário, derive o proprietário dessa identidade, nunca de um campo enviado pelo navegador. Caso o produto tenha organizações, equipes ou permissões, estabeleça e valide esse escopo explicitamente antes de acessar os recursos. Outros chamadores, como jobs, também precisam estabelecer uma identidade ou escopo confiável.
-
-Aplique a autorização em cada operação, inclusive listagens. Não exponha a existência de recursos privados fora do escopo autorizado; use a resposta apropriada à política da API. Autenticação por si só não concede acesso a todos os dados, e esconder controles na interface não substitui a autorização no servidor.
-
-## HTTP, oRPC e OpenAPI
-
-- `/rpc/*` usa `RPCHandler` e é consumido pelo cliente React.
-- Endpoints de negócio sob `/api` usam `OpenAPIHandler`, com JSON convencional e caminhos definidos nas procedures.
-- Os dois handlers utilizam as mesmas procedures e casos de uso; não duplique a implementação REST/RPC.
-- `/api/auth/*` é atendido pelo Better Auth.
-- `/health` verifica o processo; `/ready` verifica a conexão com PostgreSQL.
-- `/openapi` apresenta o Scalar; `/openapi/json` serve a especificação.
-
-As procedures definem método, caminho, resumo e tags com `.route()`. Os schemas de entrada e saída combinam validação em runtime e JSON Schema por meio de `documented()`. Ao mudar um endpoint, mantenha os validadores e a documentação coerentes. Traduza erros de domínio para códigos como `BAD_REQUEST` e `NOT_FOUND` no transporte.
-
-`interfaces/http/openapi` combina os documentos de oRPC, Better Auth e Elysia. `auth-sections.ts` organiza o grupo Auth em Acesso, Sessões, Conta e outras seções; novos endpoints de autenticação podem exigir atualização desse agrupamento. Não edite documentos gerados para mudar endpoints.
-
-`createApp` e `bootstrap` são assíncronos, pois aguardam a geração dos schemas. Nos testes, aguarde a criação antes de usar `app.handle`. Preserve o fechamento do pool na falha de inicialização e no encerramento do processo.
-
-## Autenticação e identidade
-
-Better Auth gerencia usuários, senhas e sessões em cookies. As tabelas de autenticação são infraestrutura, não entidades de negócio. Não guarde tokens de sessão em localStorage nem crie uma segunda implementação de autenticação.
-
-O servidor habilita `username()` e o cliente registra `usernameClient()`. O login usa um único campo: entradas com `@` chamam `signIn.email`; as demais chamam `signIn.username`. Não tente os dois métodos sequencialmente nem consulte a existência pública da conta antes do login. “Lembrar-me” guarda apenas o identificador após login bem-sucedido, em localStorage com namespace da aplicação; desmarcar remove o valor salvo imediatamente. Não armazene senha ou sessão nessa preferência nem altere a duração da sessão por causa dela. O setup também renomeia esse namespace.
-
-Ao editar o username no perfil, envie `username` e `displayUsername` juntos no `updateUser`: o plugin não sincroniza automaticamente o nome de exibição nas atualizações. O formulário deve usar o username canônico quando um displayUsername antigo divergir dele, preservando a capitalização quando forem equivalentes.
-
-O cadastro da interface exige username de 3 a 30 caracteres, com letras ASCII, números, ponto ou sublinhado, enviado por `signUp.email`. O plugin valida e normaliza no servidor; o banco garante unicidade. `username` e `displayUsername` são opcionais na tabela para preservar contas anteriores, que continuam entrando por email. O domínio recebe o ID da sessão, nunca o username como substituto da identidade.
-
-Recuperação de senha, verificação de email e provedores sociais precisam de configuração própria. Um endpoint aparecer no Scalar não significa que seu provedor esteja configurado.
-
-## Banco e migrations
-
-PostgreSQL é acessado por Drizzle sobre Bun SQL na API e no migrador. O pacote `postgres` é uma dependência de desenvolvimento para Drizzle Kit/Studio; não o use para substituir o pool da API.
-
-Todas as migrations ficam em `apps/server/src/infrastructure/database/migrations`, incluindo `meta/`, snapshots e journal. `drizzle.config.ts`, `scripts/migrate.ts` e os testes de integração apontam para esse local. Não crie migrations em uma pasta `drizzle/` separada.
-
-Altere as tabelas em `schema/`, execute `db:generate`, revise o SQL e aplique com `db:migrate`. Preserve migrations já aplicadas; faça mudanças incrementais. Não renumere, apague ou regenere o histórico para resolver uma divergência de schema.
-
-`db:push` altera o banco diretamente sem gerar migrations: use apenas quando esse fluxo for solicitado, normalmente em experimentos locais. `db:pull` introspecta o banco e gera arquivos; revise os resultados. Não execute esses comandos como simples validação sem efeitos colaterais.
-
-## Cliente: rotas e dados
-
-Use `@/` para imports do cliente. A exportação pública `/rpc` do workspace do servidor é exclusiva para `import type` de `AppClient`/`AppRouter`; não importe runtime ou implementações do servidor no navegador. O alias `@server/` no TypeScript do cliente resolve referências desses tipos, não é uma API de acesso à infraestrutura.
-
-O código do navegador usa `apps/client/tsconfig.json`. O runtime de produção e seus testes usam `tsconfig.server.json`, com tipos do Bun; os arquivos `server/tsconfig.json` e `tests/tsconfig.json` herdam essa configuração para descoberta automática pelo editor. Preserve essa separação: não adicione tipos globais do Bun ao frontend para corrigir avisos do editor.
-
-O TanStack Router usa rotas por arquivo. A organização abaixo representa o padrão; as páginas de negócio e o destino inicial são definidos pelo produto:
-
-```text
-src/routes/
-  __root.tsx                # Layout raiz, erro e página não encontrada
-  login.tsx                 # /login
-  register.tsx              # /register
-  _authenticated.tsx        # Layout com sessão e sidebar, sem segmento na URL
-  _authenticated/
-    index.tsx               # Entrada autenticada; destino definido pelo produto
-    <pagina>.tsx            # Página autenticada e validação dos parâmetros
-```
-
-Os arquivos de rota conectam telas de `features`, parâmetros e layouts. Mantenha consultas e formulários nas funcionalidades. Para uma nova página autenticada, crie `routes/_authenticated/<pagina>.tsx` com `createFileRoute` e registre a navegação em `components/layout/app-sidebar.tsx`, se necessário.
-
-`app/router.tsx` importa `routeTree.gen.ts`. O plugin TanStack vem antes do plugin React no Vite. `tsr.config.json` centraliza a geração e o code splitting. O Vite gera a árvore durante o desenvolvimento; `routes:generate` roda antes do typecheck/build. Não edite nem versione `routeTree.gen.ts` ou `.tanstack/`.
-
-`RouteError` e `RouteNotFound` são os fallbacks globais do router e da rota raiz. Reutilize `RouteFeedback` para manter título, orientação, detalhes e ações centralizados na área disponível; dentro do shell, a altura desconta o cabeçalho. A tentativa de recuperação invalida o router para executar loaders novamente e reseta os boundaries de Query e Router. Mostre apenas a mensagem do erro, em vermelho pelo token `error-detail`, sem serializar stack, cause ou objetos de resposta; mensagens lançadas no frontend não devem conter segredos. Erros de mutations e consultas tratadas pelas features mantêm seu feedback local ou toast.
-
-`app/workspace.tsx` verifica a sessão e conecta `AppShell` ao `Outlet`; a autorização real permanece no servidor. `app/root-layout.tsx` cancela consultas e limpa o cache quando muda a identidade da sessão, incluindo mudanças entre abas.
-
-Better Auth cuida da sessão; TanStack Query cuida dos dados de negócio. As chaves incluem usuário, formato da consulta e filtro; consultas comuns também incluem a página. Nunca compartilhe uma chave entre consultas comuns e infinitas. Mutations não são repetidas automaticamente e invalidam as consultas afetadas no escopo autorizado, inclusive resumos e indicadores que dependam dos mesmos dados. Não mantenha uma cópia da sessão em um store próprio.
-
-Filtros compartilháveis pertencem à URL e são validados pela rota de acordo com o domínio. Em listagens infinitas, as páginas ficam no cache do TanStack Query, separadas por identidade e filtros. Indicadores devem usar totais retornados pela API ou consultas específicas, nunca presumir que o tamanho da página representa o total de registros.
-
-### Padrão de listagens incrementais
-
-Use rolagem infinita como padrão para listagens que carregam mais registros conforme a navegação.
-
-- Use `infiniteQueryOptions` na feature e `useInfiniteQuery` na tela, com identidade e filtros na chave, `initialPageParam` explícito e `getNextPageParam` retornando `undefined` no fim. Encaminhe o `signal` ao cliente RPC.
-- Reutilize `components/infinite-scroll.tsx` como gatilho de proximidade e botão acessível. A feature controla a consulta; o componente não conhece endpoints ou o domínio. Bloqueie novas buscas durante `isFetching`, use `fetchNextPage({ cancelRefetch: false })` e pause após erro de atualização.
-- Preserve itens já carregados durante novas buscas e erros. Diferencie erro inicial, erro de atualização e erro da próxima página; este último exige tentativa manual, sem loop automático. Não remova páginas antigas com `maxPages` sem planejar o efeito na posição da rolagem.
-- Invalide o prefixo da funcionalidade no escopo afetado após mutations. O Query atualiza as páginas carregadas em sequência; não faça append manual no cache. Consultas comuns de resumos ou indicadores usam chaves distintas das listagens infinitas.
-- O contrato da API define tamanho de página, ordenação determinística e continuação por página ou cursor. A tela une `data.pages` e evita IDs repetidos. Paginação por offset pode omitir itens sob alterações concorrentes; a atualização da lista recompõe as páginas. Não trate a deduplicação como garantia de snapshot consistente nem imponha o mesmo tamanho de página a todos os módulos.
-
-## Interface e acessibilidade
-
-Os textos de login e cadastro devem se limitar ao acesso e à criação da conta, sem acoplamento às funcionalidades de negócio.
-
-O tema segue o ThemeProvider do shadcn/ui para Vite, com alternância apenas entre claro e escuro. Sem preferência salva, acompanha o sistema; após a escolha manual, a preferência do navegador prevalece. `ModeToggle` fica no cabeçalho e nas telas de acesso; `zeta:theme` persiste a preferência e é renomeado pelo setup. O script inicial em `index.html` evita flashes e deve manter a mesma chave e resolução do provider. Use tokens semânticos para que componentes funcionem nos dois temas.
-
-A identidade visual é centralizada nos tokens de `styles.css`; a configuração existente usa preto, branco e cinzas. Mudanças de marca devem partir desses tokens, preservando contraste, hierarquia visual e adaptação a telas menores. A marca fica em `components/brand.tsx`, o favicon em `public/favicon.svg` e o título em `index.html`.
-
-### Composição com shadcn/ui
-
-Use shadcn/ui como primeira escolha para construir e evoluir a UI/UX. Não limite sua utilização a botões, inputs e cards: avalie os componentes e padrões disponíveis de acordo com a interação que a tela precisa oferecer.
-
-- Antes de criar um componente, confira `components/ui`, os componentes compartilhados e as composições das features. Reutilize ou estenda o que já resolve a necessidade, sem criar uma segunda implementação equivalente.
-- Quando faltar um comportamento, consulte o catálogo e a documentação oficial do shadcn/ui usando `find-docs`. Considere, por exemplo, Dropdown Menu para ações secundárias, Tabs para painéis relacionados, Tooltip para ajuda complementar, Skeleton para carregamento e Alert Dialog para confirmações. Escolha pelo comportamento e pela acessibilidade necessários, não apenas pela aparência.
-- Incorpore somente os componentes utilizados pela funcionalidade em desenvolvimento. Adapte o código oficial em `components/ui`, respeitando `components.json`, licença, tokens de tema e Phosphor Icons. Não instale o catálogo inteiro antecipadamente. Novas dependências de produção continuam exigindo confirmação.
-- Componha as telas nas features a partir desses componentes. Primitivos de UI não devem conhecer regras de negócio, autenticação, endpoints ou consultas. Centralize variantes reutilizáveis no componente, evitando estilos e comportamentos duplicados nas páginas.
-- Uma implementação própria precisa de uma necessidade concreta que os componentes existentes ou do shadcn não atendam. Ao evoluir uma tela, avalie substituir controles improvisados pela composição adequada, mantendo o escopo da mudança e preservando os fluxos existentes.
-- As adaptações locais têm contratos próprios: confira suas props antes de copiar exemplos oficiais. A adoção de um componente não pode regredir navegação por teclado, foco, leitores de tela, temas, áreas de toque ou experiência mobile. Preserve especialmente os comportamentos de sidebar e modal descritos abaixo, mesmo ao mudar sua implementação.
-
-O `Toaster` de Sonner fica uma única vez dentro do `ThemeProvider`. Use `toast.success` e `toast.error` para resultados de ações explícitas, como salvar perfil ou senha, com mensagens em português e sem dados sensíveis. Erros de carregamento que precisam permanecer na tela continuam usando `ErrorNotice`/ `Alert`; não substitua rótulos e instruções dos campos por notificações temporárias.
-
-### Layout e interação
-
-- Use `AppShell`, `AppSidebar`, `PageContent`, `PageHeader` e `AuthLayout` para a estrutura comum. Todas as páginas autenticadas usam `PageContent`: largura máxima de 1280 px, padding horizontal de 20 px no celular e 32 px a partir de `sm`, vertical de 28/36 px e espaço entre blocos de 28 px. `AuthLayout` reutiliza o mesmo `pagePadding` para login/cadastro, mantendo seu formulário centralizado. Não duplique esses valores nas features; organize formulários em uma grade interna com descrição e campos quando necessário, sem deslocar o container da página. Layouts não consultam dados de negócio.
-- Componentes shadcn/ui são código local em `components/ui`, com licença preservada. Use as variantes existentes de `Button`; ele é um botão nativo e não implementa `asChild`. Para links com aparência de botão, use `buttonVariants`.
-- Use Phosphor (`@phosphor-icons/react`), imports com sufixo `Icon` e peso padrão `regular`. Navegação e botões usam 18 px; ilustrações de estado vazio podem ser maiores. Use `weight`, não `strokeWidth`; não reintroduza Lucide.
-- A sidebar mede 240 px expandida e 72 px recolhida no desktop. Sua preferência fica no localStorage, em uma chave com namespace da aplicação definida no layout. Ícones e avatar mantêm a posição; textos continuam montados e desaparecem por opacidade, sem alterar o layout. “Workspace” dá lugar a uma linha discreta no estado recolhido.
-- No celular, a navegação usa `dialog` nativo. Preserve Escape, contenção e retorno do foco, bloqueio da rolagem e fechamento ao mudar para desktop.
-- `Modal` usa tela cheia abaixo de 640 px para formulários e painel inferior para `variant="confirmation"`. No desktop, ambos ficam centralizados. Preserve o cabeçalho fixo, a rolagem interna, as áreas seguras e o ajuste ao `visualViewport`. No celular, formulários começam com foco no título para evitar abrir o teclado automaticamente; confirmações focam Cancelar. Preserve o bloqueio de fechamento durante uma mutation.
-- Use alvos de toque de pelo menos 44 px e campos com texto de 16 px no celular. Em listagens, mantenha as ações identificadas e acessíveis no celular; filtros e ações de página devem se adaptar à largura disponível. Não imponha largura mínima ao body que provoque rolagem horizontal.
-- Controles só com ícones precisam de nomes acessíveis. Preserve `aria-current`, foco visível, link para pular a navegação e suporte a movimento reduzido.
-
-## Ambiente e execução
-
-Use os `.env.example` como referência e preserve `.env` existentes. O Bun carrega o ambiente do servidor quando o comando roda em `apps/server`.
-
-O servidor exige `DATABASE_URL`, `BETTER_AUTH_URL` e `BETTER_AUTH_SECRET` (aleatório, pelo menos 32 caracteres; o placeholder é recusado). `PORT` usa 3000 por padrão. `TRUSTED_ORIGINS` contém origens HTTP(S) explícitas separadas por vírgula. Nunca desabilite a proteção de origem para contornar um erro de login.
-
-O cliente local roda em 3001. O Vite encaminha `/api`, `/rpc`, `/openapi`, `/health` e `/ready` para a API; `API_PROXY_TARGET` pode alterar o destino e é exclusivo do processo Vite. Não coloque segredos em variáveis públicas do frontend.
-
-Em produção, sirva `apps/client/dist` com fallback de SPA e proxy para a API na mesma origem; o proxy do Vite não está no bundle. O servidor gera `apps/server/dist/server`, executável standalone Bun com dependências incorporadas. O build usa ESM, bytecode, minificação, nomes preservados e sourcemaps; não incorpore variáveis de ambiente ou segredos. `start` executa o binário e `dev` mantém watch no código-fonte. Compile na plataforma de destino (Linux no Docker); não copie um binário macOS para produção. Bun e dependências externos continuam na imagem para o migrador do pré-deploy. Aplique migrations antes de iniciar a API. HTTPS e origens autorizadas devem refletir os endereços reais. Desenvolvimento, preview e runtime do cliente usam 3001 por padrão; desenvolvimento e preview não rodam simultaneamente nessa porta. Mantenha a origem pública autorizada para autenticação.
-
-## Inicialização e publicação
-
-`scripts/setup.ts` prepara o ambiente local e usa `setup-project.ts` para renomear os pontos explícitos de identidade e criar `.env` ausentes com segredo aleatório. Preserve arquivos existentes integralmente, mantenha comandos como arrays de argumentos e não registre segredos. `--dry-run` não modifica arquivos; `--database skip` não acessa banco. A opção Docker só migra a URL local do Compose fornecido, após validação, e sobrepõe a variável de banco herdada do terminal com o ambiente validado. O setup não remove domínio, README, migrations ou histórico Git.
-
-`scripts/publish.ts` é opcional e exige terminal interativo. Mostra destino, visibilidade e arquivos antes de confirmar criação, commit e push; preserva `origin` e usa o remoto `publish`. Não permita publicação implícita por `--yes` no setup. Não faça force push, não sobrescreva repositórios existentes e bloqueie arquivos `.env` candidatos ao commit. Falhas parciais exigem conferir o estado local/remoto antes de prosseguir. Os testes dos scripts usam diretórios temporários; nunca execute o setup mutável na própria base apenas para validá-lo.
-
-## Comandos e validação
-
-Execute na raiz:
-
-| Comando | Finalidade |
+| Área | Responsabilidade |
 | --- | --- |
-| `bun run setup` | Preparar o projeto localmente |
-| `bun run publish:github` | Publicação opcional com revisão interativa |
-| `bun run db` | Iniciar PostgreSQL do Compose |
-| `bun install --frozen-lockfile` | Instalar as dependências existentes |
-| `bun run dev` | API e cliente em paralelo |
-| `bun run dev:server` / `bun run dev:client` | Executar um app |
-| `bun run typecheck` | Tipos dos apps e independência do domínio |
-| `bun run test` | Testes unitários, HTTP e proxy do cliente sem banco |
-| `bun run test:integration` | Integração real com PostgreSQL |
-| `bun run build` | Build dos dois apps |
-| `bun run check` | Typecheck, testes sem banco e build |
-| `bun run db:generate` / `bun run db:migrate` | Gerar/aplicar migrations |
-| `bun run db:studio` | Iniciar Drizzle Studio |
-| `bun run db:check` | Verificar consistência das migrations |
-| `bun run db:push` / `bun run db:pull` | Sincronização direta/introspecção |
-| `bun run --cwd apps/client routes:generate` | Gerar a árvore de rotas manualmente |
+| `apps/server` | Bun, Elysia, Drizzle, oRPC, Better Auth e PostgreSQL |
+| `server/src/domain/<modulo>` | Entidades, contratos e aplicação em TypeScript puro |
+| `server/src/infrastructure` | Autenticação, banco e implementações dos repositórios |
+| `server/src/interfaces/http` | Validação, autorização, RPC e OpenAPI |
+| `apps/client` | React, Vite, TanStack Router/Query, Tailwind, shadcn/ui e Phosphor |
+| `client/src/{app,routes,features}` | Layouts com sessão, rotas por arquivo e funcionalidades |
+| `client/src/components` | Layouts e primitivas de UI compartilhadas |
 
-`bun run test` executa o script; `bun test` faz descoberta própria e pode incluir integração. Para comandos interativos do Drizzle, execute dentro de `apps/server`, pois `--filter` pode não repassar o TTY.
+Os caminhos `server/` e `client/` da tabela são relativos a `apps/`; versões e nomes dos workspaces estão nos manifests.
 
-Os testes de domínio usam repositório em memória e dependências determinísticas. Os testes HTTP usam a aplicação Elysia sem banco. A integração exige `TEST_DATABASE_URL` apontando para PostgreSQL de desenvolvimento/testes com permissão `CREATEDB`: cria um banco aleatório, valida migrations, autenticação e isolamento e remove esse banco ao terminar. Não execute contra infraestrutura de produção. A suíte também verifica a preservação de registros do schema anterior.
+- O domínio não importa runtime, frameworks, banco ou tipos de transporte. Entidades preservam invariantes; contratos descrevem necessidades; aplicação coordena ambos com repositórios, relógio e IDs injetados. `tsconfig.domain.json` verifica essa independência.
+- Infraestrutura converte registros em entidades. HTTP recebe casos de uso, resolve identidade e traduz erros. `bootstrap.ts` conecta as implementações; `main.ts` controla o processo.
+- Use `@server/` entre camadas do servidor e imports relativos dentro do domínio. No cliente, use `@/`; a entrada pública `/rpc` do workspace do servidor é exclusiva para `import type` de `AppClient`/`AppRouter`.
+- Separe os tipos do navegador dos tipos Bun do runtime de produção: `apps/client/tsconfig.json` e `tsconfig.server.json`, respectivamente. Preserve os tsconfigs locais de `server/` e `tests/` para descoberta pelo editor.
 
-Faça verificações proporcionais à mudança. Para regras, transporte ou autenticação, rode os testes correspondentes; para mudanças de banco, valide migrations e integração quando o ambiente estiver disponível. `bun run check` não inclui integração. Informe quais verificações passaram e qualquer bloqueio real, sem afirmar que testes não executados passaram.
+## Domínio, HTTP e autenticação
 
-## Adicionar funcionalidades
+- Defina módulos e regras a partir do produto, usando apenas as pastas necessárias. Não imponha CRUD, proprietário individual ou estados herdados de outro módulo. Atualize `CONTEXT.md` quando mudar regras ou vocabulário.
+- Autorize cada operação, inclusive listagens. Identidade e escopo vêm de uma sessão validada ou de outro chamador confiável, nunca de um proprietário enviado pelo navegador. Não revele recursos privados fora do escopo autorizado.
+- `/rpc/*` e `/api` usam as mesmas procedures e casos de uso via `RPCHandler` e `OpenAPIHandler`. Defina rotas com `.route()` e mantenha validação e JSON Schema coerentes com `documented()`.
+- `/api/auth/*` pertence ao Better Auth. `/health` verifica o processo; `/ready`, o banco. `/openapi` e `/openapi/json` servem Scalar e especificação. Altere a origem dos schemas e o agrupamento em `interfaces/http/openapi`, não documentos gerados.
+- Aguarde `createApp` e `bootstrap`; são assíncronos. Preserve o fechamento do pool na falha de inicialização e no encerramento.
+- Better Auth controla usuários, senhas e sessões em cookies. Não duplique a sessão em stores nem armazene tokens/senhas em localStorage. As tabelas de autenticação são infraestrutura.
+- Preserve `username()`/`usernameClient()`: login com `@` usa email; demais entradas usam username, sem tentar ambos nem consultar a existência da conta. O servidor valida, normaliza e garante unicidade; contas antigas sem username continuam válidas.
+- Ao alterar username, envie também `displayUsername`. Na leitura, use o username canônico se o nome de exibição antigo divergir dele; preserve capitalização quando equivalentes.
+- “Lembrar-me” salva somente o identificador após login bem-sucedido; desmarcar o remove imediatamente, sem mudar a duração da sessão.
+- Recuperação de senha, verificação de email e provedores sociais exigem configuração própria; aparecer no Scalar não significa estar operacional.
 
-1. Consulte os requisitos e o contexto do domínio; defina regras e contratos usando só as pastas necessárias.
-2. Implemente casos de uso e verifique seu comportamento com dependências em memória.
-3. Adicione schema e repositório; gere e revise migrations quando necessário.
-4. Exponha procedures com validação, documentação e autorização no transporte.
-5. Conecte as dependências em `bootstrap.ts` e registre o módulo no router.
-6. No cliente, crie a feature, consultas e rota por arquivo; reutilize o layout e os componentes compartilhados.
-7. Mantenha invalidação do cache, estados de carregamento/erro e acessibilidade.
-8. Execute as verificações relevantes. Atualize `CONTEXT.md` quando mudar regras ou vocabulário, `README.md` quando mudar a operação e `docs/architecture.md` quando mudar a implementação. Registre neste guia apenas convenções transversais.
+## Banco
 
-Ao mudar a identidade ou o escopo do produto, revise também nomes dos workspaces e seus imports, marca e metadados, namespace das preferências locais, navegação, rota inicial, variáveis de ambiente e identificação da infraestrutura. Faça essas alterações quando estiverem no escopo solicitado; não renomeie a aplicação nem remova módulos ou migrations apenas para adequá-los a este guia.
+- API e migrador usam Drizzle sobre Bun SQL. `postgres` é dependência de desenvolvimento para Drizzle Kit/Studio.
+- Todas as migrations, snapshots e metadados ficam em `apps/server/src/infrastructure/database/migrations`.
+- Altere o schema, execute `db:generate`, revise o SQL e aplique `db:migrate`. Preserve o histórico aplicado; não apague, renumere ou regenere migrations existentes.
+- `db:push` altera o banco diretamente e só deve ser usado quando solicitado. `db:pull` gera arquivos por introspecção. Não use nenhum deles como verificação sem efeitos colaterais.
 
-## Railway: infraestrutura e deploy
+## Rotas e dados do cliente
 
-`.railway/railway.ts` é a fonte de infraestrutura do ambiente inteiro e usa o SDK oficial `railway/iac`, instalado somente como dependência de desenvolvimento na raiz. Não use `railway.json` ou `railway.toml`. Leia `.railway/README.md` antes de alterar o deploy.
+- Rotas TanStack por arquivo conectam parâmetros e telas de `features`. Páginas autenticadas ficam em `routes/_authenticated/`; registre a navegação em `app-sidebar.tsx` quando necessário.
+- Preserve o plugin TanStack antes do React no Vite e a configuração em `tsr.config.json`. Não edite nem versione `routeTree.gen.ts` ou `.tanstack/`; a geração roda antes de typecheck/build.
+- Reutilize `RouteError`, `RouteNotFound` e `RouteFeedback`: conteúdo centralizado, mensagem técnica em vermelho e recuperação via `router.invalidate()` e reset dos boundaries. Exiba apenas a mensagem, sem stack, cause, objetos de resposta ou segredos.
+- Better Auth cuida da sessão; TanStack Query, dos dados de negócio. Preserve cancelamento e limpeza do cache quando a identidade muda, inclusive entre abas.
+- Chaves de consulta incluem identidade, formato e filtros; consultas comuns também incluem página. Nunca compartilhe chaves entre consultas comuns e infinitas.
+- Filtros compartilháveis ficam na URL e são validados pela rota. Mutations não têm repetição automática; invalidam todas as consultas afetadas no escopo do usuário, inclusive resumos. Totais vêm da API, não do tamanho da página carregada.
 
-- Use exclusivamente o CLI global `railway` para operações Railway. Não instale nem configure Railway MCP e não execute `railway setup agent`. Avisos sobre MCP ausente são intencionais. Atualizações da skill global usam `skills update -g use-railway`.
-- O IaC define `postgres`, `server` e `client`. Os builds usam a raiz do monorepo e os Dockerfiles em cada app; não altere a Root Directory para uma subpasta.
-- Apenas `client` precisa de domínio público. Ele serve `dist` e encaminha `/api`, `/rpc`, `/openapi`, `/health` e `/ready` à API privada usando Bun. O Vite não é servidor de produção.
-- `PUBLIC_URL` e `BETTER_AUTH_SECRET` são variáveis compartilhadas previamente configuradas no Railway e referenciadas por `ctx.shared`. Não coloque valores secretos no IaC. `DATABASE_URL`, `API_HOST` e `API_PORT` usam referências entre recursos.
-- A API executa migrations no pré-deploy e usa `/ready` como healthcheck. O cliente usa `/_health`. Ambos escutam em `::`, para a rede privada IPv6 e IPv4.
-- `bun run railway:typecheck` valida os tipos; `bun run railway:plan` lê o estado remoto e compara mudanças. Confirme o projeto e ambiente antes de qualquer operação remota. Não aplique o plano sem solicitação explícita; recursos omitidos podem ser removidos.
-- Não use `apply --yes` ou `--confirm-destructive` sem aprovação do plano exato. Configuração aplicada e código publicado são etapas distintas; só reporte deploy concluído após verificar `SUCCESS`.
-- `apps/client/server` contém o runtime Bun de produção; `apps/client/tests` verifica estáticos, fallback SPA, proxy, cookies e erros de conexão. Preserve esses comportamentos ao alterar o runtime. `bun run check` inclui esses testes e o typecheck do IaC.
-- `.dockerignore` e `.railwayignore` impedem o envio de `.env`, dependências e builds locais. Preserve essas exclusões.
+### Listagens incrementais
+
+Use rolagem infinita para carregamento progressivo:
+
+- `infiniteQueryOptions` na feature, `useInfiniteQuery` na tela, `initialPageParam` explícito, `getNextPageParam` retornando `undefined` no fim e `signal` encaminhado ao RPC.
+- Reutilize `InfiniteScroll` como gatilho e botão acessível. Bloqueie buscas durante `isFetching`, use `fetchNextPage({ cancelRefetch: false })` e pause após erro de atualização.
+- Preserve itens durante buscas/erros; separe erro inicial, atualização e próxima página. Erro de continuação exige tentativa manual. Não remova páginas com `maxPages` sem considerar a rolagem.
+- Após mutations, invalide o prefixo da feature; não faça append manual. Ordenação e paginação pertencem ao contrato da API. Deduplicar IDs não evita omissões por concorrência com offset nem garante snapshot consistente.
+
+## UI/UX
+
+### shadcn/ui como primeira escolha
+
+- Antes de criar UI, confira `components/ui`, componentes compartilhados e composições existentes. Reutilize-os; quando faltar comportamento, consulte o catálogo oficial via `find-docs`, incluindo opções além de botões, inputs e cards.
+- Incorpore apenas componentes utilizados, adaptando o código oficial conforme `components.json`, licença, tokens e Phosphor. Uma implementação própria precisa de uma necessidade que essas opções não atendam.
+- Componha telas nas features; primitivas e layouts não conhecem regras de negócio ou consultas. Centralize variantes e confira as props locais antes de copiar exemplos: `Button` é nativo, sem `asChild`; links usam `buttonVariants`.
+- Use `Field` para formulários, `Card` para superfícies, `Empty` para estados vazios e skeletons adequados ao conteúdo. Mantenha IDs, descrições e validações acessíveis.
+- Sonner fica uma vez dentro do `ThemeProvider`. Toasts comunicam resultados de ações; erros persistentes de carregamento usam `ErrorNotice`/`Alert`. Notificações não substituem instruções dos campos.
+- Use Phosphor com sufixo `Icon`, peso `regular` e 18 px em navegação/botões. Use `weight`, não `strokeWidth`; não reintroduza Lucide.
+
+### Layout, tema e acessibilidade
+
+- Reutilize `AppShell`, `AppSidebar`, `PageContent`, `PageHeader` e `AuthLayout`. Páginas autenticadas usam `PageContent`; não replique medidas e paddings nas features.
+- Use tokens semânticos de `styles.css`. O toggle alterna claro/escuro: sem preferência salva segue o sistema; escolha manual prevalece. Preserve a mesma chave e resolução de tema no provider e no script inicial de `index.html`.
+- Preserve posições de ícones/avatar durante expansão da sidebar; textos permanecem montados e somem por opacidade. A gaveta mobile mantém Escape, foco contido e restaurado, bloqueio de rolagem e fechamento ao mudar para desktop.
+- Preserve `Modal` em tela cheia no mobile para formulários e painel inferior para confirmação, centralizado no desktop. Mantenha cabeçalho visível, rolagem interna, áreas seguras e `visualViewport`; foco inicial no título no mobile e em Cancelar nas confirmações. Bloqueie fechamento durante mutations.
+- Mantenha alvos de toque de 44 px, campos de 16 px no mobile, foco visível, nomes acessíveis em ícones, `aria-current`, link para pular navegação e movimento reduzido. Não provoque rolagem horizontal.
+- Textos de login/cadastro tratam apenas do acesso à conta. Ao mudar marca, revise tokens, `brand.tsx`, favicon e metadados, sem acoplar a autenticação ao domínio.
+
+## Ambiente, setup e publicação
+
+- Use os `.env.example` e a validação em `config/env.ts`. API usa 3000 e cliente 3001; o Vite encaminha API/RPC/docs/saúde à API. `API_PROXY_TARGET` é exclusivo do Vite.
+- Não desabilite proteção de origem ou exponha segredos em variáveis públicas. URLs e origens autorizadas devem refletir o ambiente real.
+- Produção usa o runtime Bun em `apps/client/server` para estáticos, fallback SPA e proxy na mesma origem. Preserve cookies, origem, cache e erros de conexão; Vite não serve produção.
+- Compile o binário da API na plataforma de destino, sem incorporar ambiente/segredos. Mantenha Bun e dependências necessários ao migrador na imagem e aplique migrations antes da API.
+- Setup preserva arquivos existentes e histórico. `--dry-run` não modifica nada; `--database skip` não acessa banco. Docker só migra a URL local validada do Compose, sobrepondo a variável herdada do terminal. Teste setup em diretórios temporários.
+- Publicação é opcional e interativa: revise destino, visibilidade e arquivos antes de criar/commitar/enviar. Preserve `origin`, use `publish`, bloqueie `.env` candidatos e não permita publicação implícita por `--yes`, force push ou sobrescrita de repositórios. Confira estado local/remoto após falhas parciais.
+- Ao alterar identidade do produto, revise nomes/imports dos workspaces, marca, namespaces locais (incluindo a lista explícita do setup), navegação, entrada, ambiente e infraestrutura. Não renomeie ou remova módulos/migrations fora do escopo solicitado.
+
+## Validação
+
+Execute na raiz; a lista completa de comandos está no README.
+
+- `bun run typecheck`: apps, domínio, scripts e IaC.
+- `bun run test`: testes sem banco. `bun test` faz descoberta própria e pode incluir integração.
+- `bun run build`: ambos os apps. `bun run check`: tipos, testes sem banco e build.
+- `bun run test:integration`: exige `TEST_DATABASE_URL` de desenvolvimento/testes com permissão `CREATEDB`; cria e remove um banco temporário. Nunca use produção. Não faz parte de `check`.
+- Para alterações no banco, confira migrations e integração; em regras, transporte e autenticação, execute os testes correspondentes. Testes de domínio usam dependências determinísticas e repositórios em memória.
+- Faça verificações proporcionais, relate o que executou e os bloqueios reais. Comandos interativos Drizzle devem rodar em `apps/server` para preservar o TTY.
+
+## Railway
+
+Leia [.railway/README.md](.railway/README.md) antes de alterar infraestrutura.
+
+- `.railway/railway.ts` define o ambiente inteiro via `railway/iac`, dependência de desenvolvimento. Não use `railway.json` ou `railway.toml`.
+- Use somente o CLI global `railway`; nunca instale/configure Railway MCP nem execute `railway setup agent`. Avisos de MCP ausente são intencionais. A skill global é atualizada com `skills update -g use-railway`.
+- Builds usam a raiz do monorepo. Apenas o cliente tem domínio público; API e PostgreSQL usam rede privada. Segredos ficam nas variáveis compartilhadas, referenciadas por `ctx.shared`.
+- Preserve migrations no pré-deploy, healthchecks e exclusões de segredos, dependências e builds locais em `.dockerignore`/`.railwayignore`.
+- Confira projeto e ambiente antes de operações remotas. `railway:typecheck` valida tipos; `railway:plan` compara o estado remoto. Não aplique sem solicitação explícita: recursos omitidos podem ser removidos.
+- `apply --yes` e `--confirm-destructive` exigem aprovação do plano exato. Aplicar IaC e publicar código são etapas distintas; só declare deploy concluído após verificar `SUCCESS`.
