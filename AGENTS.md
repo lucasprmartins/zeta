@@ -4,10 +4,11 @@
 
 Este guia reúne convenções de desenvolvimento. Consulte os documentos conforme a mudança:
 
-- [README.md](README.md): ambiente local, comandos, setup e publicação.
 - [docs/architecture.md](docs/architecture.md): estrutura, fluxos e comportamentos da interface.
 - [CONTEXT.md](CONTEXT.md): vocabulário e regras do domínio.
 - [.railway/README.md](.railway/README.md): infraestrutura e deploy.
+
+O README da raiz pertence à apresentação do produto e pode ser reescrito. Consulte-o quando relevante ao pedido, sem depender dele para convenções técnicas. Para comandos e ambiente, confira os `package.json`, os `.env.example` e as configurações dos apps.
 
 Confira código, manifests e configurações antes de presumir versões ou comportamentos. Resolva divergências com o pedido do usuário e atualize a documentação correspondente. Não trate regras de uma funcionalidade como requisitos universais.
 
@@ -113,7 +114,7 @@ Use rolagem infinita para carregamento progressivo:
 
 ## Validação
 
-Execute na raiz; a lista completa de comandos está no README.
+Execute na raiz; os scripts disponíveis e seus detalhes estão nos `package.json` da raiz e dos apps.
 
 - `bun run typecheck`: apps, domínio, scripts e IaC.
 - `bun run test`: testes sem banco. `bun test` faz descoberta própria e pode incluir integração.
