@@ -34,9 +34,9 @@ export const catalog = [
       },
       {
         id: "tasks:mention",
-        label: "Mencionar contas",
+        label: "Indicar responsável",
         description:
-          "Consultar as contas do sistema e indicar quem está relacionado a uma tarefa.",
+          "Consultar as contas do sistema e indicar quem responde por uma tarefa.",
       },
     ],
   },

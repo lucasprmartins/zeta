@@ -7,7 +7,7 @@ export type TaskData = Readonly<{
   title: string;
   description: string;
   status: TaskStatus;
-  // Contas indicadas para saber que estão relacionadas à tarefa.
+  // Contas indicadas como responsáveis por esta tarefa.
   mentions: readonly string[];
   createdAt: string;
   updatedAt: string;
@@ -21,13 +21,13 @@ function normalizeMentions(mentions: readonly string[]): readonly string[] {
   for (const mention of mentions) {
     const id = typeof mention === "string" ? mention.trim() : "";
     if (!id) {
-      throw new InvalidTaskError("Menção sem identificador de conta.");
+      throw new InvalidTaskError("Responsável sem identificador de conta.");
     }
     unique.add(id);
   }
   if (unique.size > MAX_MENTIONS) {
     throw new InvalidTaskError(
-      `Uma tarefa menciona no máximo ${MAX_MENTIONS} contas.`
+      `Uma tarefa tem no máximo ${MAX_MENTIONS} responsáveis.`
     );
   }
   return Object.freeze([...unique]);

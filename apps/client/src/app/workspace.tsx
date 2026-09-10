@@ -3,6 +3,7 @@ import { Navigate, Outlet, useRouterState } from "@tanstack/react-router";
 import { useState } from "react";
 import { ErrorNotice, Loading } from "@/components/feedback";
 import { AppShell } from "@/components/layout/app-shell";
+import { pageBreadcrumb } from "@/components/layout/app-sidebar";
 import { AccessProvider } from "@/components/permission-boundary";
 import { authClient } from "@/lib/auth";
 
@@ -51,22 +52,14 @@ export function Workspace() {
   }
 
   const user = session.data.user;
+  const { section, title } = pageBreadcrumb(pathname);
   return (
     <AccessProvider key={user.id} userId={user.id}>
       <AppShell
         leaving={leaving}
         onSignOut={() => void signOut()}
-        title={
-          pathname.startsWith("/admin/")
-            ? "Administração"
-            : pathname === "/help" || pathname.startsWith("/help/")
-              ? "Ajuda"
-              : pathname === "/profile"
-                ? "Perfil"
-                : pathname === "/dashboard"
-                  ? "Dashboard"
-                  : "Tarefas"
-        }
+        section={section}
+        title={title}
         user={user}
       >
         {error && (

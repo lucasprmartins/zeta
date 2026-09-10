@@ -62,11 +62,11 @@ const route = {
   }),
 };
 
-// Criar e editar não implicam indicar contas: mencionar é uma permissão própria.
+// Criar e editar não implicam indicar quem responde: é uma permissão própria.
 function ensureMayMention(grants: string[], mentions: readonly string[]) {
   if (mentions.length > 0 && !can(grants, permissions.tasks.mention)) {
     throw new ORPCError("FORBIDDEN", {
-      message: "Você não tem permissão para mencionar contas.",
+      message: "Você não tem permissão para indicar responsáveis.",
     });
   }
 }
@@ -150,7 +150,7 @@ export function createTasksRouter(useCases: TaskUseCases) {
         ...route,
         method: "GET",
         path: "/tasks/mentions",
-        summary: "Buscar contas para mencionar",
+        summary: "Buscar contas para indicar como responsável",
       })
       .input(mentionSearchInput)
       .output(mentionListOutput)

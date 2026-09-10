@@ -20,6 +20,7 @@ function readPreference() {
 }
 
 type Props = {
+  section: string;
   title: string;
   user: SidebarUser;
   leaving: boolean;
@@ -27,7 +28,14 @@ type Props = {
   children: ReactNode;
 };
 
-export function AppShell({ title, user, leaving, onSignOut, children }: Props) {
+export function AppShell({
+  section,
+  title,
+  user,
+  leaving,
+  onSignOut,
+  children,
+}: Props) {
   const [collapsed, setCollapsed] = useState(readPreference);
   const [mobileOpen, setMobileOpen] = useState(false);
   const mobileDialog = useRef<HTMLDialogElement>(null);
@@ -127,7 +135,7 @@ export function AppShell({ title, user, leaving, onSignOut, children }: Props) {
           <nav aria-label="Localização" className="min-w-0 text-xs">
             <ol className="flex items-center gap-2">
               <li className="hidden text-muted-foreground sm:block">
-                Workspace
+                {section}
               </li>
               <li aria-hidden="true" className="hidden sm:block">
                 <CaretRightIcon className="size-3 text-muted-foreground" />

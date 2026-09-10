@@ -1,6 +1,8 @@
 import {
   BookOpenIcon,
+  CaretUpDownIcon,
   CheckSquareIcon,
+  GearIcon,
   LayoutIcon,
   type Icon as PhosphorIcon,
   QuestionIcon,
@@ -8,22 +10,24 @@ import {
   SlidersHorizontalIcon,
   UsersIcon,
 } from "@phosphor-icons/react";
-import { Link } from "@tanstack/react-router";
+import { Link, useLocation } from "@tanstack/react-router";
+import { useCallback, useState } from "react";
 import { BlockMark } from "@/components/brand";
 import { usePermissions } from "@/components/permission-boundary";
 import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { type Permission, permissions } from "@/lib/access";
 import { cn } from "@/lib/utils";
 
 // Grupos vazios não aparecem para contas sem as permissões correspondentes.
 type NavigationItem = {
   label: string;
-  to:
-    | "/dashboard"
-    | "/tasks"
-    | "/admin/users"
-    | "/admin/console"
-    | "/admin/guides";
+  to: "/dashboard" | "/tasks";
   icon: PhosphorIcon;
   permission?: Permission;
 };
@@ -45,30 +49,59 @@ const navigation: { label: string; items: NavigationItem[] }[] = [
       },
     ],
   },
+];
+
+// Administração fica no rodapé, reunida em um menu para não competir com o trabalho do dia.
+type AdministrationItem = {
+  label: string;
+  to: "/admin/console" | "/admin/users" | "/admin/guides";
+  icon: PhosphorIcon;
+  permission: Permission;
+};
+const administration: AdministrationItem[] = [
   {
-    label: "Administração",
-    items: [
-      {
-        label: "Console",
-        to: "/admin/console",
-        icon: SlidersHorizontalIcon,
-        permission: permissions.access.manage,
-      },
-      {
-        label: "Usuários",
-        to: "/admin/users",
-        icon: UsersIcon,
-        permission: permissions.access.manage,
-      },
-      {
-        label: "Guias",
-        to: "/admin/guides",
-        icon: BookOpenIcon,
-        permission: permissions.access.manage,
-      },
-    ],
+    label: "Console",
+    to: "/admin/console",
+    icon: SlidersHorizontalIcon,
+    permission: permissions.access.manage,
+  },
+  {
+    label: "Usuários",
+    to: "/admin/users",
+    icon: UsersIcon,
+    permission: permissions.access.manage,
+  },
+  {
+    label: "Guias",
+    to: "/admin/guides",
+    icon: BookOpenIcon,
+    permission: permissions.access.manage,
   },
 ];
+
+const inRoute = (pathname: string, to: string) =>
+  pathname === to || pathname.startsWith(`${to}/`);
+
+// A trilha do cabeçalho nomeia a seção e a página com os mesmos rótulos da navegação.
+export function pageBreadcrumb(pathname: string) {
+  const admin = administration.find((item) => inRoute(pathname, item.to));
+  if (admin) {
+    return { section: "Administração", title: admin.label };
+  }
+  const item = navigation
+    .flatMap((group) => group.items)
+    .find((entry) => inRoute(pathname, entry.to));
+  if (item) {
+    return { section: "Workspace", title: item.label };
+  }
+  if (inRoute(pathname, "/help")) {
+    return { section: "Workspace", title: "Ajuda" };
+  }
+  if (inRoute(pathname, "/profile")) {
+    return { section: "Workspace", title: "Perfil" };
+  }
+  return { section: "Workspace", title: "Tarefas" };
+}
 
 export type SidebarUser = {
   name: string;
@@ -92,6 +125,12 @@ export function AppSidebar({
   onNavigate,
 }: Props) {
   const { can } = usePermissions();
+  const { pathname } = useLocation();
+  // Na gaveta mobile o menu precisa abrir dentro do dialog, que ocupa a top layer sozinho.
+  const [drawer, setDrawer] = useState<HTMLElement | null>(null);
+  const attachFooter = useCallback((node: HTMLDivElement | null) => {
+    setDrawer(node?.closest("dialog") ?? null);
+  }, []);
   const groups = navigation
     .map((group) => ({
       ...group,
@@ -100,6 +139,8 @@ export function AppSidebar({
       ),
     }))
     .filter((group) => group.items.length > 0);
+  const adminItems = administration.filter((item) => can(item.permission));
+  const adminActive = adminItems.some((item) => inRoute(pathname, item.to));
   // Preserve o espaço dos rótulos para que os ícones não mudem de posição.
   const labelClass = cn(
     "shrink-0 whitespace-nowrap transition-opacity duration-150",
@@ -185,7 +226,7 @@ export function AppSidebar({
         ))}
       </nav>
 
-      <div className="shrink-0 space-y-3 border-t p-3">
+      <div className="shrink-0 space-y-3 border-t p-3" ref={attachFooter}>
         <Link
           activeOptions={{ exact: true }}
           activeProps={{
@@ -211,6 +252,57 @@ export function AppSidebar({
             </p>
           </div>
         </Link>
+        {adminItems.length > 0 && (
+          // Sem modal: o scroll e o foco continuam com o dialog da gaveta no mobile.
+          <DropdownMenu modal={false}>
+            <DropdownMenuTrigger
+              aria-label={collapsed ? "Administração" : undefined}
+              className={cn(
+                buttonVariants({
+                  variant: "ghost",
+                  size: "sm",
+                  className:
+                    "w-full justify-start gap-3 px-[15px] text-muted-foreground",
+                }),
+                adminActive && "bg-sidebar-active text-foreground"
+              )}
+              title={collapsed ? "Administração" : undefined}
+            >
+              <GearIcon aria-hidden="true" weight="regular" />
+              <span aria-hidden={collapsed} className={labelClass}>
+                Administração
+              </span>
+              <CaretUpDownIcon
+                aria-hidden="true"
+                className={cn("ml-auto", labelClass)}
+                weight="regular"
+              />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" container={drawer} side="top">
+              {adminItems.map(({ label, to, icon: Icon }) => (
+                <DropdownMenuItem asChild key={to}>
+                  <Link
+                    activeOptions={{ exact: false, includeSearch: false }}
+                    activeProps={{
+                      className: "bg-sidebar-active text-foreground",
+                      "aria-current": "page",
+                    }}
+                    inactiveProps={{ className: "text-muted-foreground" }}
+                    onClick={onNavigate}
+                    to={to}
+                  >
+                    <Icon
+                      aria-hidden="true"
+                      className="size-[18px] shrink-0"
+                      weight="regular"
+                    />
+                    {label}
+                  </Link>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
         <Link
           activeOptions={{ exact: false, includeSearch: false }}
           activeProps={{

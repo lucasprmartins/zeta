@@ -51,7 +51,7 @@ export function MentionPicker({
       </FieldLabel>
       <p className="text-muted-foreground text-xs" id={`${id}-hint`}>
         Quem for indicado aqui responde por esta tarefa e aparece na lista.
-        {full ? ` Limite de ${MAX_MENTIONS} contas atingido.` : ""}
+        {full ? ` Limite de ${MAX_MENTIONS} responsáveis atingido.` : ""}
       </p>
       {value.length > 0 && (
         <ul
@@ -112,7 +112,7 @@ export function MentionPicker({
             <EmptyDescription>
               {term
                 ? "Tente outro nome ou usuário."
-                : "Nenhuma conta disponível para indicar."}
+                : "Nenhuma conta disponível para indicar como responsável."}
             </EmptyDescription>
           </Empty>
         ) : (

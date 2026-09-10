@@ -125,7 +125,8 @@ Os componentes locais adaptam shadcn/ui conforme `components.json`. Formulários
 
 ### Layout e mobile
 
-- `AppShell` contém sidebar, cabeçalho de 64 px e área principal; `AppSidebar` centraliza navegação e acesso ao perfil pelo bloco da conta.
+- `AppShell` contém sidebar, cabeçalho de 64 px e área principal; `AppSidebar` centraliza navegação e acesso ao perfil pelo bloco da conta. A trilha do cabeçalho vem de `pageBreadcrumb`, que nomeia seção e página com os rótulos da própria navegação — rotas `/admin/*` ficam sob Administração, as demais sob Workspace. Abaixo de 640 px só a página aparece.
+- O corpo da sidebar lista o grupo Workspace; o rodapé reúne conta, Administração, Ajuda e Sair. Administração é um `DropdownMenu` que abre acima do acionador com Console, Usuários e Guias, some quando a conta não tem `access:manage` e destaca o acionador enquanto uma dessas rotas está ativa. Na gaveta mobile o menu é montado dentro do dialog, que ocupa a top layer sozinho.
 - `PageContent` limita páginas a 1280 px, com padding horizontal de 20/32 px, vertical de 28/36 px e espaço de 28 px entre blocos. `PageHeader` organiza título e ações; `AuthLayout` centraliza os formulários de acesso.
 - A sidebar mede 240/72 px no desktop, a partir de 1024 px. Ícones permanecem fixos e rótulos desaparecem por opacidade. No mobile, um dialog nativo apresenta a gaveta, controla foco e rolagem e fecha na navegação.
 - `Modal` apresenta formulários em tela cheia abaixo de 640 px e confirmações em painel inferior; no desktop, ambos ficam centralizados. Cabeçalho fixo, rolagem interna, áreas seguras e `visualViewport` acomodam o teclado. O foco inicial vai ao título no mobile ou a Cancelar nas confirmações; mutations bloqueiam o fechamento.

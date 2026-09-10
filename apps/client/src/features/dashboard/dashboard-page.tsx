@@ -178,7 +178,7 @@ function AssigneeChart({ summary }: { summary: TaskSummary }) {
             Carga por responsável
           </h2>
           <p className="mt-1 text-muted-foreground text-xs">
-            As contas com mais tarefas indicadas, divididas por status.
+            Quem responde por mais tarefas, dividido por status.
           </p>
         </div>
         <UsersIcon

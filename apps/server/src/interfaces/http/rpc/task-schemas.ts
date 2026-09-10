@@ -33,7 +33,7 @@ const mentions: JSONSchema = {
   type: "array",
   items: { type: "string" },
   maxItems: MAX_MENTIONS,
-  description: "Identificadores das contas relacionadas à tarefa.",
+  description: "Identificadores das contas responsáveis pela tarefa.",
 };
 const task: JSONSchema = {
   type: "object",
@@ -101,14 +101,14 @@ function parseMentions(input: unknown): string[] {
   }
   if (!Array.isArray(input) || input.length > MAX_MENTIONS) {
     throw new ORPCError("BAD_REQUEST", {
-      message: `Informe até ${MAX_MENTIONS} contas mencionadas.`,
+      message: `Informe até ${MAX_MENTIONS} responsáveis.`,
     });
   }
   return input.map((value) => {
-    const account = text(value, "a conta mencionada").trim();
+    const account = text(value, "o responsável").trim();
     if (!account || account.length > 255) {
       throw new ORPCError("BAD_REQUEST", {
-        message: "Conta mencionada inválida.",
+        message: "Responsável inválido.",
       });
     }
     return account;
