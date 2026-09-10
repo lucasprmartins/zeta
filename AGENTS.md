@@ -118,6 +118,7 @@ Use rolagem infinita para carregamento progressivo:
 - Use `Field` para formulários, `Card` para superfícies, `Empty` para estados vazios e skeletons adequados ao conteúdo. Mantenha IDs, descrições e validações acessíveis.
 - Sonner fica uma vez dentro do `ThemeProvider`. Toasts comunicam resultados de ações; erros persistentes de carregamento usam `ErrorNotice`/`Alert`. Notificações não substituem instruções dos campos.
 - Use Phosphor com sufixo `Icon`, peso `regular` e 18 px em navegação/botões. Use `weight`, não `strokeWidth`; não reintroduza Lucide.
+- Gráficos usam Recharts pela primitiva `chart.tsx`, com a API `config`/`--color-<chave>` do shadcn. Séries saem dos tokens `--chart-1`/`--chart-2`, na ordem categórica fixa — a cor pertence à entidade, nunca ao ranking. Antes de acrescentar ou trocar cor de série, rode o validador da skill `dataviz` para as duas superfícies; identidade nunca fica só na cor, então mantenha legenda a partir de duas séries.
 
 ### Layout, tema e acessibilidade
 
