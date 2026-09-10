@@ -6,6 +6,6 @@ export default defineConfig({
   out: "./src/infrastructure/database/migrations",
   strict: true,
   schemaFilter: ["public", "auth", "console"],
-  migrations: { schema: "drizzle", table: "__drizzle_migrations" },
+  migrations: { schema: "drizzle", table: "migrations" },
   ...(process.env.DATABASE_URL ? { dbCredentials: { url: process.env.DATABASE_URL } } : {}),
 });

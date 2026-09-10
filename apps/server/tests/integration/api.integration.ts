@@ -1,3 +1,4 @@
+import { migrateDatabase } from "@server/infrastructure/database/migrate";
 import { mkdtemp, mkdir, copyFile, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -49,7 +50,7 @@ beforeAll(async () => {
     await database.db.execute(sql`insert into public.auth_verification (id, identifier, value, expires_at) values ('schema-verification', 'migration-fixture', 'preserved-value', now() + interval '1 day')`);
     await database.db.execute(sql`insert into public.access_role (id, name, grants, protected) values ('schema-role', 'Papel preservado', '["tasks:read"]', false)`);
     await database.db.execute(sql`insert into public.registration_settings (id, allow_sign_up, require_approval) values ('registration', true, false)`);
-    await migrate(database.db, { migrationsFolder });
+    await migrateDatabase(database.db, migrationsFolder);
   } finally { await rm(initial, { recursive: true, force: true }); }
 }, 30_000);
 
@@ -218,7 +219,7 @@ test("autentica a mesma conta por username e email e valida unicidade", async ()
 }, 30000);
 
 test("contas sem username continuam válidas e podem definir um pelo Better Auth", async () => {
-  const legacy = await database.db.execute(sql`select username, display_username from auth.auth_user where id = 'legacy-owner'`);
+  const legacy = await database.db.execute(sql`select username, display_username from auth.user where id = 'legacy-owner'`);
   expect(legacy[0]).toMatchObject({ username: null, display_username: null });
   const existing = await signUp("email-only@example.com");
   const update = await request("/api/auth/update-user", { username: "Email.Only" }, existing.cookie);
@@ -279,7 +280,7 @@ test("papéis não podem ser forjados e alterações valem em sessões existente
   const second = await signUp("roles-other@example.com");
   const adminAccount = await signUp("roles-admin@example.com");
   expect(first.data.user.role).toBe("user");
-  const legacy = await database.db.execute(sql`select role from auth.auth_user where id = 'legacy-owner'`);
+  const legacy = await database.db.execute(sql`select role from auth.user where id = 'legacy-owner'`);
   expect(legacy[0]?.role).toBe("user");
 
   const forged = await request("/api/auth/sign-up/email", { name: "Forged", email: "roles-forged@example.com", password: "test-password-long-enough-123", role: "admin" });
@@ -289,7 +290,7 @@ test("papéis não podem ser forjados e alterações valem em sessões existente
   expect((await request("/api/auth/admin/set-role", { userId: first.data.user.id, role: "admin" }, first.cookie)).status).toBe(403);
 
   // Promoção restrita ao fixture: nenhuma conta real recebe privilégios.
-  await database.db.execute(sql`update auth.auth_user set role = 'admin' where id = ${adminAccount.data.user.id}`);
+  await database.db.execute(sql`update auth.user set role = 'admin' where id = ${adminAccount.data.user.id}`);
   expect((await request("/api/auth/admin/set-role", { userId: first.data.user.id, role: "admin" }, adminAccount.cookie)).status).toBe(403);
   expect((await request(`/api/access/users/${first.data.user.id}/role`, { roleId: "admin" }, adminAccount.cookie, "PATCH")).status).toBe(200);
   expect((await (await request("/api/auth/get-session", undefined, first.cookie)).json()).user.role).toBe("admin");
@@ -303,7 +304,7 @@ test("papéis não podem ser forjados e alterações valem em sessões existente
 
   expect((await request(`/api/access/users/${first.data.user.id}/role`, { roleId: "user" }, adminAccount.cookie, "PATCH")).status).toBe(200);
   expect((await request("/api/auth/admin/set-role", { userId: second.data.user.id, role: "admin" }, first.cookie)).status).toBe(403);
-  await database.db.execute(sql`update auth.auth_user set role = 'unconfigured' where id = ${first.data.user.id}`);
+  await database.db.execute(sql`update auth.user set role = 'unconfigured' where id = ${first.data.user.id}`);
   expect((await request("/api/tasks", undefined, first.cookie)).status).toBe(403);
   expect((await request("/api/tasks", { title: "Denied" }, first.cookie)).status).toBe(403);
 }, 30000);
@@ -313,7 +314,7 @@ test("painel cria papéis dinâmicos, revoga concessões e protege a administra�
   const manager = await signUp("dynamic-admin@example.com");
   const operator = await signUp("dynamic-operator@example.com");
   const outsider = await signUp("dynamic-outsider@example.com");
-  await database.db.execute(sql`update auth.auth_user set role = 'admin' where id = ${manager.data.user.id}`);
+  await database.db.execute(sql`update auth.user set role = 'admin' where id = ${manager.data.user.id}`);
   const save = (body: unknown, cookie = manager.cookie) => request("/api/access/roles", body, cookie);
   const assign = (userId: string, roleId: string) => request(`/api/access/users/${userId}/role`, { roleId }, manager.cookie, "PATCH");
   expect((await request("/api/access/roles")).status).toBe(401);
@@ -367,14 +368,14 @@ test("mutações concorrentes não removem o último administrador", async () =>
   const first = await signUp("last-admin-first@example.com");
   const second = await signUp("last-admin-second@example.com");
   // Escopo isolado desta suíte: remove admins dos fixtures anteriores.
-  await database.db.execute(sql`update auth.auth_user set role = 'user' where role = 'admin'`);
-  await database.db.execute(sql`update auth.auth_user set role = 'admin' where id in (${first.data.user.id}, ${second.data.user.id})`);
+  await database.db.execute(sql`update auth.user set role = 'user' where role = 'admin'`);
+  await database.db.execute(sql`update auth.user set role = 'admin' where id in (${first.data.user.id}, ${second.data.user.id})`);
   const outcomes = await Promise.all([
     request(`/api/access/users/${first.data.user.id}/role`, { roleId: "user" }, first.cookie, "PATCH"),
     request(`/api/access/users/${second.data.user.id}/role`, { roleId: "user" }, second.cookie, "PATCH"),
   ]);
   expect(outcomes.map((response) => response.status).sort()).toEqual([200, 409]);
-  const remaining = await database.db.execute(sql`select id from auth.auth_user where role = 'admin' and banned = false`);
+  const remaining = await database.db.execute(sql`select id from auth.user where role = 'admin' and banned = false`);
   expect(remaining).toHaveLength(1);
   const account = remaining[0]!.id === first.data.user.id ? first : second;
   const demoted = remaining[0]!.id === first.data.user.id ? second : first;
@@ -385,7 +386,7 @@ test("mutações concorrentes não removem o último administrador", async () =>
 
 test("persiste cores e pagina usuários em grupos contíguos por papel", async () => {
   const manager = await signUp("groups-admin@example.com");
-  await database.db.execute(sql`update auth.auth_user set role = 'admin' where id = ${manager.data.user.id}`);
+  await database.db.execute(sql`update auth.user set role = 'admin' where id = ${manager.data.user.id}`);
   const groupA = await (await request("/api/access/roles", { name: "000 Grupo A", color: "#123ABC", grants: ["tasks:read"] }, manager.cookie)).json();
   const groupB = await (await request("/api/access/roles", { name: "001 Grupo B", color: "#CC5500", grants: [] }, manager.cookie)).json();
   expect(groupA.color).toBe("#123abc");
@@ -393,7 +394,7 @@ test("persiste cores e pagina usuários em grupos contíguos por papel", async (
     const id = `group-fixture-${i}`;
     const role = i < 12 ? groupA.id : groupB.id;
     // Nomes em ordem inversa comprovam que o papel precede o nome da conta.
-    await database.db.execute(sql`insert into auth.auth_user (id, name, email, role) values (${id}, ${i < 12 ? "Zeta" : "Alpha"}, ${id + "@example.com"}, ${role})`);
+    await database.db.execute(sql`insert into auth.user (id, name, email, role) values (${id}, ${i < 12 ? "Zeta" : "Alpha"}, ${id + "@example.com"}, ${role})`);
   }
   const page1 = await (await request("/api/access/users?page=1", undefined, manager.cookie)).json();
   const page2 = await (await request("/api/access/users?page=2", undefined, manager.cookie)).json();
@@ -416,8 +417,8 @@ test("persiste cores e pagina usuários em grupos contíguos por papel", async (
 test("admin gerencia contas atomicamente e filtra contas por nome, nome de usuário e e-mail", async () => {
   const manager = await signUp("accounts-admin@example.com");
   const outsider = await signUp("accounts-outsider@example.com");
-  await database.db.execute(sql`update auth.auth_user set role = 'user' where role = 'admin'`);
-  await database.db.execute(sql`update auth.auth_user set role = 'admin' where id = ${manager.data.user.id}`);
+  await database.db.execute(sql`update auth.user set role = 'user' where role = 'admin'`);
+  await database.db.execute(sql`update auth.user set role = 'admin' where id = ${manager.data.user.id}`);
   const fields = { name: "Conta gerenciada", username: "managed.account", email: "managed@example.com", password: "initial-password-123", roleId: "user" };
   const create = (body: unknown, cookie = manager.cookie) => request("/api/access/users", body, cookie);
   expect((await request("/api/access/users", fields)).status).toBe(401);
@@ -475,7 +476,7 @@ test("admin gerencia contas atomicamente e filtra contas por nome, nome de usuá
 test("console separa cadastro público e aprovação, bloqueando sessões pendentes", async () => {
   const manager = await signUp("console-admin@example.com");
   const existing = await signUp("console-existing@example.com");
-  await database.db.execute(sql`update auth.auth_user set role = 'admin' where id = ${manager.data.user.id}`);
+  await database.db.execute(sql`update auth.user set role = 'admin' where id = ${manager.data.user.id}`);
   const policyPath = "/api/access/registration";
   const configure = (allowSignUp: boolean, requireApproval: boolean) => request(policyPath, { allowSignUp, requireApproval }, manager.cookie, "PUT");
   const publicPolicy = () => request("/api/registration-policy");
@@ -509,7 +510,7 @@ test("console separa cadastro público e aprovação, bloqueando sessões penden
   expect(denied.status).toBe(403);
   expect((await denied.json()).code).toBe("ACCOUNT_PENDING_APPROVAL");
   expect((await request("/api/auth/sign-in/username", { username: "pending.console", password: "test-password-long-enough-123" })).status).toBe(403);
-  expect(await database.db.execute(sql`select id from auth.auth_session where user_id = ${body.user.id}`)).toHaveLength(0);
+  expect(await database.db.execute(sql`select id from auth.session where user_id = ${body.user.id}`)).toHaveLength(0);
   expect((await request("/api/access/approvals", undefined, existing.cookie)).status).toBe(403);
   expect((await (await request("/api/access/approvals", undefined, manager.cookie)).json()).items.map((user: { id: string }) => user.id)).toContain(body.user.id);
   expect((await (await request("/api/access/users?search=pending.console", undefined, manager.cookie)).json()).items).toEqual([]);
@@ -538,16 +539,45 @@ test("console separa cadastro público e aprovação, bloqueando sessões penden
 test("separa schemas preservando registros, constraints e histórico de migrations", async () => {
   const tables = await database.db.execute(sql`select table_schema, table_name from information_schema.tables where table_schema in ('auth', 'console', 'public', 'drizzle') and table_type = 'BASE TABLE' order by table_schema, table_name`);
   expect(tables.map((row) => `${row.table_schema}.${row.table_name}`)).toEqual([
-    "auth.auth_account", "auth.auth_session", "auth.auth_user", "auth.auth_verification",
-    "console.access_role", "console.registration_settings", "drizzle.__drizzle_migrations", "public.tasks",
+    "auth.access", "auth.account", "auth.session", "auth.user", "auth.verification",
+    "console.registration", "drizzle.migrations", "public.tasks",
   ]);
-  expect((await database.db.execute(sql`select password from auth.auth_account where id = 'schema-account'`))[0]!.password).toBe("preserved-hash");
-  expect((await database.db.execute(sql`select token from auth.auth_session where id = 'schema-session'`))[0]!.token).toBe("preserved-session-token");
-  expect((await database.db.execute(sql`select value from auth.auth_verification where id = 'schema-verification'`))[0]!.value).toBe("preserved-value");
-  expect((await database.db.execute(sql`select grants from console.access_role where id = 'schema-role'`))[0]!.grants).toEqual(["tasks:read"]);
-  expect(await database.db.execute(sql`select id from console.registration_settings where id = 'registration'`)).toHaveLength(1);
-  const references = await database.db.execute(sql`select confrelid::regclass::text as target from pg_constraint where conname = 'tasks_owner_id_auth_user_id_fk'`);
-  expect(references[0]!.target).toBe("auth.auth_user");
+  expect((await database.db.execute(sql`select password from auth.account where id = 'schema-account'`))[0]!.password).toBe("preserved-hash");
+  expect((await database.db.execute(sql`select token from auth.session where id = 'schema-session'`))[0]!.token).toBe("preserved-session-token");
+  expect((await database.db.execute(sql`select value from auth.verification where id = 'schema-verification'`))[0]!.value).toBe("preserved-value");
+  expect((await database.db.execute(sql`select grants from auth.access where id = 'schema-role'`))[0]!.grants).toEqual(["tasks:read"]);
+  expect(await database.db.execute(sql`select id from console.registration where id = 'registration'`)).toHaveLength(1);
+  const references = await database.db.execute(sql`select confrelid::regclass::text as target from pg_constraint where conname = 'tasks_owner_id_user_id_fk'`);
+  expect(references[0]!.target).toBe('auth."user"');
   const journal = await Bun.file(new URL("../../src/infrastructure/database/migrations/meta/_journal.json", import.meta.url)).json();
-  expect(await database.db.execute(sql`select id from drizzle.__drizzle_migrations`)).toHaveLength(journal.entries.length);
+  expect(await database.db.execute(sql`select id from drizzle.migrations`)).toHaveLength(journal.entries.length);
+});
+
+
+test("migrador preserva o histórico renomeado e não reaplica migrations", async () => {
+  const before = await database.db.execute(sql`select id, hash, created_at from drizzle.migrations order by id`);
+  await migrateDatabase(database.db);
+  expect(await database.db.execute(sql`select id, hash, created_at from drizzle.migrations order by id`)).toEqual(before);
+  expect((await database.db.execute(sql`select to_regclass('drizzle.__drizzle_migrations') as legacy`))[0]!.legacy).toBeNull();
+  await database.db.execute(sql`create table drizzle.__drizzle_migrations (id integer)`);
+  try {
+    await expect(migrateDatabase(database.db)).rejects.toThrow("Existem dois históricos");
+    expect(await database.db.execute(sql`select id, hash, created_at from drizzle.migrations order by id`)).toEqual(before);
+  } finally { await database.db.execute(sql`drop table drizzle.__drizzle_migrations`); }
+});
+
+test("banco novo cria apenas drizzle.migrations e serializa migradores concorrentes", async () => {
+  const freshName = `test_${crypto.randomUUID().replaceAll("-", "")}`;
+  const freshUrl = new URL(url!); freshUrl.pathname = `/${freshName}`;
+  const fresh = createDatabase(freshUrl.toString());
+  await admin.unsafe(`CREATE DATABASE "${freshName}"`);
+  try {
+    await Promise.all([migrateDatabase(fresh.db), migrateDatabase(fresh.db)]);
+    const journal = await Bun.file(new URL("../../src/infrastructure/database/migrations/meta/_journal.json", import.meta.url)).json();
+    expect(await fresh.db.execute(sql`select id from drizzle.migrations`)).toHaveLength(journal.entries.length);
+    expect((await fresh.db.execute(sql`select to_regclass('drizzle.__drizzle_migrations') as legacy`))[0]!.legacy).toBeNull();
+  } finally {
+    await fresh.close();
+    await admin.unsafe(`DROP DATABASE "${freshName}"`);
+  }
 });

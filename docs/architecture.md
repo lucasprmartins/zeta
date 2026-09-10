@@ -6,7 +6,7 @@ Este documento descreve a implementação e seus pontos de extensão. As conven�
 
 O monorepo usa workspaces Bun: `apps/server` contém a API e `apps/client`, a aplicação React e seu runtime de produção. A raiz concentra scripts, lockfile e configuração TypeScript compartilhada; cada app declara suas dependências.
 
-`packages/access` compartilha o catálogo público de ações. `domain/authorization` implementa papéis globais e atribuições por contratos independentes de frameworks; o repositório Drizzle persiste `console.access_role` e o vínculo em `auth.auth_user.role`. A API resolve permissões atuais após validar a sessão Better Auth. O cliente consome `/api/access/me`, sem deduzir concessões pelo nome do papel. Política, transações e extensão estão em [authorization.md](authorization.md).
+`packages/access` compartilha o catálogo público de ações. `domain/authorization` implementa papéis globais e atribuições por contratos independentes de frameworks; o repositório Drizzle persiste `auth.access` e o vínculo em `auth.user.role`. A API resolve permissões atuais após validar a sessão Better Auth. O cliente consome `/api/access/me`, sem deduzir concessões pelo nome do papel. Política, transações e extensão estão em [authorization.md](authorization.md).
 
 ```text
 React → cliente oRPC → HTTP → aplicação → entidades
@@ -20,9 +20,17 @@ O domínio usa apenas TypeScript. Entidades preservam estado e invariantes; cont
 
 ### Schemas PostgreSQL
 
-`schema/namespaces.ts` centraliza `auth` e `console`. As tabelas do Better Auth usam `auth`; configurações administrativas da aplicação usam `console`; tabelas de negócio permanecem em `public`. O schema `console` pode receber novas configurações administrativas conforme o projeto evoluir; papéis e política de cadastro são exemplos atuais. Drizzle qualifica as consultas e as referências entre schemas, sem alterar `search_path`. Os nomes das tabelas foram preservados.
+`schema/namespaces.ts` centraliza `auth` e `console`. As tabelas do Better Auth e de controle de acesso usam `auth`; configurações administrativas da aplicação usam `console`; tabelas de negócio permanecem em `public`. O schema `console` pode receber novas configurações administrativas conforme o projeto evoluir; a política de cadastro em `console.registration` é um exemplo atual. Drizzle qualifica as consultas e as referências entre schemas, sem alterar `search_path`. Use nomes simples nas tabelas: `auth.user`, `auth.session`, `auth.account`, `auth.verification`, `auth.access` e `console.registration`.
 
-O histórico permanece em `drizzle.__drizzle_migrations`. `drizzle.config.ts` limita introspecção aos três schemas da aplicação e mantém o schema de migrations separado. A migration `0007_separate_schemas` move tabelas com `ALTER TABLE ... SET SCHEMA`, preservando dados, índices e chaves estrangeiras; migrations anteriores continuam intactas.
+O histórico permanece em `drizzle.migrations`. `drizzle.config.ts` limita introspecção aos três schemas da aplicação e mantém o schema de migrations separado. A migration `0007_separate_schemas` move tabelas com `ALTER TABLE ... SET SCHEMA`, preservando dados, índices e chaves estrangeiras; a migration `0008_simplify_table_names` simplifica os nomes e move o controle de acesso para `auth`. Migrations anteriores continuam intactas. Aplique sempre com `bun run db:migrate`: o helper `infrastructure/database/migrate.ts` renomeia o histórico legado antes da leitura do Drizzle, preservando registros. Uma conexão reservada mantém o lock durante a transição e a aplicação; bancos novos criam somente `drizzle.migrations`. Se ambos os históricos existirem, o comando interrompe sem mesclá-los ou apagar dados. Não execute diretamente o migrador do Drizzle em bancos ainda não convertidos.
+
+### RLS
+
+RLS não é obrigatório nesta arquitetura e permanece desativado. O navegador usa a API, que valida sessão/permissões; repositórios de dados privados filtram pelo proprietário validado. Os testes de integração verificam isolamento entre contas. Essa proteção depende da correção das consultas; RLS pode acrescentar defesa contra filtros esquecidos, especialmente em produtos com múltiplos tenants ou outros consumidores do banco.
+
+A API e o migrador hoje compartilham `DATABASE_URL`; no Compose, o usuário inicial é superusuário. Antes de adotar RLS, separe credenciais de migração e runtime, use um papel de runtime sem superusuário/BYPASSRLS e trate a propriedade das tabelas. A identidade validada precisa ser definida localmente na mesma transação/conexão das consultas, sem vazar entre requisições do pool. Planeje políticas por operação e fluxos de autenticação/administração separadamente.
+
+Habilitar RLS sem políticas nega acesso para papéis sujeitos às regras; superusuários e BYPASSRLS as ignoram, e proprietários normalmente também. Referência: [PostgreSQL — Row Security Policies](https://www.postgresql.org/docs/17/ddl-rowsecurity.html). Separar schemas organiza tabelas, mas não substitui privilégios SQL nem políticas de acesso.
 
 ## Servidor
 

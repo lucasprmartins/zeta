@@ -1,6 +1,6 @@
-import { consoleSchema } from "./namespaces";
+import { authSchema } from "./namespaces";
 import { boolean, jsonb, text } from "drizzle-orm/pg-core";
-export const accessRoles = consoleSchema.table("access_role", {
+export const accessRoles = authSchema.table("access", {
   id: text("id").primaryKey(),
   name: text("name").notNull().unique(),
   color: text("color").notNull().default("#737373"),
