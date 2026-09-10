@@ -1,18 +1,24 @@
 import { type FormEvent, useId, useState } from "react";
 import { ErrorNotice } from "@/components/feedback";
+import { usePermissions } from "@/components/permission-boundary";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { permissions } from "@/lib/access";
+import { MentionPicker } from "./mention-picker";
+import type { TaskUser } from "./queries";
 
-type Fields = { title: string; description: string };
+type Fields = { title: string; description: string; mentions: TaskUser[] };
 export function TaskForm({
+  userId,
   initial,
   pending,
   error,
   onSubmit,
   onCancel,
 }: {
+  userId: string;
   initial?: Fields;
   pending: boolean;
   error: string | null;
@@ -20,12 +26,18 @@ export function TaskForm({
   onCancel?: () => void;
 }) {
   const id = useId();
+  const { can } = usePermissions();
   const [title, setTitle] = useState(initial?.title ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
+  const [mentions, setMentions] = useState<TaskUser[]>(initial?.mentions ?? []);
   function submit(event: FormEvent) {
     event.preventDefault();
     if (!pending && title.trim()) {
-      onSubmit({ title: title.trim(), description: description.trim() });
+      onSubmit({
+        title: title.trim(),
+        description: description.trim(),
+        mentions,
+      });
     }
   }
   return (
@@ -59,6 +71,14 @@ export function TaskForm({
             value={description}
           />
         </Field>
+        {can(permissions.tasks.mention) && (
+          <MentionPicker
+            disabled={pending}
+            onChange={setMentions}
+            userId={userId}
+            value={mentions}
+          />
+        )}
       </fieldset>
       {error && <ErrorNotice message={error} />}
       <div className="modal-actions sticky bottom-0 flex flex-col gap-2 border-t bg-background pt-4 sm:flex-row-reverse [&>button]:w-full sm:[&>button]:w-auto">

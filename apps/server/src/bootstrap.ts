@@ -7,6 +7,7 @@ import { manageAccess } from "./domain/authorization/application/manage-access";
 import { effectiveRoleGrants } from "./domain/authorization/entities/role";
 import { manageGuides } from "./domain/guides/application/manage-guides";
 import { createTask } from "./domain/tasks/application/create-task";
+import { listMentionableUsers } from "./domain/tasks/application/list-mentionable-users";
 import { listTasks } from "./domain/tasks/application/list-tasks";
 import { permissionIds } from "./infrastructure/auth/access";
 import { createAuthentication } from "./infrastructure/auth/better-auth";
@@ -15,6 +16,7 @@ import { createDatabase } from "./infrastructure/database/client";
 import { createAccessRepository } from "./infrastructure/repositories/drizzle-access-repository";
 import { createGuideRepository } from "./infrastructure/repositories/drizzle-guide-repository";
 import { DrizzleTaskRepository } from "./infrastructure/repositories/drizzle-task-repository";
+import { createUserDirectory } from "./infrastructure/repositories/drizzle-user-directory";
 import { createApp } from "./interfaces/http/app";
 import { createRouter } from "./interfaces/http/rpc/router";
 
@@ -23,17 +25,22 @@ export async function bootstrap(env: Env) {
   const database = createDatabase(env.databaseUrl);
   const access = createAccessRepository(database.db);
   const tasks = new DrizzleTaskRepository(database.db);
+  const directory = createUserDirectory(database.db);
   const router = createRouter(
     {
       create: createTask({
         tasks,
+        users: directory,
         generateId: () => crypto.randomUUID(),
         now: () => new Date().toISOString(),
       }),
-      list: listTasks(tasks),
-      update: updateTask(tasks, () => new Date().toISOString()),
-      setStatus: setTaskStatus(tasks, () => new Date().toISOString()),
+      list: listTasks(tasks, directory),
+      update: updateTask(tasks, directory, () => new Date().toISOString()),
+      setStatus: setTaskStatus(tasks, directory, () =>
+        new Date().toISOString()
+      ),
       delete: deleteTask(tasks),
+      mentionableUsers: listMentionableUsers(directory),
     },
     manageAccess(access, permissionIds, () => crypto.randomUUID()),
     createUserManagement(database.db, env),

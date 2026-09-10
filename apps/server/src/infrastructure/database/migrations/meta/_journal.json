@@ -71,6 +71,13 @@
       "when": 1789057872092,
       "tag": "0009_guides",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1789144272092,
+      "tag": "0010_shared_tasks",
+      "breakpoints": true
     }
   ]
 }

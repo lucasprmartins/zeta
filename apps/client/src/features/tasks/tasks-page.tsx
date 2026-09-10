@@ -146,7 +146,7 @@ export function TasksPage({
             </Button>
           </Can>
         }
-        description="Tudo o que você precisa fazer, em um só lugar."
+        description="O que a equipe precisa fazer, à vista de todos."
         title="Tarefas"
       />
 
@@ -225,7 +225,7 @@ export function TasksPage({
         ) : tasks.isError && !tasks.data ? (
           <div className="p-6">
             <ErrorNotice
-              message="Não foi possível carregar suas tarefas."
+              message="Não foi possível carregar as tarefas."
               retry={() => void tasks.refetch()}
             />
           </div>
@@ -237,7 +237,7 @@ export function TasksPage({
             <EmptyTitle>
               {filter === "all"
                 ? can(permissions.tasks.create)
-                  ? "Seu próximo passo começa aqui"
+                  ? "O primeiro passo começa aqui"
                   : "Nenhuma tarefa encontrada"
                 : filter === "pending"
                   ? "Nenhuma tarefa pendente"
@@ -246,9 +246,9 @@ export function TasksPage({
             <EmptyDescription>
               {filter === "all"
                 ? can(permissions.tasks.create)
-                  ? "Crie sua primeira tarefa. Você pode adicionar detalhes e marcar como concluída quando terminar."
-                  : "Suas tarefas aparecerão neste espaço."
-                : "Use os filtros para acompanhar suas outras tarefas."}
+                  ? "Crie a primeira tarefa. Todas as contas veem o que está aqui, e você pode indicar quem está relacionado a cada uma."
+                  : "As tarefas da equipe aparecerão neste espaço."
+                : "Use os filtros para acompanhar as demais tarefas."}
             </EmptyDescription>
             <EmptyContent>
               {(filter !== "all" || can(permissions.tasks.create)) && (
@@ -324,8 +324,8 @@ export function TasksPage({
           <Modal
             description={
               editor === "new"
-                ? "O que você quer realizar?"
-                : "Atualize o título e os detalhes da tarefa."
+                ? "O que precisa ser feito e quem está relacionado?"
+                : "Atualize o título, os detalhes e as contas relacionadas."
             }
             onClose={() => setEditor(null)}
             pending={saving}
@@ -336,12 +336,19 @@ export function TasksPage({
               {...(editor === "new" ? {} : { initial: editor })}
               error={editorError ? errorMessage(editorError) : null}
               onCancel={() => setEditor(null)}
-              onSubmit={(fields) =>
-                editor === "new"
-                  ? create.mutate(fields)
-                  : edit.mutate({ id: editor.id, ...fields })
-              }
+              onSubmit={({ mentions, ...fields }) => {
+                const input = {
+                  ...fields,
+                  mentions: mentions.map((user) => user.id),
+                };
+                if (editor === "new") {
+                  create.mutate(input);
+                } else {
+                  edit.mutate({ id: editor.id, ...input });
+                }
+              }}
               pending={saving}
+              userId={userId}
             />
           </Modal>
         )}

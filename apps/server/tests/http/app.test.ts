@@ -1,17 +1,25 @@
 import { describe, expect, test } from "bun:test";
 import { createTask } from "@server/domain/tasks/application/create-task";
 import { deleteTask } from "@server/domain/tasks/application/delete-task";
+import { listMentionableUsers } from "@server/domain/tasks/application/list-mentionable-users";
 import { listTasks } from "@server/domain/tasks/application/list-tasks";
 import { setTaskStatus } from "@server/domain/tasks/application/set-task-status";
 import { updateTask } from "@server/domain/tasks/application/update-task";
 import { createApp } from "@server/interfaces/http/app";
 import { createRouter } from "@server/interfaces/http/rpc/router";
-import { InMemoryTaskRepository } from "../helpers/in-memory-task-repository";
+import {
+  InMemoryTaskRepository,
+  InMemoryUserDirectory,
+} from "../helpers/in-memory-task-repository";
 
 async function setup(
   options: { databaseDown?: boolean; failSave?: boolean; role?: string } = {}
 ) {
   const tasks = new InMemoryTaskRepository();
+  const directory = new InMemoryUserDirectory([
+    { id: "user-1", name: "Ana", username: "ana" },
+    { id: "user-2", name: "Bruno", username: "bruno" },
+  ]);
   if (options.failSave) {
     tasks.save = async () => {
       throw new Error("sensitive database detail");
@@ -21,13 +29,17 @@ async function setup(
     router: createRouter({
       create: createTask({
         tasks,
+        users: directory,
         generateId: () => crypto.randomUUID(),
         now: () => new Date().toISOString(),
       }),
-      list: listTasks(tasks),
-      update: updateTask(tasks, () => new Date().toISOString()),
-      setStatus: setTaskStatus(tasks, () => new Date().toISOString()),
+      list: listTasks(tasks, directory),
+      update: updateTask(tasks, directory, () => new Date().toISOString()),
+      setStatus: setTaskStatus(tasks, directory, () =>
+        new Date().toISOString()
+      ),
       delete: deleteTask(tasks),
+      mentionableUsers: listMentionableUsers(directory),
     }),
     authentication: {
       handle: async (request) => Response.json({ body: await request.json() }),
@@ -46,6 +58,9 @@ async function setup(
                       "tasks:update",
                       "tasks:set-status",
                       "tasks:delete",
+                      ...(options.role === "no-mention"
+                        ? []
+                        : ["tasks:mention"]),
                     ],
             }
           : null;
@@ -115,6 +130,7 @@ describe("HTTP e RPC", () => {
       ["update", { id, title: "Denied" }],
       ["setStatus", { id, status: "completed" }],
       ["delete", { id }],
+      ["mentionableUsers", {}],
     ] as const) {
       expect((await rpc(operation, input, "user-1")).status).toBe(403);
     }
@@ -144,23 +160,86 @@ describe("HTTP e RPC", () => {
     expect(tasks.items).toHaveLength(0);
   });
 
-  test("usa o proprietário da sessão e impede acesso entre usuários", async () => {
+  test("registra o autor da sessão e expõe a tarefa a todas as contas", async () => {
     const { rpc, tasks } = await setup();
     const response = await rpc(
       "create",
-      { title: " API ", ownerId: "user-2" },
+      { title: " API ", authorId: "user-2" },
       "user-1"
     );
     expect(response.status).toBe(200);
+    // A autoria vem da sessão, nunca do corpo enviado pelo navegador.
     expect(tasks.items[0]?.toJSON()).toMatchObject({
       title: "API",
-      ownerId: "user-1",
+      authorId: "user-1",
     });
-    expect(await (await rpc("list", undefined, "user-2")).json()).toEqual({
-      json: { items: [], total: 0, page: 1, pageSize: 20 },
-    });
-    const own = await (await rpc("list", undefined, "user-1")).json();
-    expect(own.json.items).toHaveLength(1);
+    const created = (await response.json()).json;
+    expect(created.author).toMatchObject({ id: "user-1", name: "Ana" });
+
+    // Outra conta enxerga a mesma tarefa e pode concluí-la.
+    const others = await (await rpc("list", undefined, "user-2")).json();
+    expect(others.json.items).toHaveLength(1);
+    expect(others.json.total).toBe(1);
+    expect(
+      (
+        await rpc(
+          "setStatus",
+          { id: created.id, status: "completed" },
+          "user-2"
+        )
+      ).status
+    ).toBe(200);
+    expect(tasks.items[0]?.toJSON().status).toBe("completed");
+  });
+
+  test("mencionar exige permissão própria e só aceita contas existentes", async () => {
+    const { rpc, tasks } = await setup();
+    expect(
+      (
+        await rpc(
+          "create",
+          { title: "Com menção", mentions: ["fantasma"] },
+          "user-1"
+        )
+      ).status
+    ).toBe(400);
+    expect(tasks.items).toHaveLength(0);
+
+    const response = await rpc(
+      "create",
+      { title: "Com menção", mentions: ["user-2"] },
+      "user-1"
+    );
+    expect(response.status).toBe(200);
+    expect((await response.json()).json.mentions).toMatchObject([
+      { id: "user-2", name: "Bruno" },
+    ]);
+    expect(
+      (
+        await (
+          await rpc("mentionableUsers", { search: "bru" }, "user-1")
+        ).json()
+      ).json.items
+    ).toMatchObject([{ id: "user-2" }]);
+  });
+
+  test("sem tasks:mention a conta cria tarefas, mas não menciona nem busca contas", async () => {
+    const { rpc, tasks } = await setup({ role: "no-mention" });
+    expect((await rpc("create", { title: "Sozinha" }, "user-1")).status).toBe(
+      200
+    );
+    expect(tasks.items).toHaveLength(1);
+    expect(
+      (
+        await rpc(
+          "create",
+          { title: "Barrada", mentions: ["user-2"] },
+          "user-1"
+        )
+      ).status
+    ).toBe(403);
+    expect((await rpc("mentionableUsers", {}, "user-1")).status).toBe(403);
+    expect(tasks.items).toHaveLength(1);
   });
 
   test("retorna erro interno sem expor detalhes de persistência", async () => {
@@ -221,20 +300,19 @@ describe("HTTP e RPC", () => {
     expect((await rest("POST", { title: 1 }, "user-1")).status).toBe(400);
     const response = await rest(
       "POST",
-      { title: "REST", ownerId: "user-2" },
+      { title: "REST", authorId: "user-2" },
       "user-1"
     );
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({
       title: "REST",
-      ownerId: "user-1",
+      authorId: "user-1",
+      mentions: [],
     });
-    expect(await (await rest("GET", undefined, "user-2")).json()).toEqual({
-      items: [],
-      total: 0,
-      page: 1,
-      pageSize: 20,
-    });
+    // A mesma tarefa aparece para outra conta, por REST e por RPC.
+    const others = await (await rest("GET", undefined, "user-2")).json();
+    expect(others).toMatchObject({ total: 1, page: 1, pageSize: 20 });
+    expect(others.items).toHaveLength(1);
     const list = await (await rpc("list", undefined, "user-1")).json();
     expect(list.json.items).toHaveLength(1);
   });

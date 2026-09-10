@@ -3,6 +3,7 @@ import {
   PencilSimpleIcon,
   SpinnerGapIcon,
   TrashIcon,
+  UsersIcon,
 } from "@phosphor-icons/react";
 import { Can, usePermissions } from "@/components/permission-boundary";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,15 @@ const dateFormat = new Intl.DateTimeFormat("pt-BR", {
   month: "short",
   year: "numeric",
 });
+const VISIBLE_MENTIONS = 3;
+
+// A lista fica longa: mostra os primeiros nomes e conta o restante.
+function mentionSummary(mentions: Task["mentions"]): string {
+  const names = mentions.map((user) => user.name);
+  const shown = names.slice(0, VISIBLE_MENTIONS).join(", ");
+  const rest = names.length - VISIBLE_MENTIONS;
+  return rest > 0 ? `${shown} +${rest}` : shown;
+}
 
 export function TaskItem({
   task,
@@ -69,7 +79,21 @@ export function TaskItem({
             {task.description}
           </span>
         )}
-        <span className="mt-2 block text-[11px] text-muted-foreground sm:hidden">
+        <span className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+          <span className="truncate">
+            Por {task.author?.name ?? "conta removida"}
+          </span>
+          {task.mentions.length > 0 && (
+            <span
+              className="inline-flex min-w-0 items-center gap-1"
+              title={task.mentions.map((user) => user.name).join(", ")}
+            >
+              <UsersIcon aria-hidden="true" className="size-3 shrink-0" />
+              <span className="truncate">{mentionSummary(task.mentions)}</span>
+            </span>
+          )}
+        </span>
+        <span className="mt-1 block text-[11px] text-muted-foreground sm:hidden">
           {completed ? "Concluída" : "Pendente"} ·{" "}
           {dateFormat.format(new Date(task.createdAt))}
         </span>

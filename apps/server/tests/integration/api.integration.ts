@@ -141,34 +141,91 @@ async function signUp(email: string) {
   return { cookie, data: await response.json() };
 }
 
-test("migra, autentica, persiste e isola usuários usando a stack real", async () => {
+test("migra, autentica, persiste e compartilha tarefas usando a stack real", async () => {
   expect((await request("/ready")).status).toBe(200);
   const first = await signUp("first@example.com");
   const second = await signUp("second@example.com");
   const created = await request(
     "/rpc/tasks/create",
-    { json: { title: " Real API ", ownerId: second.data.user.id } },
+    {
+      json: {
+        title: " Real API ",
+        authorId: second.data.user.id,
+        mentions: [second.data.user.id],
+      },
+    },
     first.cookie
   );
   expect(created.status).toBe(200);
-  expect((await created.json()).json).toMatchObject({
+  const task = (await created.json()).json;
+  // A autoria vem da sessão, não do corpo enviado.
+  expect(task).toMatchObject({
     title: "Real API",
-    ownerId: first.data.user.id,
+    authorId: first.data.user.id,
   });
+  expect(task.author.id).toBe(first.data.user.id);
+  expect(task.mentions.map((user: { id: string }) => user.id)).toEqual([
+    second.data.user.id,
+  ]);
 
-  const firstList = await request(
-    "/rpc/tasks/list",
-    { json: null },
+  // Menção a conta inexistente é recusada pela validação do domínio.
+  expect(
+    (
+      await request(
+        "/rpc/tasks/create",
+        { json: { title: "Fantasma", mentions: ["nao-existe"] } },
+        first.cookie
+      )
+    ).status
+  ).toBe(400);
+
+  // As duas contas enxergam exatamente o mesmo conjunto: a visibilidade é compartilhada.
+  const ids = async (cookie: string) => {
+    const response = await request("/rpc/tasks/list", { json: null }, cookie);
+    const page = (await response.json()).json;
+    return {
+      total: page.total,
+      ids: page.items.map((item: { id: string }) => item.id),
+    };
+  };
+  const mine = await ids(first.cookie);
+  const theirs = await ids(second.cookie);
+  expect(mine.ids).toContain(task.id);
+  expect(theirs).toEqual(mine);
+  expect((await request("/rpc/tasks/list", { json: null })).status).toBe(401);
+
+  // Quem não é o autor conclui a tarefa do outro.
+  expect(
+    (
+      await request(
+        "/rpc/tasks/setStatus",
+        { json: { id: task.id, status: "completed" } },
+        second.cookie
+      )
+    ).status
+  ).toBe(200);
+
+  const mentionable = await request(
+    "/api/tasks/mentions?search=Integration",
+    undefined,
     first.cookie
   );
-  expect((await firstList.json()).json.items).toHaveLength(1);
-  const secondList = await request(
-    "/rpc/tasks/list",
-    { json: null },
-    second.cookie
-  );
-  expect((await secondList.json()).json.items).toEqual([]);
-  expect((await request("/rpc/tasks/list", { json: null })).status).toBe(401);
+  expect(mentionable.status).toBe(200);
+  expect(
+    (await mentionable.json()).items.map((user: { id: string }) => user.id)
+  ).toContain(second.data.user.id);
+  // Termo sem correspondência não vaza o catálogo inteiro.
+  expect(
+    (
+      await (
+        await request(
+          "/api/tasks/mentions?search=ninguem-com-esse-nome",
+          undefined,
+          first.cookie
+        )
+      ).json()
+    ).items
+  ).toEqual([]);
 
   const rest = await request(
     "/api/tasks",
@@ -176,10 +233,11 @@ test("migra, autentica, persiste e isola usuários usando a stack real", async (
     first.cookie
   );
   expect(rest.status).toBe(200);
-  expect((await rest.json()).ownerId).toBe(first.data.user.id);
+  expect((await rest.json()).authorId).toBe(first.data.user.id);
+  // A tarefa recém-criada por REST entra na contagem da outra conta.
   expect(
     await (await request("/api/tasks", undefined, second.cookie)).json()
-  ).toEqual({ items: [], total: 0, page: 1, pageSize: 20 });
+  ).toMatchObject({ total: mine.total + 1, page: 1, pageSize: 20 });
   expect((await request("/api/tasks", undefined, first.cookie)).status).toBe(
     200
   );
@@ -253,7 +311,7 @@ test("rejeita uma origem não autorizada no cadastro", async () => {
 
 test("preserva os registros anteriores ao migrar projetos para tarefas", async () => {
   const rows = await database.db.execute(
-    sql`select * from tasks where owner_id = 'legacy-owner'`
+    sql`select * from tasks where author_id = 'legacy-owner'`
   );
   expect(rows[0]).toMatchObject({
     title: "Registro preservado",
@@ -266,21 +324,30 @@ test("preserva os registros anteriores ao migrar projetos para tarefas", async (
   );
 });
 
-test("edita, conclui, filtra, reabre e exclui com isolamento real", async () => {
-  const owner = await signUp("tasks-owner@example.com");
+test("edita, conclui, filtra, reabre e exclui sobre a tarefa compartilhada", async () => {
+  const author = await signUp("tasks-author@example.com");
   const other = await signUp("tasks-other@example.com");
   const task = await (
     await request(
       "/api/tasks",
       { title: "x".repeat(120), description: "Detalhes" },
-      owner.cookie
+      author.cookie
     )
   ).json();
   expect(task.title).toHaveLength(120);
   const path = `/api/tasks/${task.id}`;
-  expect(
-    (await request(path, { title: "Intrusão" }, other.cookie, "PATCH")).status
-  ).toBe(404);
+  // Outra conta com as mesmas permissões alcança a tarefa; a autoria não bloqueia.
+  const invaded = await request(
+    path,
+    { title: "Editada por outra conta" },
+    other.cookie,
+    "PATCH"
+  );
+  expect(invaded.status).toBe(200);
+  expect(await invaded.json()).toMatchObject({
+    title: "Editada por outra conta",
+    authorId: author.data.user.id,
+  });
   expect(
     (
       await request(
@@ -290,17 +357,35 @@ test("edita, conclui, filtra, reabre e exclui com isolamento real", async () => 
         "PATCH"
       )
     ).status
-  ).toBe(404);
-  expect((await request(path, undefined, other.cookie, "DELETE")).status).toBe(
-    404
-  );
+  ).toBe(200);
   expect(
-    (await request(path, { title: " " }, owner.cookie, "PATCH")).status
+    (
+      await request(
+        `${path}/status`,
+        { status: "pending" },
+        other.cookie,
+        "PATCH"
+      )
+    ).status
+  ).toBe(200);
+  // Identificador inexistente continua sendo 404, não 200.
+  expect(
+    (
+      await request(
+        "/api/tasks/00000000-0000-4000-8000-0000000000ff",
+        undefined,
+        other.cookie,
+        "DELETE"
+      )
+    ).status
+  ).toBe(404);
+  expect(
+    (await request(path, { title: " " }, author.cookie, "PATCH")).status
   ).toBe(400);
   const edit = await request(
     path,
     { title: "Editada", description: "Nova descrição" },
-    owner.cookie,
+    author.cookie,
     "PATCH"
   );
   expect(edit.status).toBe(200);
@@ -313,54 +398,44 @@ test("edita, conclui, filtra, reabre e exclui com isolamento real", async () => 
     await request(
       `${path}/status`,
       { status: "completed" },
-      owner.cookie,
+      author.cookie,
       "PATCH"
     )
   ).json();
   expect(completed.status).toBe("completed");
   expect(completed.completedAt).toBeString();
+  // A lista é compartilhada: o filtro é verificado pela presença desta tarefa.
+  const filtered = async (query: string) => {
+    const page = await (
+      await request(`/api/tasks?${query}`, undefined, author.cookie)
+    ).json();
+    return page.items.map((item: { id: string }) => item.id);
+  };
+  expect(await filtered("status=pending")).not.toContain(task.id);
+  expect(await filtered("status=completed&page=1")).toContain(task.id);
   expect(
-    (
-      await (
-        await request("/api/tasks?status=pending", undefined, owner.cookie)
-      ).json()
-    ).total
-  ).toBe(0);
-  expect(
-    (
-      await (
-        await request(
-          "/api/tasks?status=completed&page=1",
-          undefined,
-          owner.cookie
-        )
-      ).json()
-    ).items
-  ).toHaveLength(1);
-  expect(
-    (await request("/api/tasks?page=-1", undefined, owner.cookie)).status
+    (await request("/api/tasks?page=-1", undefined, author.cookie)).status
   ).toBe(400);
   expect(
-    (await request("/api/tasks?status=invalid", undefined, owner.cookie)).status
+    (await request("/api/tasks?status=invalid", undefined, author.cookie))
+      .status
   ).toBe(400);
   const reopened = await request(
     "/rpc/tasks/setStatus",
     { json: { id: task.id, status: "pending" } },
-    owner.cookie
+    author.cookie
   );
   expect((await reopened.json()).json).toMatchObject({
     status: "pending",
     completedAt: null,
   });
-  expect((await request(path, undefined, owner.cookie, "DELETE")).status).toBe(
+  expect((await request(path, undefined, author.cookie, "DELETE")).status).toBe(
     200
   );
-  expect((await request(path, undefined, owner.cookie, "DELETE")).status).toBe(
+  expect((await request(path, undefined, author.cookie, "DELETE")).status).toBe(
     404
   );
-  expect(
-    (await (await request("/api/tasks", undefined, owner.cookie)).json()).total
-  ).toBe(0);
+  expect(await filtered("page=1")).not.toContain(task.id);
 }, 30_000);
 
 test("autentica a mesma conta por username e email e valida unicidade", async () => {
@@ -696,25 +771,29 @@ test("papéis não podem ser forjados e alterações valem em sessões existente
   ).toBe("admin");
   const created = await request(
     "/api/tasks",
-    { title: "Private task" },
+    { title: "Tarefa de outra conta" },
     second.cookie
   );
   const task = await created.json();
   expect(created.status).toBe(200);
-  expect(
-    (
-      await request(
-        `/api/tasks/${task.id}`,
-        { title: "Forbidden owner" },
-        first.cookie,
-        "PATCH"
-      )
-    ).status
-  ).toBe(404);
+  // O administrador alcança a tarefa porque detém a ação do catálogo, não por autoria.
+  const patched = await request(
+    `/api/tasks/${task.id}`,
+    { title: "Editada pelo administrador" },
+    first.cookie,
+    "PATCH"
+  );
+  expect(patched.status).toBe(200);
+  expect(await patched.json()).toMatchObject({
+    title: "Editada pelo administrador",
+    authorId: second.data.user.id,
+  });
   const listed = await (
     await request("/api/tasks", undefined, first.cookie)
   ).json();
-  expect(listed.items).toEqual([]);
+  expect(listed.items.map((item: { id: string }) => item.id)).toContain(
+    task.id
+  );
   expect(
     (
       await request(
@@ -897,10 +976,10 @@ test("painel cria papéis dinâmicos, revoga concessões e protege a administra�
     (await (await request("/api/access/me", undefined, operator.cookie)).json())
       .grants
   ).toEqual(["tasks:read"]);
-  expect(
-    (await (await request("/api/tasks", undefined, outsider.cookie)).json())
-      .items
-  ).toEqual([]);
+  // Uma conta que nunca criou tarefas enxerga a lista compartilhada.
+  const outsiderList = await request("/api/tasks", undefined, outsider.cookie);
+  expect(outsiderList.status).toBe(200);
+  expect((await outsiderList.json()).total).toBeGreaterThan(0);
   expect((await assign(operator.data.user.id, "user")).status).toBe(200);
   expect(
     (
@@ -1443,6 +1522,7 @@ test("separa schemas preservando registros, constraints e histórico de migratio
     "console.registration",
     "drizzle.migrations",
     "public.guides",
+    "public.task_mentions",
     "public.tasks",
   ]);
   expect(
@@ -1479,7 +1559,7 @@ test("separa schemas preservando registros, constraints e histórico de migratio
     )
   ).toHaveLength(1);
   const references = await database.db.execute(
-    sql`select confrelid::regclass::text as target from pg_constraint where conname = 'tasks_owner_id_user_id_fk'`
+    sql`select confrelid::regclass::text as target from pg_constraint where conname = 'tasks_author_id_user_id_fk'`
   );
   expect(references[0]!.target).toBe('auth."user"');
   const journal = await Bun.file(

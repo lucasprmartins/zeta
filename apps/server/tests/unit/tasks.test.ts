@@ -1,21 +1,35 @@
 import { expect, test } from "bun:test";
 import { createTask } from "@server/domain/tasks/application/create-task";
 import { deleteTask } from "@server/domain/tasks/application/delete-task";
+import { listMentionableUsers } from "@server/domain/tasks/application/list-mentionable-users";
 import { listTasks } from "@server/domain/tasks/application/list-tasks";
 import { setTaskStatus } from "@server/domain/tasks/application/set-task-status";
 import { TaskNotFoundError } from "@server/domain/tasks/application/task-not-found";
 import { updateTask } from "@server/domain/tasks/application/update-task";
-import { InvalidTaskError, Task } from "@server/domain/tasks/entities/task";
-import { InMemoryTaskRepository } from "../helpers/in-memory-task-repository";
+import {
+  InvalidTaskError,
+  MAX_MENTIONS,
+  Task,
+} from "@server/domain/tasks/entities/task";
+import {
+  InMemoryTaskRepository,
+  InMemoryUserDirectory,
+} from "../helpers/in-memory-task-repository";
 
 const input = {
   id: "task-1",
-  ownerId: "owner-1",
+  authorId: "author-1",
   title: " Revisar API ",
   description: " Detalhes ",
   createdAt: "2026-09-05T12:00:00.000Z",
 };
 const later = "2026-09-05T13:00:00.000Z";
+const directory = new InMemoryUserDirectory([
+  { id: "author-1", name: "Ana", username: "ana" },
+  { id: "user-2", name: "Bruno", username: "bruno" },
+  { id: "user-3", name: "Carla", username: null },
+]);
+
 test("normaliza a tarefa e protege seu estado interno", () => {
   const task = Task.create(input);
   expect(task.toJSON()).toMatchObject({
@@ -23,6 +37,7 @@ test("normaliza a tarefa e protege seu estado interno", () => {
     description: "Detalhes",
     status: "pending",
     completedAt: null,
+    mentions: [],
   });
   const snapshot = task.toJSON();
   Object.assign(snapshot, { title: "Alterado" });
@@ -37,6 +52,7 @@ test("normaliza a tarefa e protege seu estado interno", () => {
     InvalidTaskError
   );
 });
+
 test("concluir é idempotente; reabrir limpa a conclusão sem mudar a criação", () => {
   const task = Task.create(input);
   const completed = task.complete(later);
@@ -62,45 +78,135 @@ test("concluir é idempotente; reabrir limpa a conclusão sem mudar a criação"
     task.edit({ title: "Título", description: "" }, "2025-01-01T00:00:00Z")
   ).toThrow(InvalidTaskError);
 });
-test("casos de uso persistem as regras e isolam o proprietário em todas as operações", async () => {
+
+test("a tarefa sobrevive à remoção do autor e mantém menções sem repetição", () => {
+  const orphan = Task.restore({
+    ...Task.create(input).toJSON(),
+    authorId: null,
+  });
+  expect(orphan.toJSON().authorId).toBeNull();
+  expect(() =>
+    Task.restore({ ...Task.create(input).toJSON(), authorId: " " })
+  ).toThrow(InvalidTaskError);
+
+  const mentioned = Task.create({
+    ...input,
+    mentions: [" user-2 ", "user-2", "user-3"],
+  });
+  expect(mentioned.toJSON().mentions).toEqual(["user-2", "user-3"]);
+  // Cada leitura devolve uma cópia: quem recebe não altera a entidade.
+  expect(mentioned.toJSON().mentions).not.toBe(mentioned.toJSON().mentions);
+  expect(() => Task.create({ ...input, mentions: [" "] })).toThrow(
+    InvalidTaskError
+  );
+  expect(() =>
+    Task.create({
+      ...input,
+      mentions: Array.from({ length: MAX_MENTIONS + 1 }, (_, i) => `u-${i}`),
+    })
+  ).toThrow(InvalidTaskError);
+  // Editar sem informar menções preserva as existentes.
+  expect(
+    mentioned.edit({ title: "Outro", description: "" }, later).toJSON().mentions
+  ).toEqual(["user-2", "user-3"]);
+});
+
+test("qualquer tarefa é alcançável: a autoria não restringe as operações", async () => {
   const tasks = new InMemoryTaskRepository();
   const create = createTask({
     tasks,
+    users: directory,
     generateId: () => input.id,
     now: () => input.createdAt,
   });
-  await expect(
-    create({ ownerId: input.ownerId, title: " ", description: "" })
-  ).rejects.toThrow(InvalidTaskError);
+  await expect(create({ ...input, title: " " })).rejects.toThrow(
+    InvalidTaskError
+  );
   expect(tasks.items).toHaveLength(0);
   await create(input);
-  const foreign = { id: input.id, ownerId: "someone-else" };
-  await expect(
-    updateTask(
-      tasks,
-      () => later
-    )({ ...foreign, title: "Invadido", description: "" })
-  ).rejects.toThrow(TaskNotFoundError);
-  await expect(
-    setTaskStatus(tasks, () => later)({ ...foreign, status: "completed" })
-  ).rejects.toThrow(TaskNotFoundError);
-  await expect(deleteTask(tasks)(foreign)).rejects.toThrow(TaskNotFoundError);
-  expect((await listTasks(tasks)({ ownerId: foreign.ownerId })).total).toBe(0);
+
+  // Outra conta edita, conclui e exclui a tarefa criada por "author-1".
   const edited = await updateTask(
     tasks,
+    directory,
     () => later
-  )({ ...input, title: " Novo título ", description: "Texto" });
+  )({ id: input.id, title: " Novo título ", description: "Texto" });
   expect(edited).toMatchObject({
     title: "Novo título",
     status: "pending",
     updatedAt: later,
   });
-  await setTaskStatus(tasks, () => later)({ ...input, status: "completed" });
+  expect(edited.author).toMatchObject({ id: "author-1", name: "Ana" });
+
+  await setTaskStatus(
+    tasks,
+    directory,
+    () => later
+  )({ id: input.id, status: "completed" });
   expect(tasks.items[0]?.toJSON().status).toBe("completed");
-  await deleteTask(tasks)(input);
+  await deleteTask(tasks)({ id: input.id });
   expect(tasks.items).toHaveLength(0);
+
+  const missing = { id: "inexistente" };
+  await expect(
+    updateTask(
+      tasks,
+      directory,
+      () => later
+    )({ ...missing, title: "x", description: "" })
+  ).rejects.toThrow(TaskNotFoundError);
+  await expect(
+    setTaskStatus(
+      tasks,
+      directory,
+      () => later
+    )({ ...missing, status: "completed" })
+  ).rejects.toThrow(TaskNotFoundError);
+  await expect(deleteTask(tasks)(missing)).rejects.toThrow(TaskNotFoundError);
 });
-test("filtra e pagina sem misturar tarefas de outros proprietários", async () => {
+
+test("menções só aceitam contas existentes e voltam resolvidas na leitura", async () => {
+  const tasks = new InMemoryTaskRepository();
+  const create = createTask({
+    tasks,
+    users: directory,
+    generateId: () => input.id,
+    now: () => input.createdAt,
+  });
+  await expect(
+    create({ ...input, mentions: ["user-2", "fantasma"] })
+  ).rejects.toThrow(InvalidTaskError);
+  expect(tasks.items).toHaveLength(0);
+
+  const created = await create({ ...input, mentions: ["user-3", "user-2"] });
+  expect(created.mentions.map((user) => user.id)).toEqual(["user-3", "user-2"]);
+  expect(created.mentions[1]).toMatchObject({
+    name: "Bruno",
+    username: "bruno",
+  });
+
+  const cleared = await updateTask(
+    tasks,
+    directory,
+    () => later
+  )({ id: input.id, title: "Revisar API", description: "", mentions: [] });
+  expect(cleared.mentions).toEqual([]);
+});
+
+test("a leitura de uma tarefa sem autor conhecido não quebra", async () => {
+  const tasks = new InMemoryTaskRepository();
+  await tasks.save(
+    Task.restore({
+      ...Task.create({ ...input, mentions: ["user-2"] }).toJSON(),
+      authorId: null,
+    })
+  );
+  const [view] = (await listTasks(tasks, directory)({})).items;
+  expect(view?.author).toBeNull();
+  expect(view?.mentions.map((user) => user.id)).toEqual(["user-2"]);
+});
+
+test("filtra e pagina sobre todas as tarefas, de qualquer autor", async () => {
   const tasks = new InMemoryTaskRepository();
   for (let i = 0; i < 25; i++) {
     await tasks.save(
@@ -108,24 +214,30 @@ test("filtra e pagina sem misturar tarefas de outros proprietários", async () =
     );
   }
   await tasks.save(Task.create({ ...input, id: "completed" }).complete(later));
-  await tasks.save(Task.create({ ...input, id: "other", ownerId: "other" }));
-  const list = listTasks(tasks);
-  const first = await list({ ownerId: input.ownerId, status: "pending" });
-  const second = await list({
-    ownerId: input.ownerId,
-    status: "pending",
-    page: 2,
-  });
+  await tasks.save(Task.create({ ...input, id: "other", authorId: "user-2" }));
+  const list = listTasks(tasks, directory);
+  const first = await list({ status: "pending" });
+  const second = await list({ status: "pending", page: 2 });
+  expect(first.total).toBe(26);
   expect(first.items).toHaveLength(20);
-  expect(first.total).toBe(25);
-  expect(second.items).toHaveLength(5);
+  expect(second.items).toHaveLength(6);
   expect(
     new Set([...first.items, ...second.items].map((task) => task.id)).size
-  ).toBe(25);
-  expect(
-    (await list({ ownerId: input.ownerId, status: "completed" })).total
-  ).toBe(1);
-  await expect(list({ ownerId: input.ownerId, page: -1 })).rejects.toThrow(
-    InvalidTaskError
-  );
+  ).toBe(26);
+  expect(first.items.some((task) => task.authorId === "user-2")).toBe(false);
+  expect(second.items.some((task) => task.authorId === "user-2")).toBe(true);
+  expect((await list({ status: "completed" })).total).toBe(1);
+  await expect(list({ page: -1 })).rejects.toThrow(InvalidTaskError);
+});
+
+test("a busca de contas para menção respeita o termo e o limite", async () => {
+  const mentionable = listMentionableUsers(directory);
+  expect((await mentionable({})).items).toHaveLength(3);
+  expect((await mentionable({ search: " bru " })).items).toMatchObject([
+    { id: "user-2" },
+  ]);
+  expect((await mentionable({ search: "carla" })).items).toMatchObject([
+    { id: "user-3", username: null },
+  ]);
+  expect((await mentionable({ search: "ninguém" })).items).toEqual([]);
 });

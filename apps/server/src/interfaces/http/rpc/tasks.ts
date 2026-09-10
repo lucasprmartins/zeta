@@ -1,18 +1,21 @@
 import { ORPCError } from "@orpc/server";
 import type { createTask } from "@server/domain/tasks/application/create-task";
 import type { deleteTask } from "@server/domain/tasks/application/delete-task";
+import type { listMentionableUsers } from "@server/domain/tasks/application/list-mentionable-users";
 import type { listTasks } from "@server/domain/tasks/application/list-tasks";
 import type { setTaskStatus } from "@server/domain/tasks/application/set-task-status";
 import { TaskNotFoundError } from "@server/domain/tasks/application/task-not-found";
 import type { updateTask } from "@server/domain/tasks/application/update-task";
 import { InvalidTaskError } from "@server/domain/tasks/entities/task";
-import { permissions } from "@server/infrastructure/auth/access";
+import { can, permissions } from "@server/infrastructure/auth/access";
 import { protectedProcedure, requirePermission } from "./context";
 import {
   createInput,
   deleteOutput,
   idInput,
   listInput,
+  mentionListOutput,
+  mentionSearchInput,
   statusInput,
   taskListOutput,
   taskOutput,
@@ -25,6 +28,7 @@ export type TaskUseCases = {
   update: ReturnType<typeof updateTask>;
   setStatus: ReturnType<typeof setTaskStatus>;
   delete: ReturnType<typeof deleteTask>;
+  mentionableUsers: ReturnType<typeof listMentionableUsers>;
 };
 const procedure = protectedProcedure
   .errors({ BAD_REQUEST: {}, UNAUTHORIZED: {}, FORBIDDEN: {}, NOT_FOUND: {} })
@@ -55,6 +59,15 @@ const route = {
   }),
 };
 
+// Criar e editar não implicam indicar contas: mencionar é uma permissão própria.
+function ensureMayMention(grants: string[], mentions: readonly string[]) {
+  if (mentions.length > 0 && !can(grants, permissions.tasks.mention)) {
+    throw new ORPCError("FORBIDDEN", {
+      message: "Você não tem permissão para mencionar contas.",
+    });
+  }
+}
+
 export function createTasksRouter(useCases: TaskUseCases) {
   return {
     create: procedure
@@ -67,22 +80,21 @@ export function createTasksRouter(useCases: TaskUseCases) {
       })
       .input(createInput)
       .output(taskOutput)
-      .handler(({ input, context }) =>
-        useCases.create({ ...input, ownerId: context.user.id })
-      ),
+      .handler(({ input, context }) => {
+        ensureMayMention(context.user.grants, input.mentions);
+        return useCases.create({ ...input, authorId: context.user.id });
+      }),
     list: procedure
       .use(requirePermission(permissions.tasks.read))
       .route({
         ...route,
         method: "GET",
         path: "/tasks",
-        summary: "Listar minhas tarefas",
+        summary: "Listar tarefas",
       })
       .input(listInput)
       .output(taskListOutput)
-      .handler(({ input, context }) =>
-        useCases.list({ ...input, ownerId: context.user.id })
-      ),
+      .handler(({ input }) => useCases.list(input)),
     update: procedure
       .use(requirePermission(permissions.tasks.update))
       .route({
@@ -93,9 +105,10 @@ export function createTasksRouter(useCases: TaskUseCases) {
       })
       .input(updateInput)
       .output(taskOutput)
-      .handler(({ input, context }) =>
-        useCases.update({ ...input, ownerId: context.user.id })
-      ),
+      .handler(({ input, context }) => {
+        ensureMayMention(context.user.grants, input.mentions);
+        return useCases.update(input);
+      }),
     setStatus: procedure
       .use(requirePermission(permissions.tasks.setStatus))
       .route({
@@ -106,9 +119,7 @@ export function createTasksRouter(useCases: TaskUseCases) {
       })
       .input(statusInput)
       .output(taskOutput)
-      .handler(({ input, context }) =>
-        useCases.setStatus({ ...input, ownerId: context.user.id })
-      ),
+      .handler(({ input }) => useCases.setStatus(input)),
     delete: procedure
       .use(requirePermission(permissions.tasks.delete))
       .route({
@@ -119,8 +130,17 @@ export function createTasksRouter(useCases: TaskUseCases) {
       })
       .input(idInput)
       .output(deleteOutput)
-      .handler(({ input, context }) =>
-        useCases.delete({ ...input, ownerId: context.user.id })
-      ),
+      .handler(({ input }) => useCases.delete(input)),
+    mentionableUsers: procedure
+      .use(requirePermission(permissions.tasks.mention))
+      .route({
+        ...route,
+        method: "GET",
+        path: "/tasks/mentions",
+        summary: "Buscar contas para mencionar",
+      })
+      .input(mentionSearchInput)
+      .output(mentionListOutput)
+      .handler(({ input }) => useCases.mentionableUsers(input)),
   };
 }

@@ -10,27 +10,33 @@ export const catalog = [
       {
         id: "tasks:read",
         label: "Consultar",
-        description: "Consultar as próprias tarefas.",
+        description: "Consultar as tarefas de todas as contas.",
       },
       {
         id: "tasks:create",
         label: "Criar",
-        description: "Criar tarefas para si.",
+        description: "Criar tarefas.",
       },
       {
         id: "tasks:update",
         label: "Editar",
-        description: "Editar as próprias tarefas.",
+        description: "Editar qualquer tarefa.",
       },
       {
         id: "tasks:set-status",
         label: "Concluir e reabrir",
-        description: "Alterar o estado das próprias tarefas.",
+        description: "Alterar o estado de qualquer tarefa.",
       },
       {
         id: "tasks:delete",
         label: "Excluir",
-        description: "Excluir as próprias tarefas.",
+        description: "Excluir qualquer tarefa.",
+      },
+      {
+        id: "tasks:mention",
+        label: "Mencionar contas",
+        description:
+          "Consultar as contas do sistema e indicar quem está relacionado a uma tarefa.",
       },
     ],
   },
@@ -45,6 +51,7 @@ export const permissions = {
     update: ["tasks:update"],
     setStatus: ["tasks:set-status"],
     delete: ["tasks:delete"],
+    mention: ["tasks:mention"],
   },
   access: { manage: ["access:manage"] },
 } as const;

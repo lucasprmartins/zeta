@@ -1,7 +1,12 @@
 import type { JSONSchema } from "@orpc/openapi";
 import { ORPCError, type } from "@orpc/server";
+import type { listMentionableUsers } from "@server/domain/tasks/application/list-mentionable-users";
 import type { listTasks } from "@server/domain/tasks/application/list-tasks";
-import type { TaskData, TaskStatus } from "@server/domain/tasks/entities/task";
+import type { TaskView } from "@server/domain/tasks/application/task-view";
+import {
+  MAX_MENTIONS,
+  type TaskStatus,
+} from "@server/domain/tasks/entities/task";
 import { documented } from "@server/interfaces/http/openapi/schema";
 
 const id: JSONSchema = { type: "string", format: "uuid" };
@@ -13,24 +18,43 @@ const title: JSONSchema = {
 };
 const description: JSONSchema = { type: "string", maxLength: 2000 };
 const status: JSONSchema = { type: "string", enum: ["pending", "completed"] };
+const taskUser: JSONSchema = {
+  type: "object",
+  required: ["id", "name", "username"],
+  properties: {
+    id: { type: "string" },
+    name: { type: "string" },
+    username: { type: ["string", "null"] },
+  },
+};
+const mentions: JSONSchema = {
+  type: "array",
+  items: { type: "string" },
+  maxItems: MAX_MENTIONS,
+  description: "Identificadores das contas relacionadas à tarefa.",
+};
 const task: JSONSchema = {
   type: "object",
   required: [
     "id",
-    "ownerId",
+    "authorId",
+    "author",
     "title",
     "description",
     "status",
+    "mentions",
     "createdAt",
     "updatedAt",
     "completedAt",
   ],
   properties: {
     id,
-    ownerId: { type: "string" },
+    authorId: { type: ["string", "null"] },
+    author: { anyOf: [taskUser, { type: "null" }] },
     title,
     description,
     status,
+    mentions: { type: "array", items: taskUser, maxItems: MAX_MENTIONS },
     createdAt: { type: "string", format: "date-time" },
     updatedAt: { type: "string", format: "date-time" },
     completedAt: { type: ["string", "null"], format: "date-time" },
@@ -69,28 +93,52 @@ function parseStatus(input: unknown): TaskStatus {
   }
   return input;
 }
-export type TaskFields = { title: string; description?: string };
+function parseMentions(input: unknown): string[] {
+  if (input === undefined) {
+    return [];
+  }
+  if (!Array.isArray(input) || input.length > MAX_MENTIONS) {
+    throw new ORPCError("BAD_REQUEST", {
+      message: `Informe até ${MAX_MENTIONS} contas mencionadas.`,
+    });
+  }
+  return input.map((value) => {
+    const account = text(value, "a conta mencionada").trim();
+    if (!account || account.length > 255) {
+      throw new ORPCError("BAD_REQUEST", {
+        message: "Conta mencionada inválida.",
+      });
+    }
+    return account;
+  });
+}
+export type TaskFields = {
+  title: string;
+  description?: string;
+  mentions?: string[];
+};
 const fields = (input: Record<string, unknown>) => ({
   title: text(input.title, "title"),
   description:
     input.description === undefined
       ? ""
       : text(input.description, "description"),
+  mentions: parseMentions(input.mentions),
 });
 export const createInput = documented(
-  type<TaskFields, { title: string; description: string }>((input) =>
-    fields(object(input))
+  type<TaskFields, { title: string; description: string; mentions: string[] }>(
+    (input) => fields(object(input))
   ),
   {
     type: "object",
     required: ["title"],
-    properties: { title, description },
+    properties: { title, description, mentions },
   }
 );
 export const updateInput = documented(
   type<
     TaskFields & { id: string },
-    { id: string; title: string; description: string }
+    { id: string; title: string; description: string; mentions: string[] }
   >((input) => {
     const data = object(input);
     return { ...fields(data), id: parseId(data.id) };
@@ -98,7 +146,7 @@ export const updateInput = documented(
   {
     type: "object",
     required: ["id", "title"],
-    properties: { id, title, description },
+    properties: { id, title, description, mentions },
   }
 );
 export const statusInput = documented(
@@ -151,7 +199,7 @@ export const listInput = documented(
     },
   }
 );
-export const taskOutput = documented(type<TaskData>(), task);
+export const taskOutput = documented(type<TaskView>(), task);
 export const taskListOutput = documented(
   type<Awaited<ReturnType<ReturnType<typeof listTasks>>>>(),
   {
@@ -170,3 +218,27 @@ export const deleteOutput = documented(type<{ id: string }>(), {
   required: ["id"],
   properties: { id },
 });
+export const mentionSearchInput = documented(
+  type<{ search?: string } | undefined, { search: string }>((input) => {
+    const data = object(input ?? {});
+    if (
+      data.search !== undefined &&
+      (typeof data.search !== "string" || data.search.length > 120)
+    ) {
+      throw new ORPCError("BAD_REQUEST", { message: "Busca inválida." });
+    }
+    return { search: typeof data.search === "string" ? data.search : "" };
+  }),
+  {
+    type: "object",
+    properties: { search: { type: "string", maxLength: 120 } },
+  }
+);
+export const mentionListOutput = documented(
+  type<Awaited<ReturnType<ReturnType<typeof listMentionableUsers>>>>(),
+  {
+    type: "object",
+    required: ["items"],
+    properties: { items: { type: "array", items: taskUser } },
+  }
+);

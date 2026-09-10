@@ -59,7 +59,7 @@ export function DashboardPage({ userId }: { userId: string }) {
             <ArrowUpRightIcon className="size-4" />
           </Link>
         }
-        description="Uma visão geral das suas tarefas."
+        description="Uma visão geral das tarefas da equipe."
         title="Dashboard"
       />
       {error ? (
@@ -126,7 +126,7 @@ export function DashboardPage({ userId }: { userId: string }) {
               <div className="mb-4 flex items-center justify-between gap-4">
                 <div>
                   <h2 className="font-semibold text-sm" id="progress-heading">
-                    Seu progresso
+                    Progresso da equipe
                   </h2>
                   <p className="mt-1 text-muted-foreground text-xs">
                     {completed.data.total} de {total} tarefas concluídas
@@ -154,7 +154,7 @@ export function DashboardPage({ userId }: { userId: string }) {
                     Pendentes recentes
                   </h2>
                   <p className="mt-1 text-muted-foreground text-xs">
-                    As últimas tarefas que você adicionou.
+                    As últimas tarefas registradas pela equipe.
                   </p>
                 </div>
                 <Link
@@ -179,8 +179,8 @@ export function DashboardPage({ userId }: { userId: string }) {
                   </EmptyTitle>
                   <EmptyDescription>
                     {total === 0 && can(permissions.tasks.create)
-                      ? "Acesse Tarefas e registre seu primeiro passo."
-                      : "Suas próximas tarefas aparecerão neste espaço."}
+                      ? "Acesse Tarefas e registre o primeiro passo."
+                      : "As próximas tarefas aparecerão neste espaço."}
                   </EmptyDescription>
                 </Empty>
               ) : (
