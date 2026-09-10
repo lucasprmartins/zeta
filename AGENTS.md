@@ -126,13 +126,24 @@ Use rolagem infinita para carregamento progressivo:
 - Publicação é opcional e interativa: revise destino, visibilidade e arquivos antes de criar/commitar/enviar. Preserve `origin`, use `publish`, bloqueie `.env` candidatos e não permita publicação implícita por `--yes`, force push ou sobrescrita de repositórios. Confira estado local/remoto após falhas parciais.
 - Ao alterar identidade do produto, revise nomes/imports dos workspaces, marca, namespaces locais (incluindo a lista explícita do setup), navegação, entrada, ambiente e infraestrutura. Não renomeie ou remova módulos/migrations fora do escopo solicitado.
 
+## Lint e formatação
+
+Ultracite sobre Biome, configurado uma única vez em `biome.jsonc` na raiz e válido para todos os workspaces.
+
+- O preset vem de `extends`; ajuste regras no `biome.jsonc` da raiz, com o motivo em comentário. Não crie configurações por workspace nem reintroduza ESLint, Prettier ou Oxlint.
+- Migrations do Drizzle e SVGs ficam fora do escopo: são gerados ou exportados. `Bun` está declarado em `javascript.globals` para o runtime de produção do cliente.
+- Regras desligadas cobrem padrões deliberados do projeto (`void promise`, contratos com assinaturas em forma de método, handlers inline em JSX, barrels dos `packages/*`, renderização condicional com `&&`). Avisos sinalizam dívida, não bloqueiam.
+- Para exceções pontuais use `biome-ignore` com justificativa na linha anterior; não amplie a exclusão para o arquivo inteiro.
+- O hook `pre-commit` do husky roda `biome check --write --staged` e reenfileira apenas o que já estava em stage. `bun install` recria o hook pelo script `prepare`.
+
 ## Validação
 
 Execute na raiz; os scripts disponíveis e seus detalhes estão nos `package.json` da raiz e dos apps.
 
+- `bun run lint`: Ultracite sobre Biome, na raiz e em todos os workspaces. `bun run format` aplica as correções seguras.
 - `bun run typecheck`: apps, domínio, scripts e IaC.
 - `bun run test`: testes sem banco. `bun test` faz descoberta própria e pode incluir integração.
-- `bun run build`: ambos os apps. `bun run check`: tipos, testes sem banco e build.
+- `bun run build`: ambos os apps. `bun run check`: lint, tipos, testes sem banco e build.
 - `bun run test:integration`: exige `TEST_DATABASE_URL` de desenvolvimento/testes com permissão `CREATEDB`; cria e remove um banco temporário. Nunca use produção. Não faz parte de `check`.
 - Para alterações no banco, confira migrations e integração; em regras, transporte e autenticação, execute os testes correspondentes. Testes de domínio usam dependências determinísticas e repositórios em memória.
 - Faça verificações proporcionais, relate o que executou e os bloqueios reais. Comandos interativos Drizzle devem rodar em `apps/server` para preservar o TTY.

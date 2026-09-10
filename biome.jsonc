@@ -1,0 +1,56 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "extends": [
+    "ultracite/biome/core",
+    "ultracite/biome/react",
+    "ultracite/biome/tanstack"
+  ],
+  "files": {
+    // Artefatos do Drizzle Kit e imagens: regerados ou exportados, nunca editados à mão.
+    "includes": ["!!**/database/migrations", "!!**/*.svg"]
+  },
+  "javascript": {
+    // O runtime de produção do cliente (`apps/client/server`) usa APIs do Bun.
+    "globals": ["Bun"]
+  },
+  "linter": {
+    "rules": {
+      "complexity": {
+        // `void promise` marca efeitos deliberadamente não aguardados.
+        "noVoid": "off",
+        "noExcessiveCognitiveComplexity": "warn"
+      },
+      "performance": {
+        // Barrels são a fronteira pública dos workspaces em `packages/*`.
+        "noBarrelFile": "off",
+        // Handlers inline em JSX são o padrão das features; `useCallback` só onde medir.
+        "noJsxPropsBind": "off",
+        // Awaits sequenciais em migrations e scripts são intencionais.
+        "noAwaitInLoops": "off",
+        "noNamespaceImport": "off",
+        "useTopLevelRegex": "off"
+      },
+      "style": {
+        // Ternários encadeados aparecem em classes condicionais e rótulos de estado.
+        "noNestedTernary": "off",
+        // Contratos do domínio usam assinaturas em forma de método.
+        "useConsistentMethodSignatures": "off",
+        "useConsistentTypeDefinitions": "off",
+        "noIncrementDecrement": "off",
+        "noNonNullAssertion": "warn",
+        "noParameterProperties": "off",
+        "useConsistentMemberAccessibility": "off",
+        "useDestructuring": "warn"
+      },
+      "suspicious": {
+        // `cond && <Componente />` é a renderização condicional usada nas telas.
+        "noLeakedRender": "off",
+        // Métodos assíncronos sem await cumprem contratos de repositório.
+        "useAwait": "off",
+        // A inferência do Biome ignora `noUncheckedIndexedAccess`; o TypeScript já cobre o caso.
+        "noUnnecessaryConditions": "off",
+        "noShadow": "warn"
+      }
+    }
+  }
+}

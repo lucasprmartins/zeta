@@ -1,0 +1,16 @@
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
+[ -z "$staged" ] && exit 0
+
+# Corrige apenas os arquivos em stage, com a configuração do Ultracite em biome.jsonc.
+bunx biome check --write --staged --no-errors-on-unmatched
+status=$?
+
+# Reenfileira o que já estava em stage; alterações não preparadas continuam de fora.
+printf '%s\n' "$staged" | while IFS= read -r file; do
+  [ -f "$file" ] && git add -- "$file"
+done
+
+if [ $status -ne 0 ]; then
+  echo "Ultracite encontrou problemas que não são corrigidos automaticamente."
+fi
+exit $status
