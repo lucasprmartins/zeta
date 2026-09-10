@@ -327,9 +327,36 @@
   min-height: 1.8em;
   line-height: 1.8;
 }
-.guide-content > :first-child {
-  margin-top: 0;
+
+/* SidePanel: Sheet com largura ajustável no desktop e viewport completa no mobile. */
+.side-panel {
+  position: fixed;
+  inset: var(--dialog-top, 0px) 0 auto auto;
+  width: 100%;
+  max-width: 100%;
+  height: var(--dialog-height, 100dvh);
+  max-height: var(--dialog-height, 100dvh);
+  margin: 0;
+  overflow: hidden;
+  transition: transform 180ms ease-out;
 }
-.guide-content {
-  overflow-wrap: anywhere;
+.side-panel-header {
+  padding-top: max(1rem, env(safe-area-inset-top));
+  padding-right: max(1.25rem, env(safe-area-inset-right));
+}
+.side-panel-body,
+.side-panel-footer {
+  padding-right: max(1.25rem, env(safe-area-inset-right));
+  padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
+  padding-left: max(1.25rem, env(safe-area-inset-left));
+}
+@media (min-width: 640px) {
+  .side-panel {
+    width: min(var(--panel-width, 560px), calc(100vw - 3rem));
+  }
+}
+@starting-style {
+  .side-panel[open] {
+    transform: translateX(100%);
+  }
 }
