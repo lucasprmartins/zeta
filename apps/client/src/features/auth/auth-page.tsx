@@ -1,7 +1,7 @@
 import { ArrowRightIcon, SpinnerGapIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
-import { Link, Navigate, useNavigate } from "@tanstack/react-router";
-import { type FormEvent, useState } from "react";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { type FormEvent, useEffect, useState } from "react";
 import { ErrorNotice, Loading } from "@/components/feedback";
 import { AuthLayout } from "@/components/layout/auth-layout";
 import { Button } from "@/components/ui/button";
@@ -56,7 +56,13 @@ const authErrors: Record<string, string> = {
   TOO_MANY_REQUESTS: "Muitas tentativas. Aguarde um pouco e tente novamente.",
 };
 
-export function AuthPage({ mode }: { mode: "login" | "register" }) {
+export function AuthPage({
+  mode,
+  returnTo = "/dashboard",
+}: {
+  mode: "login" | "register";
+  returnTo?: string;
+}) {
   const signingUp = mode === "register";
   const navigate = useNavigate();
   const session = authClient.useSession();
@@ -66,6 +72,12 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
   const [remember, setRemember] = useState(Boolean(rememberedIdentifier));
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (session.data) {
+      void navigate({ href: returnTo, replace: true });
+    }
+  }, [session.data, navigate, returnTo]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -114,7 +126,6 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
       await queryClient.cancelQueries();
       queryClient.clear();
       await session.refetch();
-      await navigate({ to: "/dashboard", replace: true });
     } catch {
       setError(
         "Não foi possível conectar. Verifique sua conexão e tente novamente."
@@ -128,7 +139,7 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
     return <Loading label="Verificando sua sessão…" />;
   }
   if (session.data) {
-    return <Navigate replace to="/dashboard" />;
+    return <Loading label="Abrindo sua página…" />;
   }
 
   if (awaitingApproval) {

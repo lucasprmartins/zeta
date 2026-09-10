@@ -1,13 +1,15 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { Navigate, Outlet } from "@tanstack/react-router";
+import { Navigate, Outlet, useLocation } from "@tanstack/react-router";
 import { useState } from "react";
 import { ErrorNotice, Loading } from "@/components/feedback";
 import { AppShell } from "@/components/layout/app-shell";
 import { AccessProvider } from "@/components/permission-boundary";
 import { authClient } from "@/lib/auth";
+import { safeReturnTo } from "@/lib/return-to";
 
 export function Workspace() {
   const session = authClient.useSession();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const [leaving, setLeaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,7 +46,7 @@ export function Workspace() {
     );
   }
   if (!session.data) {
-    return <Navigate replace to="/login" />;
+    return <LoginRedirect href={location.href} />;
   }
 
   const user = session.data.user;
@@ -60,4 +62,11 @@ export function Workspace() {
       </AppShell>
     </AccessProvider>
   );
+}
+
+// A rota anterior pode continuar montada enquanto o login carrega. Capture o
+// destino uma vez para não encadear o endereço do próprio login em `redirect`.
+function LoginRedirect({ href }: { href: string }) {
+  const [redirect] = useState(() => safeReturnTo(href));
+  return <Navigate replace search={{ redirect }} to="/login" />;
 }
