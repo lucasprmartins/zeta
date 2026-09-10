@@ -5,6 +5,13 @@ import { permissions } from "@/lib/access";
 import { authClient } from "@/lib/auth";
 export const Route = createFileRoute("/_authenticated/help/guides/new")({
   component: Page,
+  staticData: {
+    crumbs: [
+      { label: "Ajuda", to: "/help" },
+      { label: "Guia de uso", to: "/help/guides" },
+      { label: "Novo guia" },
+    ],
+  },
 });
 function Page() {
   const { data } = authClient.useSession();

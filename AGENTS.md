@@ -92,6 +92,7 @@ Guias mantêm rascunho e publicação separados, com controle de versão e autor
 ## Rotas e dados do cliente
 
 - Rotas TanStack por arquivo conectam parâmetros e telas de `features`. Páginas autenticadas ficam em `routes/_authenticated/`; registre a navegação em `app-sidebar.tsx` quando necessário.
+- Toda rota autenticada declara `staticData.crumbs` com a trilha completa até ela, do primeiro nível à própria página; itens intermediários levam `to` e viram links. Quando o rótulo final depende de dados, a tela chama `usePageCrumb`. Não monte trilhas a partir do pathname nem passe título pelo `AppShell`. Retornos usam `BackLink`.
 - Preserve o plugin TanStack antes do React no Vite e a configuração em `tsr.config.json`. Não edite nem versione `routeTree.gen.ts` ou `.tanstack/`; a geração roda antes de typecheck/build.
 - Reutilize `RouteError`, `RouteNotFound` e `RouteFeedback`: conteúdo centralizado, mensagem técnica em vermelho e recuperação via `router.invalidate()` e reset dos boundaries. Exiba apenas a mensagem, sem stack, cause, objetos de resposta ou segredos.
 - Better Auth cuida da sessão; TanStack Query, dos dados de negócio. Preserve cancelamento e limpeza do cache quando a identidade muda, inclusive entre abas.

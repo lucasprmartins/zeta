@@ -6,6 +6,7 @@ import { authClient } from "@/lib/auth";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   component: DashboardRoute,
+  staticData: { crumbs: [{ label: "Workspace" }, { label: "Dashboard" }] },
 });
 
 function DashboardRoute() {

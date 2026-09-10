@@ -6,6 +6,7 @@ import { authClient } from "@/lib/auth";
 
 export const Route = createFileRoute("/_authenticated/admin/console")({
   component: Page,
+  staticData: { crumbs: [{ label: "Administração" }, { label: "Console" }] },
 });
 function Page() {
   const { data } = authClient.useSession();

@@ -8,6 +8,8 @@ import { Link } from "@tanstack/react-router";
 import { useCallback } from "react";
 import { ErrorNotice, Loading } from "@/components/feedback";
 import { InfiniteScroll } from "@/components/infinite-scroll";
+import { BackLink } from "@/components/layout/back-link";
+import { usePageCrumb } from "@/components/layout/breadcrumbs";
 import { PageContent } from "@/components/layout/page-content";
 import { PageHeader } from "@/components/layout/page-header";
 import { usePermissions } from "@/components/permission-boundary";
@@ -50,12 +52,7 @@ export function GuidesPage({ userId }: { userId: string }) {
   const groups = Map.groupBy(items, (item) => item.section);
   return (
     <PageContent>
-      <Link
-        className="w-fit py-2 text-muted-foreground text-sm hover:text-foreground"
-        to="/help"
-      >
-        ← Ajuda
-      </Link>
+      <BackLink to="/help">Ajuda</BackLink>
       <PageHeader
         description="Encontre orientações para usar as funcionalidades do sistema."
         title="Guia de uso"
@@ -191,14 +188,10 @@ export function GuideReadPage({
 }) {
   const { can } = usePermissions();
   const query = useQuery(guideQuery(userId, slug));
+  usePageCrumb(query.data?.title);
   return (
     <PageContent>
-      <Link
-        className="w-fit py-2 text-muted-foreground text-sm hover:text-foreground"
-        to="/help/guides"
-      >
-        ← Guia de uso
-      </Link>
+      <BackLink to="/help/guides">Guia de uso</BackLink>
       {query.isPending ? (
         <Loading />
       ) : query.isError ? (

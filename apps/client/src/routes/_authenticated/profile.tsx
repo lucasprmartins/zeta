@@ -4,6 +4,7 @@ import { authClient } from "@/lib/auth";
 
 export const Route = createFileRoute("/_authenticated/profile")({
   component: ProfileRoute,
+  staticData: { crumbs: [{ label: "Perfil" }] },
 });
 
 function ProfileRoute() {

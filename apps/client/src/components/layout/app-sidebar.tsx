@@ -75,30 +75,6 @@ const administration: AdministrationItem[] = [
 const inRoute = (pathname: string, to: string) =>
   pathname === to || pathname.startsWith(`${to}/`);
 
-// A trilha do cabeçalho nomeia a seção e a página com os mesmos rótulos da navegação.
-export function pageBreadcrumb(pathname: string) {
-  const admin = administration.find((item) => inRoute(pathname, item.to));
-  if (admin) {
-    return { section: "Administração", title: admin.label };
-  }
-  const item = navigation
-    .flatMap((group) => group.items)
-    .find((entry) => inRoute(pathname, entry.to));
-  if (item) {
-    return { section: "Workspace", title: item.label };
-  }
-  if (inRoute(pathname, "/help/guides")) {
-    return { section: "Ajuda", title: "Guia de uso" };
-  }
-  if (inRoute(pathname, "/help")) {
-    return { section: "Workspace", title: "Ajuda" };
-  }
-  if (inRoute(pathname, "/profile")) {
-    return { section: "Workspace", title: "Perfil" };
-  }
-  return { section: "Workspace", title: "Tarefas" };
-}
-
 export type SidebarUser = {
   name: string;
   email: string;

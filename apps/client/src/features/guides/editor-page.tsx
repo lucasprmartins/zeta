@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useBlocker, useNavigate } from "@tanstack/react-router";
+import { useBlocker, useNavigate } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { ErrorNotice, Loading } from "@/components/feedback";
+import { BackLink } from "@/components/layout/back-link";
 import { PageContent } from "@/components/layout/page-content";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
@@ -97,12 +98,7 @@ function EditorForm({
     draft.markdown.length <= 50_000;
   return (
     <PageContent>
-      <Link
-        className="w-fit py-2 text-muted-foreground text-sm hover:text-foreground"
-        to="/help/guides"
-      >
-        ← Guia de uso
-      </Link>
+      <BackLink to="/help/guides">Guia de uso</BackLink>
       <PageHeader
         description={
           saved?.published

@@ -5,6 +5,7 @@ import { permissions } from "@/lib/access";
 import { authClient } from "@/lib/auth";
 export const Route = createFileRoute("/_authenticated/admin/users")({
   component: Page,
+  staticData: { crumbs: [{ label: "Administração" }, { label: "Usuários" }] },
   validateSearch: (
     search: Record<string, unknown>
   ): { q?: string; view?: "roles" | "approvals" } => ({

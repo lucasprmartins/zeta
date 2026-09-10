@@ -7,6 +7,7 @@ import { authClient } from "@/lib/auth";
 
 export const Route = createFileRoute("/_authenticated/tasks")({
   component: TasksRoute,
+  staticData: { crumbs: [{ label: "Workspace" }, { label: "Tarefas" }] },
   validateSearch: (
     search: Record<string, unknown>
   ): { status: TaskFilter } => ({
