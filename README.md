@@ -203,3 +203,7 @@ O [guia do Railway](.railway/README.md) descreve PostgreSQL, API privada e clien
 A API é compilada em `apps/server/dist/server`, com runtime e dependências incorporados, bytecode, minificação, nomes preservados e sourcemaps. Execute `bun run --cwd apps/server start` após o build. O binário é específico da plataforma; o Docker o compila para Linux. A imagem mantém Bun para o migrador executado no pré-deploy.
 
 O frontend gera `apps/client/dist`; seu runtime Bun serve estáticos, faz fallback de SPA e encaminha as chamadas à API. O Vite não é o servidor de produção. Desenvolvimento, preview e runtime do cliente usam 3001 por padrão; não os execute simultaneamente nessa porta. A API usa 3000.
+
+### Guia de Uso
+
+Usuários consultam `/help/guides`; administradores editam e publicam em `/admin/guides`. Desenvolvedores podem importar arquivos Markdown com `bun run guides:import`, sem sobrescrever conteúdo existente. Veja o [guia de autoria](docs/guides-authoring.md).

@@ -36,6 +36,7 @@ Monorepo com workspaces Bun em `apps/*` e `packages/*`:
 | `apps/client` | React, Vite, TanStack Router/Query, Tailwind, shadcn/ui e Phosphor |
 | `client/src/{app,routes,features}` | Layouts com sessão, rotas por arquivo e funcionalidades |
 | `client/src/components` | Layouts e primitivas de UI compartilhadas |
+| `packages/guide-content` | Conversão compartilhada dos blocos Markdown do Guia de Uso |
 | `packages/access` | Catálogo público de permissões e configuração das operações nativas do Better Auth |
 
 Os caminhos `server/` e `client/` da tabela são relativos a `apps/`; versões e nomes dos workspaces estão nos manifests.
@@ -63,6 +64,10 @@ Os caminhos `server/` e `client/` da tabela são relativos a `apps/`; versões e
 `packages/access` define ações e rótulos públicos; concessões dos papéis ficam no banco. Use permissões, não nomes de papéis, nas funcionalidades. Procedures aplicam `requirePermission`; navegação, páginas e controles usam `usePermissions`, `PermissionBoundary` e `Can` dentro de `AccessProvider`. A API consulta as concessões atuais em cada requisição. O cliente consulta `/access/me` e limpa dados afetados quando elas mudam. `admin` recebe automaticamente todas as ações do catálogo; `user` e papéis personalizados usam concessões explícitas. Esse acesso total não altera o escopo dos dados: papéis não concedem acesso aos registros de outro proprietário.
 
 O módulo `domain/authorization` administra papéis globais e atribuições; o plugin Admin do Better Auth mantém operações nativas limitadas de contas/sessões. Todas as atribuições, inclusive via CLI, passam pelo mesmo fluxo transacional para preservar o último administrador. Não reabilite mutações alternativas do plugin que contornem essas regras. Política de cadastro e aprovação são independentes e persistidas; preserve a aplicação no Better Auth e o bloqueio de sessões pendentes, sem depender da visibilidade dos controles no cliente. Consulte [docs/authorization.md](docs/authorization.md) para extensão e operação.
+
+## Guia de Uso
+
+Guias mantêm rascunho e publicação separados, com controle de versão e autorização também na listagem. O conteúdo usa o subconjunto Markdown de `packages/guide-content`; amplie editor, conversão e leitor em conjunto. A importação cria somente rascunhos ausentes, sem sobrescrever edições nem publicar automaticamente. Consulte [docs/guides-authoring.md](docs/guides-authoring.md) para formato e operação.
 
 ## Banco
 

@@ -1,3 +1,5 @@
+import { manageGuides } from "./domain/guides/application/manage-guides";
+import { createGuideRepository } from "./infrastructure/repositories/drizzle-guide-repository";
 import { createUserManagement } from "./infrastructure/auth/manage-users";
 import { effectiveRoleGrants } from "./domain/authorization/entities/role";
 import { manageAccess } from "./domain/authorization/application/manage-access";
@@ -27,7 +29,7 @@ export async function bootstrap(env: Env) {
     update: updateTask(tasks, () => new Date().toISOString()),
     setStatus: setTaskStatus(tasks, () => new Date().toISOString()),
     delete: deleteTask(tasks),
-  }, manageAccess(access, permissionIds, () => crypto.randomUUID()), createUserManagement(database.db, env));
+  }, manageAccess(access, permissionIds, () => crypto.randomUUID()), createUserManagement(database.db, env), manageGuides(createGuideRepository(database.db), permissionIds, () => new Date().toISOString()));
   try {
     const app = await createApp({
       router,

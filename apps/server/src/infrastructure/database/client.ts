@@ -3,11 +3,12 @@ import { drizzle } from "drizzle-orm/bun-sql";
 import * as authSchema from "./schema/auth";
 import { accessRoles } from "./schema/access";
 import { registrationSettings } from "./schema/settings";
+import { guides } from "./schema/guides";
 import { tasks } from "./schema/tasks";
 
 export function createDatabase(url: string) {
   const client = new SQL(url);
-  const db = drizzle({ client, schema: { ...authSchema, tasks, accessRoles, registrationSettings } });
+  const db = drizzle({ client, schema: { ...authSchema, tasks, guides, accessRoles, registrationSettings } });
   return { db, close: () => client.close({ timeout: 5 }) };
 }
 

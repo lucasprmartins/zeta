@@ -30,3 +30,14 @@ _Avoid_: Acesso total, nível
 
 **Administrador (Admin)**: Usuário autorizado a configurar papéis e atribuí-los às contas. Suas tarefas continuam privadas, como as dos demais usuários.
 _Avoid_: Proprietário de todas as tarefas
+
+## Guia de Uso
+
+**Guia (Guide)**: Conteúdo de orientação sobre o uso do sistema, organizado por seção e identificado por um endereço permanente. Pode exigir uma permissão de leitura.
+_Avoid_: Documentação técnica, tutorial de instalação
+
+**Rascunho (Draft)**: Versão editável de um guia, disponível apenas na administração. Alterá-la não modifica a versão publicada.
+_Avoid_: Publicação automática
+
+**Publicação (Publication)**: Versão do guia disponibilizada aos leitores autorizados. Retirar a publicação oculta o guia sem apagar o rascunho.
+_Avoid_: Exclusão

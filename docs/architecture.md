@@ -64,6 +64,10 @@ REST e RPC compartilham procedures e casos de uso. `.route()` define método, ca
 
 Imports entre camadas usam `@server/`; o domínio mantém imports relativos. A entrada pública `@zeta/server/rpc` exporta apenas os tipos `AppClient` e `AppRouter` para o navegador.
 
+## Guia de Uso
+
+`domain/guides` coordena rascunhos, publicação e controle otimista de versão. `public.guides` guarda ambas as versões; a leitura usa exclusivamente a publicada e aplica a permissão antes da paginação. A administração exige a permissão de gestão do console. `packages/guide-content` compartilha o formato Markdown entre importador, HTTP, editor Tiptap e leitor React. Operação e extensão estão em [guides-authoring.md](guides-authoring.md).
+
 ## Autenticação e perfil
 
 Better Auth controla contas, senhas e sessões em cookies. O cliente usa `lib/auth.ts` com `usernameClient()`; o servidor habilita `username()`. Login com `@` chama `signIn.email`; demais identificadores usam `signIn.username`. O cadastro envia username via `signUp.email`; normalização e unicidade são validadas no servidor.
@@ -93,6 +97,9 @@ routes/
     index.tsx                # / → /dashboard
     dashboard.tsx
     tasks.tsx                # Filtro status na URL
+    help/index.tsx           # Central de ajuda
+    help/guides/{index,$slug}.tsx # Listagem e leitura dos guias
+    admin/guides/            # Listagem, criação e edição
     profile.tsx
     admin/users.tsx           # Usuários, papéis e aprovações; view/q na URL
     admin/console.tsx         # Política de cadastro e aprovação

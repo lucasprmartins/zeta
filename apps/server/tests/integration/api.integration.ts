@@ -540,7 +540,7 @@ test("separa schemas preservando registros, constraints e histórico de migratio
   const tables = await database.db.execute(sql`select table_schema, table_name from information_schema.tables where table_schema in ('auth', 'console', 'public', 'drizzle') and table_type = 'BASE TABLE' order by table_schema, table_name`);
   expect(tables.map((row) => `${row.table_schema}.${row.table_name}`)).toEqual([
     "auth.access", "auth.account", "auth.session", "auth.user", "auth.verification",
-    "console.registration", "drizzle.migrations", "public.tasks",
+    "console.registration", "drizzle.migrations", "public.guides", "public.tasks",
   ]);
   expect((await database.db.execute(sql`select password from auth.account where id = 'schema-account'`))[0]!.password).toBe("preserved-hash");
   expect((await database.db.execute(sql`select token from auth.session where id = 'schema-session'`))[0]!.token).toBe("preserved-session-token");
@@ -581,3 +581,59 @@ test("banco novo cria apenas drizzle.migrations e serializa migradores concorren
     await admin.unsafe(`DROP DATABASE "${freshName}"`);
   }
 });
+
+test("guias separam publicação e rascunho, autorização, importação e paginação", async () => {
+  const manager = await signUp("guides-admin@example.com");
+  const reader = await signUp("guides-reader@example.com");
+  await database.db.execute(sql`update auth.user set role = 'admin' where id = ${manager.data.user.id}`);
+  const draft = { title: "Primeiro guia", section: "Guias", order: 1, markdown: "# Guia\n\nConteúdo publicado", permission: null };
+  const save = (body: unknown, cookie = manager.cookie) => request("/api/admin/guides", body, cookie);
+  const read = (slug = "primeiro-guia") => request(`/api/guides/${slug}`, undefined, reader.cookie);
+  expect((await request("/api/guides")).status).toBe(401);
+  expect((await request("/api/admin/guides", undefined, reader.cookie)).status).toBe(403);
+  expect((await save({ slug: "primeiro-guia", draft, action: "publish" }, reader.cookie)).status).toBe(403);
+  const pending = await save({ slug: "primeiro-guia", draft, action: "draft" });
+  expect(pending.status).toBe(200);
+  expect((await read()).status).toBe(404);
+  expect((await (await request("/api/guides", undefined, reader.cookie)).json()).items).toEqual([]);
+  expect((await save({ slug: "primeiro-guia", draft, action: "publish", version: 1 })).status).toBe(200);
+  const changed = { ...draft, title: "Título secreto do rascunho", markdown: "Ainda não publicado" };
+  expect((await save({ slug: "primeiro-guia", draft: changed, action: "draft", version: 2 })).status).toBe(200);
+  expect((await (await read()).json()).markdown).toBe(draft.markdown);
+  expect(JSON.stringify(await (await request("/api/guides", undefined, reader.cookie)).json())).not.toContain("secreto");
+  expect((await save({ slug: "primeiro-guia", draft, action: "publish", version: 2 })).status).toBe(409);
+  expect((await save({ slug: "primeiro-guia", draft: { ...draft, markdown: "![image](url)" }, action: "publish", version: 3 })).status).toBe(400);
+  const noRead = await (await request("/api/access/roles", { name: "Sem leitura dos guias restritos", grants: [] }, manager.cookie)).json();
+  expect((await request(`/api/access/users/${reader.data.user.id}/role`, { roleId: noRead.id }, manager.cookie, "PATCH")).status).toBe(200);
+  expect((await read()).status).toBe(200);
+  for (let i = 0; i < 25; i++) {
+    expect((await save({ slug: `restrito-${i}`, draft: { ...draft, order: 0, permission: "tasks:read" }, action: "publish" })).status).toBe(200);
+  }
+  expect((await read("restrito-1")).status).toBe(404);
+  const stored = await database.db.execute(sql`select jsonb_typeof(published) as kind from guides where slug = 'restrito-1'`);
+  expect(stored[0]?.kind).toBe("object");
+  const visible = await (await request("/api/guides", undefined, reader.cookie)).json();
+  expect(visible.items).toHaveLength(1);
+  expect(visible.hasMore).toBe(false);
+  const adminFirst = await (await request("/api/guides", undefined, manager.cookie)).json();
+  const adminNext = await (await request("/api/guides?page=2", undefined, manager.cookie)).json();
+  expect(adminFirst.items).toHaveLength(20);
+  expect(adminFirst.hasMore).toBe(true);
+  expect(adminNext.items).toHaveLength(6);
+  expect((await save({ slug: "primeiro-guia", draft, action: "unpublish", version: 3 })).status).toBe(200);
+  expect((await read()).status).toBe(404);
+  // A mesma política vale no transporte RPC.
+  expect((await request("/rpc/guides/adminGet", { json: { slug: "primeiro-guia" } }, reader.cookie)).status).toBe(403);
+  const script = new URL("../../scripts/import-guides.ts", import.meta.url).pathname;
+  const cwd = new URL("../..", import.meta.url).pathname;
+  const runImport = () => Bun.spawn([process.execPath, script], { cwd, env: { ...process.env, DATABASE_URL: scopedUrl.toString() }, stdout: "pipe", stderr: "pipe" });
+  const imported = runImport(); expect(await imported.exited).toBe(0);
+  expect(await new Response(imported.stdout).text()).toContain("Rascunho criado");
+  const before = await (await request("/api/admin/guides/primeiros-passos", undefined, manager.cookie)).json();
+  expect(before.published).toBeNull();
+  expect((await save({ slug: "primeiros-passos", draft: { ...before.draft, title: "Edição no painel" }, version: before.version, action: "draft" })).status).toBe(200);
+  const repeated = runImport(); expect(await repeated.exited).toBe(0);
+  expect(await new Response(repeated.stdout).text()).toContain("Existente preservado");
+  const after = await (await request("/api/admin/guides/primeiros-passos", undefined, manager.cookie)).json();
+  expect(after.draft.title).toBe("Edição no painel");
+}, 30000);

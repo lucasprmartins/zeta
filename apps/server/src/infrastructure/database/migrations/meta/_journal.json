@@ -64,6 +64,13 @@
       "when": 1789032943442,
       "tag": "0008_simplify_table_names",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1789057872092,
+      "tag": "0009_guides",
+      "breakpoints": true
     }
   ]
 }

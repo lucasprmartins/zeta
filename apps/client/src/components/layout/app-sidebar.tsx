@@ -1,13 +1,13 @@
 import { usePermissions } from "@/components/permission-boundary";
 import { permissions, type Permission } from "@/lib/access";
 import { Link } from "@tanstack/react-router";
-import { SlidersHorizontalIcon, UsersIcon, LayoutIcon, CheckSquareIcon, SignOutIcon, type Icon as PhosphorIcon } from "@phosphor-icons/react";
+import { QuestionIcon, BookOpenIcon, SlidersHorizontalIcon, UsersIcon, LayoutIcon, CheckSquareIcon, SignOutIcon, type Icon as PhosphorIcon } from "@phosphor-icons/react";
 import { BlockMark } from "@/components/brand";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 // Grupos vazios não aparecem para contas sem as permissões correspondentes.
-type NavigationItem = { label: string; to: "/dashboard" | "/tasks" | "/admin/users" | "/admin/console"; icon: PhosphorIcon; permission: Permission };
+type NavigationItem = { label: string; to: "/dashboard" | "/tasks" | "/admin/users" | "/admin/console" | "/admin/guides"; icon: PhosphorIcon; permission?: Permission };
 const navigation: { label: string; items: NavigationItem[] }[] = [
   { label: "Workspace", items: [
     { label: "Dashboard", to: "/dashboard", icon: LayoutIcon, permission: permissions.tasks.read },
@@ -16,6 +16,7 @@ const navigation: { label: string; items: NavigationItem[] }[] = [
   { label: "Administração", items: [
     { label: "Console", to: "/admin/console", icon: SlidersHorizontalIcon, permission: permissions.access.manage },
     { label: "Usuários", to: "/admin/users", icon: UsersIcon, permission: permissions.access.manage },
+    { label: "Guias", to: "/admin/guides", icon: BookOpenIcon, permission: permissions.access.manage },
   ] },
 ];
 
@@ -31,7 +32,7 @@ type Props = {
 
 export function AppSidebar({ collapsed = false, user, leaving, onSignOut, onNavigate }: Props) {
   const { can } = usePermissions();
-  const groups = navigation.map((group) => ({ ...group, items: group.items.filter((item) => can(item.permission)) })).filter((group) => group.items.length > 0);
+  const groups = navigation.map((group) => ({ ...group, items: group.items.filter((item) => !item.permission || can(item.permission)) })).filter((group) => group.items.length > 0);
   // Preserve o espaço dos rótulos para que os ícones não mudem de posição.
   const labelClass = cn("shrink-0 whitespace-nowrap transition-opacity duration-150", collapsed ? "opacity-0" : "opacity-100 delay-75");
 
@@ -79,6 +80,14 @@ export function AppSidebar({ collapsed = false, user, leaving, onSignOut, onNavi
           <p className="truncate text-xs font-medium">{user.name}</p>
           <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{user.email}</p>
         </div>
+      </Link>
+      <Link to="/help" onClick={onNavigate}
+        activeOptions={{ exact: false, includeSearch: false }}
+        activeProps={{ className: "bg-sidebar-active text-foreground", "aria-current": "page" }}
+        aria-label={collapsed ? "Ajuda" : undefined} title={collapsed ? "Ajuda" : undefined}
+        className={buttonVariants({ variant: "ghost", size: "sm", className: "w-full justify-start gap-3 px-[15px] text-muted-foreground" })}>
+        <QuestionIcon weight="regular" aria-hidden="true" />
+        <span aria-hidden={collapsed} className={labelClass}>Ajuda</span>
       </Link>
       <Button
         variant="ghost"

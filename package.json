@@ -31,7 +31,8 @@
     "setup": "bun run scripts/setup.ts",
     "db": "docker compose up -d --wait postgres",
     "publish:github": "bun run scripts/publish.ts",
-    "auth:set-role": "bun run --filter @zeta/server auth:set-role"
+    "auth:set-role": "bun run --filter @zeta/server auth:set-role",
+    "guides:import": "bun run --filter @zeta/server guides:import"
   },
   "trustedDependencies": [
     "esbuild"
