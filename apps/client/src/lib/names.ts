@@ -1,4 +1,4 @@
-// Duas letras bastam para distinguir contas numa lista; nomes de uma palavra usam a primeira.
+// Duas letras bastam para distinguir contas numa lista.
 export function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   const first = parts.at(0)?.at(0) ?? "?";
@@ -8,7 +8,7 @@ export function initials(name: string): string {
 
 const NAME_LIMIT = 12;
 
-// Primeiro nome mais a inicial do último: "Lucas" e "Lucas J." são pessoas distintas.
+// A inicial do sobrenome separa homônimos: "Lucas" e "Lucas J." são pessoas distintas.
 export function shortName(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   const [first = name.trim()] = parts;

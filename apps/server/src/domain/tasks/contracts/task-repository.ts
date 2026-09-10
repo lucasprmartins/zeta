@@ -1,6 +1,6 @@
 import type { Task, TaskStatus } from "../entities/task";
 
-// A lista alcança todas as tarefas: a autoria não restringe mais a consulta.
+// A lista alcança todas as tarefas: a autoria não restringe a consulta.
 export type TaskFilter = {
   status?: TaskStatus;
   limit: number;

@@ -29,7 +29,6 @@ export function PageCrumbProvider({ children }: { children: ReactNode }) {
   );
 }
 
-// Páginas cujo título só existe depois da consulta nomeiam o último item da trilha.
 export function usePageCrumb(label: string | undefined) {
   const setLabel = useContext(PageCrumbContext)?.setLabel;
   useEffect(() => {

@@ -24,5 +24,4 @@ export function createDatabase(url: string) {
 
 export type DatabaseConnection = Omit<Database, "$client">;
 export type Database = ReturnType<typeof createDatabase>["db"];
-// A mesma interface dentro de uma transação, para repositórios que agrupam escritas.
 export type Transaction = Parameters<Parameters<Database["transaction"]>[0]>[0];

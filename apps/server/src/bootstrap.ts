@@ -22,7 +22,6 @@ import { createUserDirectory } from "./infrastructure/repositories/drizzle-user-
 import { createApp } from "./interfaces/http/app";
 import { createRouter } from "./interfaces/http/rpc/router";
 
-// Único ponto que conhece e conecta as implementações concretas.
 export async function bootstrap(env: Env) {
   const database = createDatabase(env.databaseUrl);
   const access = createAccessRepository(database.db);

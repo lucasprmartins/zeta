@@ -4,7 +4,6 @@ import type { ComponentProps } from "react";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-// Retorno padrão das páginas internas: botão fantasma alinhado à margem do conteúdo.
 function BackAnchor({ className, children, ...props }: ComponentProps<"a">) {
   return (
     <a
