@@ -1,150 +1,111 @@
 # Arquitetura
 
-Este documento descreve a implementação e seus pontos de extensão. As convenções de trabalho ficam em [AGENTS.md](../AGENTS.md), a operação em [README.md](../README.md) e as regras de negócio em [CONTEXT.md](../CONTEXT.md).
+## Organização
 
-## Visão geral
+Monorepo Bun com dependências por workspace, configuração compartilhada e lockfile único na raiz.
 
-O monorepo usa workspaces Bun: `apps/server` contém a API e `apps/client`, a aplicação React e seu runtime de produção. A raiz concentra scripts, lockfile e configuração TypeScript compartilhada; cada app declara suas dependências.
-
-`packages/access` compartilha o catálogo público de ações. `domain/authorization` implementa papéis globais e atribuições por contratos independentes de frameworks; o repositório Drizzle persiste `auth.access` e o vínculo em `auth.user.role`. A API resolve permissões atuais após validar a sessão Better Auth. O cliente consome `/api/access/me`, sem deduzir concessões pelo nome do papel. Política, transações e extensão estão em [authorization.md](authorization.md).
+| Área | Responsabilidade |
+| --- | --- |
+| `apps/server/src/domain/<modulo>` | Entidades, contratos e casos de uso em TypeScript puro |
+| `apps/server/src/infrastructure` | Autenticação, banco e implementação dos contratos |
+| `apps/server/src/interfaces/http` | Identidade, autorização, validação, RPC e OpenAPI |
+| `apps/server/src/bootstrap.ts` / `main.ts` | Composição / ciclo de vida do processo |
+| `apps/client/src/app` / `routes` | Sessão, layouts e rotas por arquivo |
+| `apps/client/src/features` | Telas, formulários e consultas por funcionalidade |
+| `apps/client/src/components` / `lib` | UI compartilhada / clientes auth, RPC e Query |
+| `apps/client/server` | Estáticos e proxy Bun de produção |
+| `packages/access` | Catálogo público de permissões |
+| `packages/guide-content` | Conversão de conteúdo dos guias |
+| `scripts` | Setup, publicação e seus testes |
 
 ```text
-React → cliente oRPC → HTTP → aplicação → entidades
-                               ↓
-                            contratos ← repositórios Drizzle → PostgreSQL
-Better Auth → sessão validada no HTTP
+React → oRPC → HTTP → casos de uso → entidades
+                          ↓
+                       contratos ← repositórios Drizzle → PostgreSQL
+Better Auth → identidade validada no HTTP
 bootstrap.ts → composição das implementações
 ```
 
-O domínio usa apenas TypeScript. Entidades preservam estado e invariantes; contratos expressam necessidades de persistência; casos de uso recebem repositórios, relógio e geração de IDs. Não há container de DI, bus ou hierarquia de classes base.
+Uma funcionalidade atravessa domínio e testes → persistência/migration → procedures/bootstrap → feature/rota → navegação e invalidação. Convenções transversais ficam em [AGENTS.md](../AGENTS.md); vocabulário em [CONTEXT.md](../CONTEXT.md).
 
-### Schemas PostgreSQL
+## Servidor e banco
 
-`schema/namespaces.ts` centraliza `auth` e `console`. As tabelas do Better Auth e de controle de acesso usam `auth`; configurações administrativas da aplicação usam `console`; tabelas de negócio permanecem em `public`. O schema `console` pode receber novas configurações administrativas conforme o projeto evoluir; a política de cadastro em `console.registration` é um exemplo atual. Drizzle qualifica as consultas e as referências entre schemas, sem alterar `search_path`. Use nomes simples nas tabelas: `auth.user`, `auth.session`, `auth.account`, `auth.verification`, `auth.access` e `console.registration`.
-
-O histórico permanece em `drizzle.migrations`. `drizzle.config.ts` limita introspecção aos três schemas da aplicação e mantém o schema de migrations separado. A migration `0007_separate_schemas` move tabelas com `ALTER TABLE ... SET SCHEMA`, preservando dados, índices e chaves estrangeiras; a migration `0008_simplify_table_names` simplifica os nomes e move o controle de acesso para `auth`. Migrations anteriores continuam intactas. Aplique sempre com `bun run db:migrate`: o helper `infrastructure/database/migrate.ts` renomeia o histórico legado antes da leitura do Drizzle, preservando registros. Uma conexão reservada mantém o lock durante a transição e a aplicação; bancos novos criam somente `drizzle.migrations`. Se ambos os históricos existirem, o comando interrompe sem mesclá-los ou apagar dados. Não execute diretamente o migrador do Drizzle em bancos ainda não convertidos.
-
-### RLS
-
-RLS não é obrigatório nesta arquitetura e permanece desativado. O navegador usa a API, que valida sessão/permissões; repositórios de dados privados filtram pelo escopo validado na sessão, e recursos compartilhados como as tarefas dependem apenas da permissão. Os testes de integração verificam esse alcance entre contas. Essa proteção depende da correção das consultas; RLS pode acrescentar defesa contra filtros esquecidos, especialmente em produtos com múltiplos tenants ou outros consumidores do banco.
-
-A API e o migrador hoje compartilham `DATABASE_URL`; no Compose, o usuário inicial é superusuário. Antes de adotar RLS, separe credenciais de migração e runtime, use um papel de runtime sem superusuário/BYPASSRLS e trate a propriedade das tabelas. A identidade validada precisa ser definida localmente na mesma transação/conexão das consultas, sem vazar entre requisições do pool. Planeje políticas por operação e fluxos de autenticação/administração separadamente.
-
-Habilitar RLS sem políticas nega acesso para papéis sujeitos às regras; superusuários e BYPASSRLS as ignoram, e proprietários normalmente também. Referência: [PostgreSQL — Row Security Policies](https://www.postgresql.org/docs/17/ddl-rowsecurity.html). Separar schemas organiza tabelas, mas não substitui privilégios SQL nem políticas de acesso.
-
-## Servidor
-
-Caminhos relativos a `apps/server/src`:
-
-| Local | Responsabilidade |
+| Endpoint | Responsabilidade |
 | --- | --- |
-| `domain/<modulo>/{entities,contracts,application}` | Regras e casos de uso independentes de bibliotecas |
-| `infrastructure/repositories` | Implementação dos contratos e conversão entre registros e entidades |
-| `infrastructure/database` | Pool Bun SQL, schema Drizzle e migrations |
-| `infrastructure/auth/better-auth.ts` | Better Auth e adapter Drizzle |
-| `interfaces/http` | Identidade, validação, tradução de erros e handlers |
-| `config/env.ts` | Validação do ambiente |
-| `bootstrap.ts` / `main.ts` | Composição / ciclo de vida do processo |
-
-O HTTP deriva a identidade da sessão e passa o escopo confiável aos casos de uso — nas tarefas, a identidade vira autoria, não filtro. Toda operação aplica autorização, inclusive as listagens. O domínio não recebe objetos de sessão nem tipos HTTP.
-
-### Transporte e persistência
-
-| Endpoint | Implementação |
-| --- | --- |
-| `/rpc/*` | `RPCHandler`, consumido pelo cliente tipado |
-| `/api` | `OpenAPIHandler`, JSON convencional |
+| `/rpc/*` / `/api` | `RPCHandler` / `OpenAPIHandler`, com as mesmas procedures e casos de uso |
 | `/api/auth/*` | Better Auth |
 | `/openapi` / `/openapi/json` | Scalar / especificação combinada |
 | `/health` / `/ready` | Processo / conexão com PostgreSQL |
 
-REST e RPC compartilham procedures e casos de uso. `.route()` define método, caminho e tags; `documented()` reúne validação e JSON Schema. `interfaces/http/openapi` combina oRPC, Better Auth e Elysia e organiza as seções do Scalar.
+`.route()` define método, caminho e tags; `documented()` mantém validação e JSON Schema coerentes. Altere schemas e agrupamento em `interfaces/http/openapi`, não documentos gerados. `createApp` e `bootstrap` são assíncronos; aguarde ambos e preserve o fechamento do pool em falhas de inicialização e encerramento.
 
-`createApp` e `bootstrap` aguardam a geração dos schemas. O pool fecha em falhas de inicialização e no encerramento. API e migrador usam Drizzle sobre Bun SQL; `postgres` atende apenas às ferramentas de desenvolvimento. SQL, snapshots e journal ficam em `infrastructure/database/migrations`; alterações de schema geram migrations incrementais.
+Drizzle usa Bun SQL na API e no migrador; `postgres` atende às ferramentas de desenvolvimento. Namespaces de `schema/namespaces.ts` organizam tabelas com nomes simples:
 
-Imports entre camadas usam `@server/`; o domínio mantém imports relativos. A entrada pública `@zeta/server/rpc` exporta apenas os tipos `AppClient` e `AppRouter` para o navegador.
+- `auth`: Better Auth e controle de acesso, como `auth.user` e `auth.access`.
+- `console`: configurações administrativas, como `console.registration`.
+- `public`: domínio.
+- `drizzle.migrations`: exclusivamente o histórico de migrations.
 
-## Guia de Uso
+SQL, snapshots e journal ficam em `apps/server/src/infrastructure/database/migrations`. Use nomes qualificados em SQL manual e migrations incrementais para mover tabelas. `bun run db:migrate` usa o helper que converte o histórico legado sob lock antes de consultar pendências; interrompe se os dois históricos coexistirem. Não substitua esse fluxo pelo migrador Drizzle direto nem crie um segundo histórico vazio.
 
-`domain/guides` coordena rascunhos, publicação e controle otimista de versão. `public.guides` guarda ambas as versões; a leitura usa exclusivamente a publicada e aplica a permissão antes da paginação. A administração exige a permissão de gestão do console. `packages/guide-content` compartilha o formato Markdown entre importador, HTTP, editor Tiptap e leitor React. Operação e extensão estão em [guides-authoring.md](guides-authoring.md).
+RLS permanece desativado: a API autoriza as operações e os repositórios aplicam o escopo da funcionalidade. Schemas não substituem autorização. API e migrador compartilham `DATABASE_URL`; uma futura adoção de RLS exige revisar credenciais, privilégios, políticas e identidade por transação.
 
-## Autenticação e perfil
+## Autenticação e acesso
 
-Better Auth controla contas, senhas e sessões em cookies. O cliente usa `lib/auth.ts` com `usernameClient()`; o servidor habilita `username()`. Login com `@` chama `signIn.email`; demais identificadores usam `signIn.username`. O cadastro envia username via `signUp.email`; normalização e unicidade são validadas no servidor.
+Better Auth controla contas, senhas e sessões em cookies, sem duplicação em stores ou tokens no localStorage. `username()` / `usernameClient()` encaminham login com `@` para email e os demais identificadores para username, sem tentar ambos nem consultar existência da conta. O servidor normaliza e garante unicidade.
 
-`username` e `displayUsername` são opcionais para preservar contas anteriores. No perfil, `updateUser` envia ambos ao alterar o identificador. A leitura usa o username canônico quando um nome de exibição antigo diverge dele. O nome pessoal também é editável; o email não.
+Contas antigas podem não ter username. Ao alterá-lo no perfil, envie também `displayUsername`; na leitura, preserve sua capitalização somente quando equivalente ao canônico. O perfil permite editar nome e senha, mas não email. Trocar senha exige a atual e revoga outras sessões; limpe os campos após sucesso. “Lembrar-me” salva apenas o identificador após login bem-sucedido; desmarcar o remove imediatamente, sem alterar a duração da sessão.
 
-`changePassword` exige a senha atual, valida a confirmação na interface e revoga as outras sessões. Após sucesso, os campos são limpos. “Lembrar-me” guarda somente o identificador após entrar; desmarcar remove a preferência, sem alterar a duração da sessão.
+`app/workspace.tsx` valida sessão e conecta shell e rota. Mudanças de identidade cancelam consultas e limpam o cache, inclusive entre abas. Sem sessão, o login preserva o destino em `redirect`, aceitando somente caminhos internos. Regras, atualização de concessões e transações estão em [authorization.md](authorization.md).
 
-`app/workspace.tsx` verifica a sessão e conecta `AppShell` ao `Outlet`. `app/root-layout.tsx` cancela consultas e limpa o cache quando o ID ou papel da sessão muda, inclusive entre abas. `AccessProvider` consulta as concessões na entrada, no foco e a cada 15 segundos enquanto a aba está ativa. Mudanças na definição do papel também cancelam e reiniciam consultas afetadas. Não existe uma segunda cópia da sessão em store.
+## Rotas e dados do cliente
 
-## Cliente: rotas e consultas
+- Rotas por arquivo validam parâmetros e conectam telas de `features`; páginas autenticadas ficam em `routes/_authenticated/`. Registre navegação em `app-sidebar.tsx` quando necessário.
+- Cada rota autenticada declara a trilha completa em `staticData.crumbs`; intermediários têm `to`. Rótulos carregados por consulta usam `usePageCrumb`; retornos usam `BackLink`. Não derive trilhas do pathname nem passe títulos pelo `AppShell`.
+- `tsr.config.json` centraliza geração e code splitting. `routes:generate` e o plugin Vite produzem a árvore não versionada.
+- TanStack Query guarda dados de negócio. Chaves incluem identidade, formato e filtros; consultas comuns incluem página e não compartilham chaves com infinitas. Filtros compartilháveis ficam na URL.
+- Mutations não têm repetição automática; invalidam o prefixo afetado no escopo do usuário, incluindo detalhes e resumos. Totais vêm da API.
 
-Caminhos relativos a `apps/client/src`:
+### Listagens incrementais
 
-- `app/`: inicialização do router e layouts com sessão.
-- `routes/`: rotas por arquivo, validação de parâmetros e conexão com telas.
-- `features/`: telas, formulários e consultas por funcionalidade.
-- `components/`: UI e layouts compartilhados.
-- `lib/`: clientes de auth, RPC e Query; imports internos usam `@/`.
+Defina `infiniteQueryOptions` na feature e use `useInfiniteQuery` na tela, com `initialPageParam` explícito, `getNextPageParam` retornando `undefined` no fim e `signal` encaminhado ao RPC. `InfiniteScroll` oferece gatilho e botão acessível: bloqueie durante `isFetching` e use `fetchNextPage({ cancelRefetch: false })`.
 
-```text
-routes/
-  __root.tsx                  # Layout raiz e fallbacks
-  login.tsx / register.tsx    # Acesso público
-  _authenticated.tsx         # Layout sem segmento na URL
-  _authenticated/
-    index.tsx                # / → /dashboard
-    dashboard.tsx
-    tasks.tsx                # Filtro status na URL
-    help/index.tsx           # Central de ajuda
-    help/guides/{index,$slug}.tsx # Listagem e leitura dos guias
-    help/guides/{new,edit/$slug}.tsx # Criação e edição, sob access:manage
-    profile.tsx
-    admin/users.tsx           # Usuários, papéis e aprovações; view/q na URL
-    admin/console.tsx         # Política de cadastro e aprovação
-```
+Preserve itens nas atualizações e diferencie erro inicial, atualização e continuação. Falha de atualização pausa novas páginas; erro de continuação exige tentativa manual. Invalide após mutations, sem append manual nem `maxPages` que desloque a rolagem. Ordenação e paginação pertencem à API; deduplicar IDs não garante consistência de paginação por offset sob concorrência.
 
-`tsr.config.json` centraliza geração e code splitting. O plugin TanStack no Vite e o script `routes:generate` produzem `routeTree.gen.ts`, importado por `app/router.tsx`; a árvore não é versionada.
+### Tarefas e indicadores
 
-TanStack Query armazena dados de negócio com chaves por identidade, formato e filtros. Consultas comuns incluem a página; infinitas usam uma chave distinta. Mutations não são repetidas automaticamente e invalidam o escopo afetado, incluindo resumos.
+Tarefas são compartilhadas: cada ação autorizada alcança qualquer tarefa, sem filtro por proprietário. `authorId` aceita nulo e a chave estrangeira usa `on delete set null`. Responsáveis ainda usam `mention`, `task_mentions` e `tasks:mention` internamente; uma renomeação deve atualizar o contrato inteiro. A entidade guarda IDs e a aplicação resolve nomes, usernames e fotos por `UserDirectory`.
 
-### Listagens e módulo de tarefas
+`tasks:mention` protege busca de contas e gravação de responsáveis. Criar/editar sem menções não exige essa ação; enviá-las sem permissão retorna 403. Aceite apenas contas existentes e respeite `MAX_MENTIONS`, também declarado no cliente.
 
-`infiniteQueryOptions` define a consulta na feature e `useInfiniteQuery` mantém as páginas na tela. `InfiniteScroll` fornece observação de proximidade e botão acessível, sem conhecer o endpoint. O sinal de cancelamento chega ao RPC; a continuação bloqueia buscas concorrentes e exige tentativa manual após erro.
+A lista usa páginas de 20 itens, por criação decrescente e ID. Edições seguem a última gravação, sem versionamento. `/tasks` mantém `status` e `task` na URL; o [painel lateral](side-panel.md) consulta detalhes independentemente da lista. `TaskForm` serve criação/edição e inclui `MentionPicker` conforme permissão, com busca adiada em 250 ms e termo na chave da consulta.
 
-Os itens permanecem visíveis durante atualização e continuação. Cada tipo de erro tem feedback próprio; falha de atualização pausa a continuação. Após mutations, a invalidação recompõe as páginas carregadas.
-
-Em tarefas, a API usa páginas de 20 itens, ordenadas por criação decrescente e ID, sobre o conjunto compartilhado — a lista não é filtrada por autoria. A tela deduplica IDs, mas paginação por offset pode omitir itens sob alterações concorrentes até atualizar a lista. Edições seguem a última gravação, sem versionamento, e como qualquer conta autorizada edita a mesma tarefa, a última gravação pode ser de outra pessoa.
-
-`/tasks` mantém apenas `status` na URL e usa `ToggleGroup` de seleção única. Criação e edição compartilham `TaskForm` em modal, que embute `MentionPicker` quando a conta tem `tasks:mention`; a busca de contas é adiada em 250 ms e cada termo entra na chave da consulta. A lista tem colunas de Responsável e Status: a primeira empilha até três avatares, a segunda usa `Badge`. O item mostra apenas o título; abaixo de `sm`, onde não há colunas, status, data e avatares aparecem sob ele. `/dashboard` consome um único agregado (`GET /tasks/summary`), calculado no banco numa transação `repeatable read`: totais por status, contagem por responsável (limitada às contas com mais tarefas) e o recorte sem responsável. Os cards abrem a lista com o filtro correspondente; o anel mostra a conclusão geral e a barra empilhada horizontal, a carga por responsável dividida por status. Uma tarefa com vários responsáveis conta uma vez para cada um, então a soma por pessoa excede o total — é distribuição de carga, não partição.
+O dashboard consulta um agregado calculado em transação `repeatable read`: totais por status, responsáveis com mais tarefas e recorte sem responsável. Os cards abrem filtros da lista. Uma tarefa com vários responsáveis conta uma vez por pessoa; a soma por responsável pode exceder o total.
 
 ## Interface
 
-Os componentes locais adaptam shadcn/ui conforme `components.json`. Formulários usam `Field`, labels, descrições, `Input` e `Textarea`; `Card`, `Empty` e skeletons organizam superfícies e estados. `Button` é nativo, sem `asChild`; links usam `buttonVariants`. Phosphor fornece os ícones.
+Reutilize `AppShell`, `AppSidebar`, `PageContent`, `PageHeader` e `AuthLayout`; medidas e paddings pertencem aos layouts. `PageContent` é obrigatório em páginas autenticadas. Os componentes adaptam shadcn/ui conforme `components.json`; confira suas props locais:
 
-### Layout e mobile
+- `Button` e `Badge` são nativos, sem `asChild`; links usam `buttonVariants`.
+- `Avatar` usa `<Avatar name image size />`, com fallback por `onError`, sem Radix. Toda `img` precisa de `width` e `height`.
+- Formulários usam `Field`; superfícies e estados usam `Card`, `Empty` e skeletons adequados ao conteúdo.
+- Phosphor usa sufixo `Icon`, peso `regular` e 18 px em navegação/botões; configure `weight`, não `strokeWidth`.
+- Gráficos usam Recharts por `chart.tsx`, `config` e `--color-<chave>`. Séries usam `--chart-1`/`--chart-2` por categoria, nunca por ranking; mantenha legenda com duas ou mais séries. Mudanças de cores exigem validação da skill `dataviz` nas duas superfícies.
 
-- `AppShell` contém sidebar, cabeçalho de 64 px e área principal; `AppSidebar` centraliza navegação e acesso ao perfil pelo bloco da conta. A trilha do cabeçalho é montada por `Breadcrumbs` a partir de `staticData.crumbs` das rotas casadas: cada rota declara a trilha inteira até ela, itens com `to` viram links e o último é a página aberta. Páginas cujo título só existe após a consulta chamam `usePageCrumb` para nomear esse último item — a leitura de um guia mostra Ajuda › Guia de uso › título. Abaixo de 640 px só a página atual aparece.
-- O corpo da sidebar lista o grupo Workspace; o rodapé reúne conta, Administração, Ajuda e Sair. Administração é um `DropdownMenu` que abre acima do acionador com Console e Usuários, some quando a conta não tem `access:manage` e destaca o acionador enquanto uma dessas rotas está ativa. Na gaveta mobile o menu é montado dentro do dialog, que ocupa a top layer sozinho.
-- `BackLink` é o retorno padrão das páginas internas: botão fantasma com seta, criado por `createLink` para preservar a tipagem das rotas.
-- `PageContent` limita páginas a 1280 px, com padding horizontal de 20/32 px, vertical de 28/36 px e espaço de 28 px entre blocos. `PageHeader` organiza título e ações; `AuthLayout` centraliza os formulários de acesso.
-- A sidebar mede 240/72 px no desktop, a partir de 1024 px. Ícones permanecem fixos e rótulos desaparecem por opacidade. No mobile, um dialog nativo apresenta a gaveta, controla foco e rolagem e fecha na navegação.
-- `Modal` apresenta formulários em tela cheia abaixo de 640 px e confirmações em painel inferior; no desktop, ambos ficam centralizados. Cabeçalho fixo, rolagem interna, áreas seguras e `visualViewport` acomodam o teclado. O foco inicial vai ao título no mobile ou a Cancelar nas confirmações; mutations bloqueiam o fechamento.
-- Controles mantêm alvos de toque de 44 px, campos de 16 px no mobile, foco visível e suporte a movimento reduzido.
+### Layout e acessibilidade
+
+Na sidebar desktop, preserve posições dos ícones/avatar e mantenha rótulos montados, ocultos por opacidade. A gaveta mobile controla Escape, foco e rolagem; fecha ao navegar ou mudar para desktop. Menus internos ficam dentro do dialog.
+
+`Modal` usa tela cheia no mobile para formulários e painel inferior para confirmações; centraliza no desktop. Preserve cabeçalho visível, rolagem interna, áreas seguras e `visualViewport`. Foco inicial vai ao título no mobile e a Cancelar nas confirmações; mutations bloqueiam fechamento. `SidePanel` compartilha o controle de diálogo e tem seu contrato em [side-panel.md](side-panel.md).
+
+Mantenha alvos de 44 px, campos de 16 px no mobile, foco visível, nomes acessíveis, `aria-current`, link para pular navegação e movimento reduzido, sem rolagem horizontal.
 
 ### Tema e feedback
 
-`styles.css` centraliza os tokens claro/escuro. O `ThemeProvider` segue o sistema até existir uma escolha manual, persistida e sincronizada entre abas. O script em `index.html` aplica o tema antes da renderização; o setup renomeia o namespace nos dois pontos.
+`styles.css` centraliza tokens semânticos. Sem escolha salva, o tema segue o sistema; escolha manual prevalece e sincroniza entre abas. Preserve a mesma chave e resolução no `ThemeProvider` e no script inicial de `index.html`. Textos de autenticação tratam do acesso à conta, sem acoplamento ao domínio.
 
-Sonner fica uma vez dentro do provider e comunica resultados de ações. `ErrorNotice` compõe `Alert` para falhas persistentes no conteúdo; skeletons preservam a estrutura na busca inicial.
+Sonner aparece uma vez no provider e comunica resultados de ações; erros persistentes usam `ErrorNotice`/`Alert`. `RouteError`, `RouteNotFound` e `RouteFeedback` centralizam recuperação por `router.invalidate()` e reset dos boundaries. Exiba apenas a mensagem técnica em vermelho, sem stack, cause, objetos de resposta ou segredos.
 
-`RouteError` e `RouteNotFound` são fallbacks globais do TanStack Router. `RouteFeedback` centraliza explicação, mensagem técnica em vermelho e ações na viewport, descontando o cabeçalho quando estiver no shell. A recuperação invalida o router e reseta os boundaries para repetir loaders; stack e objetos de resposta não são exibidos.
+## Guias e execução
 
-## Execução e extensão
-
-Em desenvolvimento, Vite serve o cliente em 3001 e encaminha API/RPC/docs/saúde à API em 3000. Em produção, `apps/client/server` serve o build, faz fallback SPA e proxy para a API privada, preservando cookies e origem. O código desse runtime tem configuração TypeScript própria com tipos Bun, separada do navegador.
-
-A API é compilada em executável Bun na plataforma de destino. No Railway, `.railway/railway.ts` define PostgreSQL, API privada e cliente público, com builds a partir da raiz. Migrations rodam no pré-deploy; os healthchecks são `/ready` na API e `/_health` no cliente. Operação e variáveis estão no [guia de deploy](../.railway/README.md).
-
-Para adicionar uma funcionalidade, o fluxo é: domínio e testes → schema/repositório e migration → procedures e composição no bootstrap → feature, consultas e rota → navegação e invalidação. Regras de negócio e decisões do produto são documentadas em [CONTEXT.md](../CONTEXT.md); comandos e verificações estão no [README](../README.md).
+Autoria, leitura e formato compartilhado dos guias estão em [guides-authoring.md](guides-authoring.md). Setup e comandos ficam no [README](../README.md); build de produção, proxy e operação no [guia Railway](../.railway/README.md).
