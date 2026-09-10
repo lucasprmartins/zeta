@@ -4,13 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun run --bun vite",
     "build": "bun run typecheck && bun run --bun vite build",
+    "dev": "bun run --bun vite",
     "preview": "bun run --bun vite preview",
-    "typecheck": "bun run routes:generate && bun run --bun tsc --noEmit && bun run --bun tsc --noEmit -p tsconfig.server.json",
     "routes:generate": "bun run --bun tsr generate",
     "start": "bun server/main.ts",
-    "test": "bun test tests"
+    "test": "bun test tests",
+    "typecheck": "bun run routes:generate && bun run --bun tsc --noEmit && bun run --bun tsc --noEmit -p tsconfig.server.json"
   },
   "dependencies": {
     "@orpc/client": "1.15.0",
@@ -24,6 +24,7 @@
     "@tiptap/react": "3.31.3",
     "@tiptap/starter-kit": "3.31.3",
     "@zeta/access": "workspace:*",
+    "@zeta/guide-content": "workspace:*",
     "@zeta/server": "workspace:*",
     "better-auth": "1.7.2",
     "class-variance-authority": "0.7.1",
@@ -31,8 +32,7 @@
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "sonner": "2.0.8",
-    "tailwind-merge": "3.6.0",
-    "@zeta/guide-content": "workspace:*"
+    "tailwind-merge": "3.6.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.3.3",

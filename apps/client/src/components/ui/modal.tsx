@@ -1,26 +1,48 @@
-import { useEffect, useId, useRef, type ReactNode } from "react";
 import { XIcon } from "@phosphor-icons/react";
+import { type ReactNode, useEffect, useId, useRef } from "react";
 import { Button } from "./button";
 
 // Montar somente quando aberto. O dialog nativo contém o foco e o devolve ao acionador.
-export function Modal({ title, description, pending = false, onClose, children, variant = "form" }: {
-  title: string; description: string; pending?: boolean; onClose: () => void; children: ReactNode; variant?: "form" | "confirmation";
+export function Modal({
+  title,
+  description,
+  pending = false,
+  onClose,
+  children,
+  variant = "form",
+}: {
+  title: string;
+  description: string;
+  pending?: boolean;
+  onClose: () => void;
+  children: ReactNode;
+  variant?: "form" | "confirmation";
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const id = useId();
   useEffect(() => {
     const dialog = ref.current!;
-    const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const trigger =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
     // No celular, abra sem acionar o teclado antes de o usuário escolher um campo.
     const mobile = window.matchMedia("(max-width: 639px)").matches;
     const heading = dialog.querySelector<HTMLElement>("h2");
     heading?.setAttribute("autofocus", "");
     dialog.showModal();
-    const initialFocus = mobile && variant === "form" ? heading : dialog.querySelector<HTMLElement>("[data-modal-autofocus]") ?? heading;
+    const initialFocus =
+      mobile && variant === "form"
+        ? heading
+        : (dialog.querySelector<HTMLElement>("[data-modal-autofocus]") ??
+          heading);
     initialFocus?.focus({ preventScroll: true });
     const viewport = window.visualViewport;
     const fitViewport = () => {
-      dialog.style.setProperty("--dialog-height", `${viewport?.height ?? window.innerHeight}px`);
+      dialog.style.setProperty(
+        "--dialog-height",
+        `${viewport?.height ?? window.innerHeight}px`
+      );
       dialog.style.setProperty("--dialog-top", `${viewport?.offsetTop ?? 0}px`);
     };
     fitViewport();
@@ -34,21 +56,72 @@ export function Modal({ title, description, pending = false, onClose, children, 
       dialog.close();
       document.body.style.overflow = overflow;
       // O item acionador pode desaparecer após uma exclusão ou mudança de filtro.
-      if (trigger?.isConnected) trigger.focus();
-      else document.getElementById("main-content")?.focus();
+      if (trigger?.isConnected) {
+        trigger.focus();
+      } else {
+        document.getElementById("main-content")?.focus();
+      }
     };
   }, []);
-  return <dialog ref={ref} aria-labelledby={`${id}-title`} aria-describedby={`${id}-description`}
-    data-variant={variant}
-    className="responsive-modal border bg-background p-0 text-foreground shadow-xl backdrop:bg-black/35"
-    onCancel={(event) => { event.preventDefault(); if (!pending) onClose(); }}
-    onClick={(event) => { if (!pending && event.target === event.currentTarget) { const bounds = event.currentTarget.getBoundingClientRect(); if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) onClose(); } }}>
-    <div className="modal-layout">
-      <div className="modal-header flex shrink-0 items-start justify-between gap-4 border-b px-5 py-4 sm:px-6">
-        <div className="min-w-0"><h2 id={`${id}-title`} tabIndex={-1} className="break-words text-lg font-semibold tracking-tight outline-none">{title}</h2><p id={`${id}-description`} className="mt-1.5 text-sm text-muted-foreground">{description}</p></div>
-        <Button variant="ghost" size="icon" className="-mr-2 -mt-1 size-11" aria-label="Fechar painel" disabled={pending} onClick={onClose}><XIcon /></Button>
+  return (
+    <dialog
+      aria-describedby={`${id}-description`}
+      aria-labelledby={`${id}-title`}
+      className="responsive-modal border bg-background p-0 text-foreground shadow-xl backdrop:bg-black/35"
+      data-variant={variant}
+      onCancel={(event) => {
+        event.preventDefault();
+        if (!pending) {
+          onClose();
+        }
+      }}
+      onClick={(event) => {
+        if (!pending && event.target === event.currentTarget) {
+          const bounds = event.currentTarget.getBoundingClientRect();
+          if (
+            event.clientX < bounds.left ||
+            event.clientX > bounds.right ||
+            event.clientY < bounds.top ||
+            event.clientY > bounds.bottom
+          ) {
+            onClose();
+          }
+        }
+      }}
+      ref={ref}
+    >
+      <div className="modal-layout">
+        <div className="modal-header flex shrink-0 items-start justify-between gap-4 border-b px-5 py-4 sm:px-6">
+          <div className="min-w-0">
+            <h2
+              className="break-words font-semibold text-lg tracking-tight outline-none"
+              id={`${id}-title`}
+              tabIndex={-1}
+            >
+              {title}
+            </h2>
+            <p
+              className="mt-1.5 text-muted-foreground text-sm"
+              id={`${id}-description`}
+            >
+              {description}
+            </p>
+          </div>
+          <Button
+            aria-label="Fechar painel"
+            className="-mt-1 -mr-2 size-11"
+            disabled={pending}
+            onClick={onClose}
+            size="icon"
+            variant="ghost"
+          >
+            <XIcon />
+          </Button>
+        </div>
+        <div className="modal-body min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-5 sm:px-6 sm:pt-6">
+          {children}
+        </div>
       </div>
-      <div className="modal-body min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-5 sm:px-6 sm:pt-6">{children}</div>
-    </div>
-  </dialog>;
+    </dialog>
+  );
 }

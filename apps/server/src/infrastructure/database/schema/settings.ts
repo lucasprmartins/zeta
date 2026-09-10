@@ -1,5 +1,5 @@
-import { consoleSchema } from "./namespaces";
 import { boolean, text } from "drizzle-orm/pg-core";
+import { consoleSchema } from "./namespaces";
 
 export const registrationSettings = consoleSchema.table("registration", {
   id: text("id").primaryKey(),

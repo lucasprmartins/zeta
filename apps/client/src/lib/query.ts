@@ -9,10 +9,26 @@ export function isForbidden(error: unknown) {
 }
 
 export const queryClient = new QueryClient({
-  queryCache: new QueryCache({ onError: (error, query) => { if (isForbidden(error) && query.queryKey[0] !== "permissions") void queryClient.invalidateQueries({ queryKey: ["permissions"] }); } }),
-  mutationCache: new MutationCache({ onError: (error) => { if (isForbidden(error)) void queryClient.invalidateQueries({ queryKey: ["permissions"] }); } }),
+  queryCache: new QueryCache({
+    onError: (error, query) => {
+      if (isForbidden(error) && query.queryKey[0] !== "permissions") {
+        void queryClient.invalidateQueries({ queryKey: ["permissions"] });
+      }
+    },
+  }),
+  mutationCache: new MutationCache({
+    onError: (error) => {
+      if (isForbidden(error)) {
+        void queryClient.invalidateQueries({ queryKey: ["permissions"] });
+      }
+    },
+  }),
   defaultOptions: {
-    queries: { staleTime: 30_000, retry: (count, error) => !isUnauthorized(error) && !isForbidden(error) && count < 1 },
+    queries: {
+      staleTime: 30_000,
+      retry: (count, error) =>
+        !(isUnauthorized(error) || isForbidden(error)) && count < 1,
+    },
     mutations: { retry: false },
   },
 });

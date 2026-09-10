@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import { can, permissions } from "../src/lib/access";
+
 test("verifica concessões recebidas do servidor, sem presumir nomes de papéis", () => {
   expect(can(["tasks:read"], permissions.tasks.read)).toBe(true);
   expect(can(["tasks:read"], permissions.tasks.create)).toBe(false);

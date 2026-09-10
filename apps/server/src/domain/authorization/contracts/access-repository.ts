@@ -1,21 +1,33 @@
 import type { RegistrationPolicy } from "../entities/registration-policy";
 import type { AccessRole } from "../entities/role";
-export type AccessUser = { id: string; name: string; email: string; username: string | null; role: string; banned: boolean };
+export type AccessUser = {
+  id: string;
+  name: string;
+  email: string;
+  username: string | null;
+  role: string;
+  banned: boolean;
+};
 export interface AccessStore {
-  registrationPolicy(): Promise<RegistrationPolicy>;
-  saveRegistrationPolicy(policy: RegistrationPolicy): Promise<void>;
-  pendingUsers(page: number): Promise<{ items: AccessUser[]; hasMore: boolean }>;
-  pendingCount(): Promise<number>;
+  activeAdmins(): Promise<number>;
   approve(userId: string): Promise<boolean>;
+  assign(userId: string, roleId: string): Promise<void>;
+  assigned(id: string): Promise<boolean>;
+  pendingCount(): Promise<number>;
+  pendingUsers(
+    page: number
+  ): Promise<{ items: AccessUser[]; hasMore: boolean }>;
+  registrationPolicy(): Promise<RegistrationPolicy>;
+  remove(id: string): Promise<void>;
   role(id: string): Promise<AccessRole | null>;
   roles(): Promise<AccessRole[]>;
-  user(id: string): Promise<AccessUser | null>;
-  users(page: number, search: string): Promise<{ items: AccessUser[]; hasMore: boolean }>;
   save(role: AccessRole): Promise<void>;
-  remove(id: string): Promise<void>;
-  assigned(id: string): Promise<boolean>;
-  assign(userId: string, roleId: string): Promise<void>;
-  activeAdmins(): Promise<number>;
+  saveRegistrationPolicy(policy: RegistrationPolicy): Promise<void>;
+  user(id: string): Promise<AccessUser | null>;
+  users(
+    page: number,
+    search: string
+  ): Promise<{ items: AccessUser[]; hasMore: boolean }>;
 }
 export interface AccessRepository extends AccessStore {
   // Serializa mudanças de acesso; todas as validações sensíveis acontecem na transação.

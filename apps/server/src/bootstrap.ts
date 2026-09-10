@@ -1,19 +1,19 @@
-import { manageGuides } from "./domain/guides/application/manage-guides";
-import { createGuideRepository } from "./infrastructure/repositories/drizzle-guide-repository";
-import { createUserManagement } from "./infrastructure/auth/manage-users";
-import { effectiveRoleGrants } from "./domain/authorization/entities/role";
-import { manageAccess } from "./domain/authorization/application/manage-access";
-import { createAccessRepository } from "./infrastructure/repositories/drizzle-access-repository";
-import { permissionIds } from "./infrastructure/auth/access";
-import { updateTask } from "@server/domain/tasks/application/update-task";
-import { setTaskStatus } from "@server/domain/tasks/application/set-task-status";
 import { deleteTask } from "@server/domain/tasks/application/delete-task";
+import { setTaskStatus } from "@server/domain/tasks/application/set-task-status";
+import { updateTask } from "@server/domain/tasks/application/update-task";
 import { sql } from "drizzle-orm";
 import type { Env } from "./config/env";
+import { manageAccess } from "./domain/authorization/application/manage-access";
+import { effectiveRoleGrants } from "./domain/authorization/entities/role";
+import { manageGuides } from "./domain/guides/application/manage-guides";
 import { createTask } from "./domain/tasks/application/create-task";
 import { listTasks } from "./domain/tasks/application/list-tasks";
+import { permissionIds } from "./infrastructure/auth/access";
 import { createAuthentication } from "./infrastructure/auth/better-auth";
+import { createUserManagement } from "./infrastructure/auth/manage-users";
 import { createDatabase } from "./infrastructure/database/client";
+import { createAccessRepository } from "./infrastructure/repositories/drizzle-access-repository";
+import { createGuideRepository } from "./infrastructure/repositories/drizzle-guide-repository";
 import { DrizzleTaskRepository } from "./infrastructure/repositories/drizzle-task-repository";
 import { createApp } from "./interfaces/http/app";
 import { createRouter } from "./interfaces/http/rpc/router";
@@ -23,13 +23,24 @@ export async function bootstrap(env: Env) {
   const database = createDatabase(env.databaseUrl);
   const access = createAccessRepository(database.db);
   const tasks = new DrizzleTaskRepository(database.db);
-  const router = createRouter({
-    create: createTask({ tasks, generateId: () => crypto.randomUUID(), now: () => new Date().toISOString() }),
-    list: listTasks(tasks),
-    update: updateTask(tasks, () => new Date().toISOString()),
-    setStatus: setTaskStatus(tasks, () => new Date().toISOString()),
-    delete: deleteTask(tasks),
-  }, manageAccess(access, permissionIds, () => crypto.randomUUID()), createUserManagement(database.db, env), manageGuides(createGuideRepository(database.db), permissionIds, () => new Date().toISOString()));
+  const router = createRouter(
+    {
+      create: createTask({
+        tasks,
+        generateId: () => crypto.randomUUID(),
+        now: () => new Date().toISOString(),
+      }),
+      list: listTasks(tasks),
+      update: updateTask(tasks, () => new Date().toISOString()),
+      setStatus: setTaskStatus(tasks, () => new Date().toISOString()),
+      delete: deleteTask(tasks),
+    },
+    manageAccess(access, permissionIds, () => crypto.randomUUID()),
+    createUserManagement(database.db, env),
+    manageGuides(createGuideRepository(database.db), permissionIds, () =>
+      new Date().toISOString()
+    )
+  );
   try {
     const app = await createApp({
       router,
@@ -37,7 +48,9 @@ export async function bootstrap(env: Env) {
         const role = await access.role(roleId);
         return role ? effectiveRoleGrants(role, permissionIds) : [];
       }),
-      checkDatabase: async () => { await database.db.execute(sql`select 1`); },
+      checkDatabase: async () => {
+        await database.db.execute(sql`select 1`);
+      },
     });
     return { app, closeDatabase: database.close };
   } catch (error) {

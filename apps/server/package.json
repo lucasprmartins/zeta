@@ -9,31 +9,31 @@
     }
   },
   "scripts": {
-    "dev": "bun --watch src/main.ts",
-    "start": "./dist/server",
-    "typecheck": "bun run --bun tsc --noEmit && bun run --bun tsc -p tsconfig.domain.json",
-    "test": "bun test tests/unit tests/http",
-    "test:integration": "bun test ./tests/integration/api.integration.ts",
+    "auth:set-role": "bun scripts/set-role.ts",
+    "build": "bun build src/main.ts --compile --target=bun --format=esm --bytecode --minify --keep-names --sourcemap --env=disable --outfile=dist/server",
     "check": "bun run typecheck && bun run test",
+    "db:check": "bun run --bun drizzle-kit check",
     "db:generate": "bun run --bun drizzle-kit generate",
     "db:migrate": "bun scripts/migrate.ts",
-    "build": "bun build src/main.ts --compile --target=bun --format=esm --bytecode --minify --keep-names --sourcemap --env=disable --outfile=dist/server",
-    "db:studio": "bun run --bun drizzle-kit studio",
-    "db:push": "bun run --bun drizzle-kit push",
     "db:pull": "bun run --bun drizzle-kit pull",
-    "db:check": "bun run --bun drizzle-kit check",
-    "auth:set-role": "bun scripts/set-role.ts",
-    "guides:import": "bun scripts/import-guides.ts"
+    "db:push": "bun run --bun drizzle-kit push",
+    "db:studio": "bun run --bun drizzle-kit studio",
+    "dev": "bun --watch src/main.ts",
+    "guides:import": "bun scripts/import-guides.ts",
+    "start": "./dist/server",
+    "test": "bun test tests/unit tests/http",
+    "test:integration": "bun test ./tests/integration/api.integration.ts",
+    "typecheck": "bun run --bun tsc --noEmit && bun run --bun tsc -p tsconfig.domain.json"
   },
   "dependencies": {
     "@elysiajs/openapi": "1.4.16",
     "@orpc/openapi": "1.15.0",
     "@orpc/server": "1.15.0",
+    "@zeta/access": "workspace:*",
+    "@zeta/guide-content": "workspace:*",
     "better-auth": "1.7.2",
     "drizzle-orm": "0.45.2",
-    "elysia": "1.4.30",
-    "@zeta/access": "workspace:*",
-    "@zeta/guide-content": "workspace:*"
+    "elysia": "1.4.30"
   },
   "devDependencies": {
     "@types/bun": "1.4.1",

@@ -1,14 +1,19 @@
-import { PermissionBoundary } from "@/components/permission-boundary";
-import { permissions } from "@/lib/access";
 import { createFileRoute } from "@tanstack/react-router";
-import { TasksPage } from "@/features/tasks/tasks-page";
+import { PermissionBoundary } from "@/components/permission-boundary";
 import type { TaskFilter } from "@/features/tasks/queries";
+import { TasksPage } from "@/features/tasks/tasks-page";
+import { permissions } from "@/lib/access";
 import { authClient } from "@/lib/auth";
 
 export const Route = createFileRoute("/_authenticated/tasks")({
   component: TasksRoute,
-  validateSearch: (search: Record<string, unknown>): { status: TaskFilter } => ({
-    status: search.status === "pending" || search.status === "completed" ? search.status : "all",
+  validateSearch: (
+    search: Record<string, unknown>
+  ): { status: TaskFilter } => ({
+    status:
+      search.status === "pending" || search.status === "completed"
+        ? search.status
+        : "all",
   }),
 });
 
@@ -16,7 +21,16 @@ function TasksRoute() {
   const { data } = authClient.useSession();
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  return data ? <PermissionBoundary permission={permissions.tasks.read}><TasksPage key={data.user.id} userId={data.user.id} filter={search.status}
-    onFilter={(status) => { void navigate({ search: { status } }); }}
-    /></PermissionBoundary> : null;
+  return data ? (
+    <PermissionBoundary permission={permissions.tasks.read}>
+      <TasksPage
+        filter={search.status}
+        key={data.user.id}
+        onFilter={(status) => {
+          void navigate({ search: { status } });
+        }}
+        userId={data.user.id}
+      />
+    </PermissionBoundary>
+  ) : null;
 }

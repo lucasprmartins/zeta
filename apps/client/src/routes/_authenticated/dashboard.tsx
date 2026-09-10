@@ -1,12 +1,18 @@
-import { PermissionBoundary } from "@/components/permission-boundary";
-import { permissions } from "@/lib/access";
 import { createFileRoute } from "@tanstack/react-router";
+import { PermissionBoundary } from "@/components/permission-boundary";
 import { DashboardPage } from "@/features/dashboard/dashboard-page";
+import { permissions } from "@/lib/access";
 import { authClient } from "@/lib/auth";
 
-export const Route = createFileRoute("/_authenticated/dashboard")({ component: DashboardRoute });
+export const Route = createFileRoute("/_authenticated/dashboard")({
+  component: DashboardRoute,
+});
 
 function DashboardRoute() {
   const { data } = authClient.useSession();
-  return data ? <PermissionBoundary permission={permissions.tasks.read}><DashboardPage key={data.user.id} userId={data.user.id} /></PermissionBoundary> : null;
+  return data ? (
+    <PermissionBoundary permission={permissions.tasks.read}>
+      <DashboardPage key={data.user.id} userId={data.user.id} />
+    </PermissionBoundary>
+  ) : null;
 }

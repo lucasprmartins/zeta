@@ -1,5 +1,5 @@
-import { integer, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import type { GuideFields } from "@server/domain/guides/entities/guide";
+import { integer, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 export const guides = pgTable("guides", {
   slug: text("slug").primaryKey(),
   draft: jsonb("draft").$type<GuideFields>().notNull(),

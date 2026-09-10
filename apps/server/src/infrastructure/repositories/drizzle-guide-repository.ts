@@ -1,22 +1,86 @@
-import { and, eq, inArray, isNotNull, or, sql } from "drizzle-orm";
 import type { GuideRepository } from "@server/domain/guides/contracts/guide-repository";
 import type { Guide } from "@server/domain/guides/entities/guide";
 import type { Database } from "@server/infrastructure/database/client";
 import { guides } from "@server/infrastructure/database/schema/guides";
+import { and, eq, inArray, isNotNull, or, sql } from "drizzle-orm";
+
 // O cast por text evita que Bun SQL codifique novamente a string JSON enviada pelo Drizzle.
-const jsonValue = (value: Guide["published"]) => value === null ? null : sql`${JSON.stringify(value)}::text::jsonb`;
-const values = (guide: Guide) => ({ ...guide, draft: jsonValue(guide.draft)!, published: jsonValue(guide.published), updatedAt: new Date(guide.updatedAt) });
-const restore = (row: typeof guides.$inferSelect): Guide => ({ ...row, updatedAt: row.updatedAt.toISOString() });
+const jsonValue = (value: Guide["published"]) =>
+  value === null ? null : sql`${JSON.stringify(value)}::text::jsonb`;
+const values = (guide: Guide) => ({
+  ...guide,
+  draft: jsonValue(guide.draft)!,
+  published: jsonValue(guide.published),
+  updatedAt: new Date(guide.updatedAt),
+});
+const restore = (row: typeof guides.$inferSelect): Guide => ({
+  ...row,
+  updatedAt: row.updatedAt.toISOString(),
+});
 export function createGuideRepository(db: Database): GuideRepository {
   return {
-    async find(slug) { const row = (await db.select().from(guides).where(eq(guides.slug, slug)).limit(1))[0]; return row ? restore(row) : null; },
+    async find(slug) {
+      const row = (
+        await db.select().from(guides).where(eq(guides.slug, slug)).limit(1)
+      )[0];
+      return row ? restore(row) : null;
+    },
     async list(page, grants) {
       const content = grants === null ? guides.draft : guides.published;
-      const visible = grants === null ? undefined : and(isNotNull(guides.published), or(sql`${guides.published}->>'permission' is null`, grants.length ? inArray(sql`${guides.published}->>'permission'`, [...grants]) : sql`false`));
-      const rows = await db.select().from(guides).where(visible).orderBy(sql`${content}->>'section'`, sql`(${content}->>'order')::integer`, sql`${content}->>'title'`, guides.slug).limit(21).offset((page - 1) * 20);
-      return { items: rows.slice(0, 20).map(restore), hasMore: rows.length > 20 };
+      const visible =
+        grants === null
+          ? undefined
+          : and(
+              isNotNull(guides.published),
+              or(
+                sql`${guides.published}->>'permission' is null`,
+                grants.length
+                  ? inArray(sql`${guides.published}->>'permission'`, [
+                      ...grants,
+                    ])
+                  : sql`false`
+              )
+            );
+      const rows = await db
+        .select()
+        .from(guides)
+        .where(visible)
+        .orderBy(
+          sql`${content}->>'section'`,
+          sql`(${content}->>'order')::integer`,
+          sql`${content}->>'title'`,
+          guides.slug
+        )
+        .limit(21)
+        .offset((page - 1) * 20);
+      return {
+        items: rows.slice(0, 20).map(restore),
+        hasMore: rows.length > 20,
+      };
     },
-    async insert(guide) { return (await db.insert(guides).values(values(guide)).onConflictDoNothing().returning({ slug: guides.slug })).length > 0; },
-    async replace(guide, version) { return (await db.update(guides).set(values(guide)).where(and(eq(guides.slug, guide.slug), eq(guides.version, version))).returning({ slug: guides.slug })).length > 0; },
+    async insert(guide) {
+      return (
+        (
+          await db
+            .insert(guides)
+            .values(values(guide))
+            .onConflictDoNothing()
+            .returning({ slug: guides.slug })
+        ).length > 0
+      );
+    },
+    async replace(guide, version) {
+      return (
+        (
+          await db
+            .update(guides)
+            .set(values(guide))
+            .where(
+              and(eq(guides.slug, guide.slug), eq(guides.version, version))
+            )
+            .returning({ slug: guides.slug })
+        ).length > 0
+      );
+    },
   };
 }

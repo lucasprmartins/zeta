@@ -1,5 +1,5 @@
-import { authSchema } from "./namespaces";
 import { boolean, jsonb, text } from "drizzle-orm/pg-core";
+import { authSchema } from "./namespaces";
 export const accessRoles = authSchema.table("access", {
   id: text("id").primaryKey(),
   name: text("name").notNull().unique(),

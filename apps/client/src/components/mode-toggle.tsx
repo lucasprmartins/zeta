@@ -11,9 +11,25 @@ export function ModeToggle() {
   const { theme, setTheme } = useTheme();
   const { label, next, nextLabel } = themes[theme];
   const description = `Tema: ${label}. Usar tema ${nextLabel}`;
-  return <Button variant="ghost" size="icon" className="relative size-11 cursor-pointer text-muted-foreground hover:text-foreground"
-    aria-label={description} title={description} onClick={() => setTheme(next)}>
-    <SunIcon weight="regular" aria-hidden="true" className={`pointer-events-none absolute transition-opacity duration-150 ${theme === "light" ? "opacity-100" : "opacity-0"}`} />
-    <MoonIcon weight="regular" aria-hidden="true" className={`pointer-events-none absolute transition-opacity duration-150 ${theme === "dark" ? "opacity-100" : "opacity-0"}`} />
-  </Button>;
+  return (
+    <Button
+      aria-label={description}
+      className="relative size-11 cursor-pointer text-muted-foreground hover:text-foreground"
+      onClick={() => setTheme(next)}
+      size="icon"
+      title={description}
+      variant="ghost"
+    >
+      <SunIcon
+        aria-hidden="true"
+        className={`pointer-events-none absolute transition-opacity duration-150 ${theme === "light" ? "opacity-100" : "opacity-0"}`}
+        weight="regular"
+      />
+      <MoonIcon
+        aria-hidden="true"
+        className={`pointer-events-none absolute transition-opacity duration-150 ${theme === "dark" ? "opacity-100" : "opacity-0"}`}
+        weight="regular"
+      />
+    </Button>
+  );
 }

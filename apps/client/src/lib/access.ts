@@ -1,2 +1,2 @@
-export { accessControl, roles, catalog, permissions, can } from "@zeta/access";
 export type { Permission } from "@zeta/access";
+export { accessControl, can, catalog, permissions, roles } from "@zeta/access";

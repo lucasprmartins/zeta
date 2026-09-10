@@ -36,5 +36,7 @@ export default defineRailway((ctx) => {
   // Sem source: permite enviar este repositório com railway up --service <nome>.
   // Para deploy via GitHub, defina source: github("owner/repo", { branch: "main" })
   // nos dois serviços, mantendo a raiz do monorepo como contexto do build.
-  return project(ctx.projectName ?? "zeta", { resources: [database, server, client] });
+  return project(ctx.projectName ?? "zeta", {
+    resources: [database, server, client],
+  });
 });

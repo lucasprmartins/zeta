@@ -1,18 +1,36 @@
-import { useState } from "react";
 import { EyeIcon, EyeSlashIcon, SparkleIcon } from "@phosphor-icons/react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { toast } from "sonner";
+import { ErrorNotice } from "@/components/feedback";
 import { Button } from "@/components/ui/button";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Modal } from "@/components/ui/modal";
-import { ErrorNotice } from "@/components/feedback";
-import { rpc } from "@/lib/rpc";
+import {
+  NativeSelect,
+  NativeSelectOption,
+} from "@/components/ui/native-select";
 import { authClient } from "@/lib/auth";
-import { accessError, accessKeys, type AccessRole, type AccessUser } from "./queries";
+import { rpc } from "@/lib/rpc";
+import {
+  type AccessRole,
+  type AccessUser,
+  accessError,
+  accessKeys,
+} from "./queries";
 
-export function UserForm({ initial, roles, actorId, onClose }: { initial: AccessUser | null; roles: AccessRole[]; actorId: string; onClose: () => void }) {
+export function UserForm({
+  initial,
+  roles,
+  actorId,
+  onClose,
+}: {
+  initial: AccessUser | null;
+  roles: AccessRole[];
+  actorId: string;
+  onClose: () => void;
+}) {
   const client = useQueryClient();
   const [name, setName] = useState(initial?.name ?? "");
   const [username, setUsername] = useState(initial?.username ?? "");
@@ -23,42 +41,213 @@ export function UserForm({ initial, roles, actorId, onClose }: { initial: Access
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   async function save() {
-    setPending(true); setError(null);
+    setPending(true);
+    setError(null);
     try {
-      const fields = { name, username, email, roleId, ...(password ? { password } : {}) };
+      const fields = {
+        name,
+        username,
+        email,
+        roleId,
+        ...(password ? { password } : {}),
+      };
       // Credenciais ficam apenas no formulário, fora do cache de mutations.
-      if (initial) await rpc.access.updateUser({ ...fields, userId: initial.id });
-      else await rpc.access.createUser(fields);
+      if (initial) {
+        await rpc.access.updateUser({ ...fields, userId: initial.id });
+      } else {
+        await rpc.access.createUser(fields);
+      }
       setPassword("");
       toast.success(initial ? "Usuário atualizado." : "Usuário criado.");
       onClose();
-      await Promise.all([client.invalidateQueries({ queryKey: accessKeys.all(actorId) }), client.invalidateQueries({ queryKey: ["permissions"] }), ...(initial?.id === actorId ? [authClient.getSession({ query: { disableCookieCache: true } })] : [])]);
-    } catch (cause) { const message = accessError(cause); setError(message); toast.error(message); }
-    finally { setPending(false); }
+      await Promise.all([
+        client.invalidateQueries({ queryKey: accessKeys.all(actorId) }),
+        client.invalidateQueries({ queryKey: ["permissions"] }),
+        ...(initial?.id === actorId
+          ? [authClient.getSession({ query: { disableCookieCache: true } })]
+          : []),
+      ]);
+    } catch (cause) {
+      const message = accessError(cause);
+      setError(message);
+      toast.error(message);
+    } finally {
+      setPending(false);
+    }
   }
   function generatePassword() {
-    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-    setPassword(Array.from(crypto.getRandomValues(new Uint8Array(20)), (value) => alphabet[value & 63]).join(""));
+    const alphabet =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+    setPassword(
+      Array.from(
+        crypto.getRandomValues(new Uint8Array(20)),
+        (value) => alphabet[value & 63]
+      ).join("")
+    );
     setVisible(true);
   }
-  return <Modal title={initial ? "Editar usuário" : "Adicionar usuário"} description="Gerencie os dados da conta e o acesso à aplicação." pending={pending} onClose={onClose}>
-    <form className="space-y-6" onSubmit={(event) => { event.preventDefault(); void save(); }}>
-      {error && <ErrorNotice message={error} />}
-      <fieldset disabled={pending} className="space-y-6">
-        <section className="space-y-4" aria-labelledby="account-heading"><h3 id="account-heading" className="text-sm font-medium">Dados da conta</h3>
-          <Field><FieldLabel htmlFor="managed-name">Nome</FieldLabel><Input id="managed-name" data-modal-autofocus value={name} onChange={(event) => setName(event.target.value)} required maxLength={120} autoComplete="off" /></Field>
-          <Field><FieldLabel htmlFor="managed-username">Nome de usuário</FieldLabel><Input id="managed-username" value={username} onChange={(event) => setUsername(event.target.value)} required minLength={3} maxLength={30} pattern="[a-zA-Z0-9_.]{3,30}" autoCapitalize="none" autoComplete="off" spellCheck={false} /><FieldDescription>3 a 30 caracteres: letras sem acento, números, ponto ou sublinhado.</FieldDescription></Field>
-          <Field><FieldLabel htmlFor="managed-email">E-mail</FieldLabel><Input id="managed-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required maxLength={254} autoComplete="off" /></Field>
-        </section>
-        <section className="space-y-4 border-t pt-6" aria-labelledby="access-heading"><h3 id="access-heading" className="text-sm font-medium">Acesso</h3>
-          <Field><FieldLabel htmlFor="managed-role">Papel</FieldLabel><NativeSelect id="managed-role" value={roleId} onChange={(event) => setRoleId(event.target.value)} required>{!roles.some((role) => role.id === roleId) && <NativeSelectOption value="">Selecione um papel</NativeSelectOption>}{roles.map((role) => <NativeSelectOption key={role.id} value={role.id}>{role.name}</NativeSelectOption>)}</NativeSelect></Field>
-        </section>
-        <section className="space-y-4 border-t pt-6" aria-labelledby="password-heading"><h3 id="password-heading" className="text-sm font-medium">Segurança</h3>
-          <Field><FieldLabel htmlFor="managed-password">{initial ? "Nova senha" : "Senha"}</FieldLabel><div className="flex gap-2"><Input id="managed-password" className="min-w-0" type={visible ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} required={!initial} minLength={8} maxLength={128} autoComplete="new-password" /><Button type="button" variant="outline" size="icon" aria-label={visible ? "Ocultar senha" : "Mostrar senha"} onClick={() => setVisible(!visible)}>{visible ? <EyeSlashIcon size={18} /> : <EyeIcon size={18} />}</Button></div><FieldDescription>{initial ? "Deixe em branco para manter a senha atual. Ao redefinir, todas as sessões do usuário serão encerradas." : "Use de 8 a 128 caracteres."}</FieldDescription></Field>
-          <Button type="button" variant="outline" size="sm" onClick={generatePassword}><SparkleIcon size={18} />Gerar senha</Button>
-        </section>
-      </fieldset>
-      <div className="modal-actions flex flex-col-reverse justify-end gap-2 sm:flex-row"><Button type="button" variant="outline" disabled={pending} onClick={onClose}>Cancelar</Button><Button type="submit" disabled={pending}>{pending ? "Salvando…" : initial ? "Salvar alterações" : "Adicionar usuário"}</Button></div>
-    </form>
-  </Modal>;
+  return (
+    <Modal
+      description="Gerencie os dados da conta e o acesso à aplicação."
+      onClose={onClose}
+      pending={pending}
+      title={initial ? "Editar usuário" : "Adicionar usuário"}
+    >
+      <form
+        className="space-y-6"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void save();
+        }}
+      >
+        {error && <ErrorNotice message={error} />}
+        <fieldset className="space-y-6" disabled={pending}>
+          <section aria-labelledby="account-heading" className="space-y-4">
+            <h3 className="font-medium text-sm" id="account-heading">
+              Dados da conta
+            </h3>
+            <Field>
+              <FieldLabel htmlFor="managed-name">Nome</FieldLabel>
+              <Input
+                autoComplete="off"
+                data-modal-autofocus
+                id="managed-name"
+                maxLength={120}
+                onChange={(event) => setName(event.target.value)}
+                required
+                value={name}
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="managed-username">
+                Nome de usuário
+              </FieldLabel>
+              <Input
+                autoCapitalize="none"
+                autoComplete="off"
+                id="managed-username"
+                maxLength={30}
+                minLength={3}
+                onChange={(event) => setUsername(event.target.value)}
+                pattern="[a-zA-Z0-9_.]{3,30}"
+                required
+                spellCheck={false}
+                value={username}
+              />
+              <FieldDescription>
+                3 a 30 caracteres: letras sem acento, números, ponto ou
+                sublinhado.
+              </FieldDescription>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="managed-email">E-mail</FieldLabel>
+              <Input
+                autoComplete="off"
+                id="managed-email"
+                maxLength={254}
+                onChange={(event) => setEmail(event.target.value)}
+                required
+                type="email"
+                value={email}
+              />
+            </Field>
+          </section>
+          <section
+            aria-labelledby="access-heading"
+            className="space-y-4 border-t pt-6"
+          >
+            <h3 className="font-medium text-sm" id="access-heading">
+              Acesso
+            </h3>
+            <Field>
+              <FieldLabel htmlFor="managed-role">Papel</FieldLabel>
+              <NativeSelect
+                id="managed-role"
+                onChange={(event) => setRoleId(event.target.value)}
+                required
+                value={roleId}
+              >
+                {!roles.some((role) => role.id === roleId) && (
+                  <NativeSelectOption value="">
+                    Selecione um papel
+                  </NativeSelectOption>
+                )}
+                {roles.map((role) => (
+                  <NativeSelectOption key={role.id} value={role.id}>
+                    {role.name}
+                  </NativeSelectOption>
+                ))}
+              </NativeSelect>
+            </Field>
+          </section>
+          <section
+            aria-labelledby="password-heading"
+            className="space-y-4 border-t pt-6"
+          >
+            <h3 className="font-medium text-sm" id="password-heading">
+              Segurança
+            </h3>
+            <Field>
+              <FieldLabel htmlFor="managed-password">
+                {initial ? "Nova senha" : "Senha"}
+              </FieldLabel>
+              <div className="flex gap-2">
+                <Input
+                  autoComplete="new-password"
+                  className="min-w-0"
+                  id="managed-password"
+                  maxLength={128}
+                  minLength={8}
+                  onChange={(event) => setPassword(event.target.value)}
+                  required={!initial}
+                  type={visible ? "text" : "password"}
+                  value={password}
+                />
+                <Button
+                  aria-label={visible ? "Ocultar senha" : "Mostrar senha"}
+                  onClick={() => setVisible(!visible)}
+                  size="icon"
+                  type="button"
+                  variant="outline"
+                >
+                  {visible ? <EyeSlashIcon size={18} /> : <EyeIcon size={18} />}
+                </Button>
+              </div>
+              <FieldDescription>
+                {initial
+                  ? "Deixe em branco para manter a senha atual. Ao redefinir, todas as sessões do usuário serão encerradas."
+                  : "Use de 8 a 128 caracteres."}
+              </FieldDescription>
+            </Field>
+            <Button
+              onClick={generatePassword}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              <SparkleIcon size={18} />
+              Gerar senha
+            </Button>
+          </section>
+        </fieldset>
+        <div className="modal-actions flex flex-col-reverse justify-end gap-2 sm:flex-row">
+          <Button
+            disabled={pending}
+            onClick={onClose}
+            type="button"
+            variant="outline"
+          >
+            Cancelar
+          </Button>
+          <Button disabled={pending} type="submit">
+            {pending
+              ? "Salvando…"
+              : initial
+                ? "Salvar alterações"
+                : "Adicionar usuário"}
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
 }

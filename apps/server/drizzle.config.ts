@@ -7,5 +7,7 @@ export default defineConfig({
   strict: true,
   schemaFilter: ["public", "auth", "console"],
   migrations: { schema: "drizzle", table: "migrations" },
-  ...(process.env.DATABASE_URL ? { dbCredentials: { url: process.env.DATABASE_URL } } : {}),
+  ...(process.env.DATABASE_URL
+    ? { dbCredentials: { url: process.env.DATABASE_URL } }
+    : {}),
 });

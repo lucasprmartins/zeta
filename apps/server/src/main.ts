@@ -14,7 +14,9 @@ console.info(`API disponível em http://localhost:${env.port}`);
 
 let stopping = false;
 async function shutdown() {
-  if (stopping) return;
+  if (stopping) {
+    return;
+  }
   stopping = true;
   const timeout = setTimeout(() => process.exit(1), 10_000);
   timeout.unref();

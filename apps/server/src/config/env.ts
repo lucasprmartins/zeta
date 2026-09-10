@@ -1,7 +1,9 @@
 export function readEnv(env: Record<string, string | undefined>) {
   const required = (key: string) => {
     const value = env[key]?.trim();
-    if (!value) throw new Error(`Variável obrigatória ausente: ${key}`);
+    if (!value) {
+      throw new Error(`Variável obrigatória ausente: ${key}`);
+    }
     return value;
   };
 
@@ -14,21 +16,41 @@ export function readEnv(env: Record<string, string | undefined>) {
     throw new Error("BETTER_AUTH_URL deve ser uma URL HTTP(S).");
   }
   const authSecret = required("BETTER_AUTH_SECRET");
-  if (authSecret.length < 32 || authSecret === "replace-with-a-random-secret-at-least-32-characters") {
-    throw new Error("BETTER_AUTH_SECRET deve ser um segredo aleatório com pelo menos 32 caracteres.");
+  if (
+    authSecret.length < 32 ||
+    authSecret === "replace-with-a-random-secret-at-least-32-characters"
+  ) {
+    throw new Error(
+      "BETTER_AUTH_SECRET deve ser um segredo aleatório com pelo menos 32 caracteres."
+    );
   }
   const port = Number(env.PORT ?? "3000");
-  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+  if (!Number.isInteger(port) || port < 1 || port > 65_535) {
     throw new Error("PORT deve ser um inteiro entre 1 e 65535.");
   }
-  const trustedOrigins = (env.TRUSTED_ORIGINS ?? authUrl.origin).split(",").map((value) => {
-    const origin = new URL(value.trim());
-    if (!["http:", "https:"].includes(origin.protocol) || origin.pathname !== "/" || origin.search || origin.hash) {
-      throw new Error("TRUSTED_ORIGINS deve conter origens HTTP(S) separadas por vírgula.");
-    }
-    return origin.origin;
-  });
-  return { databaseUrl, authUrl: authUrl.origin, authSecret, port, trustedOrigins };
+  const trustedOrigins = (env.TRUSTED_ORIGINS ?? authUrl.origin)
+    .split(",")
+    .map((value) => {
+      const origin = new URL(value.trim());
+      if (
+        !["http:", "https:"].includes(origin.protocol) ||
+        origin.pathname !== "/" ||
+        origin.search ||
+        origin.hash
+      ) {
+        throw new Error(
+          "TRUSTED_ORIGINS deve conter origens HTTP(S) separadas por vírgula."
+        );
+      }
+      return origin.origin;
+    });
+  return {
+    databaseUrl,
+    authUrl: authUrl.origin,
+    authSecret,
+    port,
+    trustedOrigins,
+  };
 }
 
 export type Env = ReturnType<typeof readEnv>;
