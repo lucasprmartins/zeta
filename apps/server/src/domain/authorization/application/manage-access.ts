@@ -23,10 +23,11 @@ export function manageAccess(
     registrationPolicy: () => repository.registrationPolicy(),
     async registrationStatus(actorId: string) {
       await authorize(repository, actorId);
-      return {
-        ...(await repository.registrationPolicy()),
-        pendingCount: await repository.pendingCount(),
-      };
+      const [policy, pendingCount] = await Promise.all([
+        repository.registrationPolicy(),
+        repository.pendingCount(),
+      ]);
+      return { ...policy, pendingCount };
     },
     saveRegistrationPolicy(actorId: string, policy: RegistrationPolicy) {
       return repository.transaction(async (store) => {
@@ -114,7 +115,10 @@ export function manageAccess(
     remove(actorId: string, id: string) {
       return repository.transaction(async (store) => {
         await authorize(store, actorId);
-        const role = await store.role(id);
+        const [role, assigned] = await Promise.all([
+          store.role(id),
+          store.assigned(id),
+        ]);
         if (!role) {
           throw new AccessError("NOT_FOUND", "Papel não encontrado.");
         }
@@ -124,7 +128,7 @@ export function manageAccess(
             "Papéis do sistema não podem ser excluídos."
           );
         }
-        if (await store.assigned(id)) {
+        if (assigned) {
           throw new AccessError(
             "CONFLICT",
             "Reatribua os usuários deste papel antes de excluí-lo."

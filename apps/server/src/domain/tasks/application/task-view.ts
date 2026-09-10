@@ -7,7 +7,7 @@ export type TaskView = Omit<TaskData, "mentions"> & {
   mentions: TaskUser[];
 };
 
-async function collect(
+export async function collectUsers(
   data: readonly TaskData[],
   directory: UserDirectory
 ): Promise<Map<string, TaskUser>> {
@@ -24,7 +24,10 @@ async function collect(
   return new Map(users.map((user) => [user.id, user]));
 }
 
-function hydrate(data: TaskData, users: Map<string, TaskUser>): TaskView {
+export function hydrate(
+  data: TaskData,
+  users: Map<string, TaskUser>
+): TaskView {
   const { mentions, ...rest } = data;
   const mentioned: TaskUser[] = [];
   for (const id of mentions) {
@@ -45,7 +48,7 @@ export async function toView(
   directory: UserDirectory
 ): Promise<TaskView> {
   const data = task.toJSON();
-  return hydrate(data, await collect([data], directory));
+  return hydrate(data, await collectUsers([data], directory));
 }
 
 export async function toViews(
@@ -53,6 +56,6 @@ export async function toViews(
   directory: UserDirectory
 ): Promise<TaskView[]> {
   const data = tasks.map((task) => task.toJSON());
-  const users = await collect(data, directory);
+  const users = await collectUsers(data, directory);
   return data.map((task) => hydrate(task, users));
 }

@@ -11,6 +11,7 @@ import { accessRoles } from "@server/infrastructure/database/schema/access";
 import { user } from "@server/infrastructure/database/schema/auth";
 import { registrationSettings } from "@server/infrastructure/database/schema/settings";
 import { and, asc, count, eq, sql } from "drizzle-orm";
+import { pageLimit, pageOffset, paginate } from "./pagination";
 
 function store(
   db: Pick<Database, "select" | "insert" | "update" | "delete">
@@ -47,9 +48,9 @@ function store(
         .from(user)
         .where(eq(user.approvalPending, true))
         .orderBy(asc(user.createdAt), asc(user.id))
-        .limit(21)
-        .offset((page - 1) * 20);
-      return { items: items.slice(0, 20), hasMore: items.length > 20 };
+        .limit(pageLimit)
+        .offset(pageOffset(page));
+      return paginate(items);
     },
     async pendingCount() {
       return (
@@ -99,9 +100,9 @@ function store(
           asc(user.name),
           asc(user.id)
         )
-        .limit(21)
-        .offset((page - 1) * 20);
-      return { items: items.slice(0, 20), hasMore: items.length > 20 };
+        .limit(pageLimit)
+        .offset(pageOffset(page));
+      return paginate(items);
     },
     async save(role) {
       await db

@@ -3,6 +3,7 @@ import type { Guide } from "@server/domain/guides/entities/guide";
 import type { Database } from "@server/infrastructure/database/client";
 import { guides } from "@server/infrastructure/database/schema/guides";
 import { and, eq, inArray, isNotNull, or, sql } from "drizzle-orm";
+import { pageLimit, pageOffset, paginate } from "./pagination";
 
 // O cast por text evita que Bun SQL codifique novamente a string JSON enviada pelo Drizzle.
 const jsonValue = (value: Guide["published"]) =>
@@ -50,12 +51,10 @@ export function createGuideRepository(db: Database): GuideRepository {
           sql`${content}->>'title'`,
           guides.slug
         )
-        .limit(21)
-        .offset((page - 1) * 20);
-      return {
-        items: rows.slice(0, 20).map(restore),
-        hasMore: rows.length > 20,
-      };
+        .limit(pageLimit)
+        .offset(pageOffset(page));
+      const window = paginate(rows);
+      return { ...window, items: window.items.map(restore) };
     },
     async insert(guide) {
       return (

@@ -67,6 +67,15 @@ export class DrizzleTaskRepository implements TaskRepository {
     taskId: string,
     mentions: readonly string[]
   ): Promise<void> {
+    const current = (await this.mentionsOf(tx, [taskId])).get(taskId) ?? [];
+    const next = [...mentions].sort();
+    // Editar título ou concluir a tarefa não mexe nos responsáveis.
+    if (
+      current.length === next.length &&
+      current.every((userId, index) => userId === next[index])
+    ) {
+      return;
+    }
     await tx.delete(taskMentions).where(eq(taskMentions.taskId, taskId));
     if (mentions.length > 0) {
       await tx

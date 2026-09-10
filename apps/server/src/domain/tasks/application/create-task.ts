@@ -2,7 +2,7 @@ import type { TaskRepository } from "../contracts/task-repository";
 import type { UserDirectory } from "../contracts/user-directory";
 import { Task } from "../entities/task";
 import { assertKnownMentions } from "./mentions";
-import { toView } from "./task-view";
+import { collectUsers, hydrate } from "./task-view";
 
 export function createTask({
   tasks,
@@ -29,8 +29,11 @@ export function createTask({
       mentions: input.mentions ?? [],
       createdAt: now(),
     });
-    await assertKnownMentions(task.toJSON().mentions, users);
+    const data = task.toJSON();
+    // Uma única leitura de contas atende à validação e à resposta.
+    const known = await collectUsers([data], users);
+    assertKnownMentions(data.mentions, known);
     await tasks.save(task);
-    return toView(task, users);
+    return hydrate(data, known);
   };
 }

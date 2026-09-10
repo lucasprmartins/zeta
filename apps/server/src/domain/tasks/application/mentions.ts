@@ -1,16 +1,13 @@
-import type { UserDirectory } from "../contracts/user-directory";
+import type { TaskUser } from "../contracts/user-directory";
 import { InvalidTaskError } from "../entities/task";
 
 // Só indica quem existe: o identificador vem do navegador e não é confiável.
-export async function assertKnownMentions(
+// Recebe as contas já resolvidas para a gravação não repetir a mesma consulta.
+export function assertKnownMentions(
   mentions: readonly string[],
-  directory: UserDirectory
-): Promise<void> {
-  if (mentions.length === 0) {
-    return;
-  }
-  const known = await directory.byIds(mentions);
-  if (known.length !== mentions.length) {
+  known: ReadonlyMap<string, TaskUser>
+): void {
+  if (mentions.some((mention) => !known.has(mention))) {
     throw new InvalidTaskError(
       "Conta indicada como responsável não encontrada."
     );

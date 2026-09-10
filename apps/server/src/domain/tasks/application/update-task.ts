@@ -2,7 +2,7 @@ import type { TaskRepository } from "../contracts/task-repository";
 import type { UserDirectory } from "../contracts/user-directory";
 import { assertKnownMentions } from "./mentions";
 import { TaskNotFoundError } from "./task-not-found";
-import { toView } from "./task-view";
+import { collectUsers, hydrate } from "./task-view";
 
 export function updateTask(
   tasks: TaskRepository,
@@ -27,10 +27,12 @@ export function updateTask(
       },
       now()
     );
-    await assertKnownMentions(updated.toJSON().mentions, users);
+    const data = updated.toJSON();
+    const known = await collectUsers([data], users);
+    assertKnownMentions(data.mentions, known);
     if (!(await tasks.update(updated))) {
       throw new TaskNotFoundError();
     }
-    return toView(updated, users);
+    return hydrate(data, known);
   };
 }
