@@ -1,6 +1,7 @@
 {
   "name": "@zeta/server",
   "version": "0.1.0",
+  "description": "API Bun com Elysia, Drizzle, oRPC e Better Auth sobre PostgreSQL.",
   "private": true,
   "type": "module",
   "exports": {
@@ -9,21 +10,24 @@
     }
   },
   "scripts": {
-    "auth:set-role": "bun scripts/set-role.ts",
-    "build": "bun build src/main.ts --compile --target=bun --format=esm --bytecode --minify --keep-names --sourcemap --env=disable --outfile=dist/server",
-    "check": "bun run typecheck && bun run test",
-    "db:check": "bun run --bun drizzle-kit check",
-    "db:generate": "bun run --bun drizzle-kit generate",
-    "db:migrate": "bun scripts/migrate.ts",
-    "db:pull": "bun run --bun drizzle-kit pull",
-    "db:push": "bun run --bun drizzle-kit push",
-    "db:studio": "bun run --bun drizzle-kit studio",
     "dev": "bun --watch src/main.ts",
-    "guides:import": "bun scripts/import-guides.ts",
+    "build": "bun build src/main.ts --compile --target=bun --format=esm --bytecode --minify --keep-names --sourcemap --env=disable --outfile=dist/server",
     "start": "./dist/server",
+
+    "check": "bun run typecheck && bun run test",
+    "typecheck": "bun run --bun tsc --noEmit && bun run --bun tsc -p tsconfig.domain.json",
     "test": "bun test tests/unit tests/http",
     "test:integration": "bun test ./tests/integration/api.integration.ts",
-    "typecheck": "bun run --bun tsc --noEmit && bun run --bun tsc -p tsconfig.domain.json"
+
+    "db:generate": "bun run --bun drizzle-kit generate",
+    "db:migrate": "bun scripts/migrate.ts",
+    "db:check": "bun run --bun drizzle-kit check",
+    "db:studio": "bun run --bun drizzle-kit studio",
+    "db:push": "bun run --bun drizzle-kit push",
+    "db:pull": "bun run --bun drizzle-kit pull",
+
+    "auth:set-role": "bun scripts/set-role.ts",
+    "guides:import": "bun scripts/import-guides.ts"
   },
   "dependencies": {
     "@elysiajs/openapi": "1.4.16",

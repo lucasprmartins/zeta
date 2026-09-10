@@ -13,6 +13,18 @@
     // O runtime de produção do cliente (`apps/client/server`) usa APIs do Bun.
     "globals": ["Bun"]
   },
+  "overrides": [
+    {
+      // Os manifests seguem a ordem por concern descrita em AGENTS.md; a ordenação
+      // alfabética do assist desfaria o agrupamento dos scripts por fluxo de trabalho.
+      "includes": ["**/package.json"],
+      "assist": {
+        "actions": {
+          "source": { "useSortedKeys": "off", "useSortedPackageJson": "off" }
+        }
+      }
+    }
+  ],
   "linter": {
     "rules": {
       "complexity": {

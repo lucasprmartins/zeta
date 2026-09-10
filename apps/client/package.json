@@ -1,16 +1,19 @@
 {
   "name": "@zeta/client",
   "version": "0.1.0",
+  "description": "Cliente React com Vite, TanStack Router/Query, Tailwind e shadcn/ui.",
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "bun run typecheck && bun run --bun vite build",
     "dev": "bun run --bun vite",
+    "build": "bun run typecheck && bun run --bun vite build",
     "preview": "bun run --bun vite preview",
-    "routes:generate": "bun run --bun tsr generate",
     "start": "bun server/main.ts",
+
+    "typecheck": "bun run routes:generate && bun run --bun tsc --noEmit && bun run --bun tsc --noEmit -p tsconfig.server.json",
     "test": "bun test tests",
-    "typecheck": "bun run routes:generate && bun run --bun tsc --noEmit && bun run --bun tsc --noEmit -p tsconfig.server.json"
+
+    "routes:generate": "bun run --bun tsr generate"
   },
   "dependencies": {
     "@orpc/client": "1.15.0",

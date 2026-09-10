@@ -17,6 +17,7 @@ Confira código, manifests e configurações antes de presumir versões ou compo
 ## Acordos
 
 - Use Bun para runtime, dependências e scripts, com um único `bun.lock` na raiz. Instale no workspace consumidor, com versões exatas; não atualize versões incidentalmente nem introduza outros gerenciadores.
+- Todos os `package.json` seguem a mesma ordem: identidade (`name`, `version`, `description`, `private`), formato (`type`, `exports`), estrutura (`workspaces`), ambiente (`packageManager`, `engines`, `trustedDependencies`), `scripts` e dependências. Scripts ficam agrupados por fluxo — ciclo de vida, desenvolvimento e build, qualidade, banco, administração e operações — com linha em branco entre grupos; dependências permanecem em ordem alfabética. O assist `useSortedPackageJson` está desligado para esses arquivos e não recupera a ordem sozinho.
 - Peça confirmação antes de adicionar dependências de produção. Build, tipos e ferramentas locais de banco ficam em `devDependencies`.
 - Use TypeScript estrito, ESM e `import type`. Não enfraqueça tipos ou configurações para contornar erros.
 - Prefira funções, interfaces e composição explícita. Não introduza DI containers, repositories base, buses ou abstrações genéricas sem necessidade concreta.

@@ -1,6 +1,7 @@
 {
   "name": "@zeta/access",
   "version": "0.1.0",
+  "description": "Catálogo público de permissões e configuração de acesso do Better Auth.",
   "private": true,
   "type": "module",
   "exports": {

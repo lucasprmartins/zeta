@@ -1,6 +1,7 @@
 {
   "name": "@zeta/guide-content",
   "version": "0.1.0",
+  "description": "Conversão compartilhada dos blocos Markdown do Guia de Uso.",
   "private": true,
   "type": "module",
   "exports": {
