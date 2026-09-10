@@ -23,6 +23,8 @@
   --input: #d4d4d4;
   --ring: #737373;
   --radius: 0.5rem;
+  --chart-1: #2a78d6;
+  --chart-2: #eb6834;
   font-family: "Inter", "Avenir Next", "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
   font-synthesis: none;
@@ -49,6 +51,8 @@
   --border: #333333;
   --input: #525252;
   --ring: #a3a3a3;
+  --chart-1: #3987e5;
+  --chart-2: #d95926;
 }
 
 @theme inline {

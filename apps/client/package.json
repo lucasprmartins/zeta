@@ -9,10 +9,8 @@
     "build": "bun run typecheck && bun run --bun vite build",
     "preview": "bun run --bun vite preview",
     "start": "bun server/main.ts",
-
     "typecheck": "bun run routes:generate && bun run --bun tsc --noEmit && bun run --bun tsc --noEmit -p tsconfig.server.json",
     "test": "bun test tests",
-
     "routes:generate": "bun run --bun tsr generate"
   },
   "dependencies": {
@@ -34,6 +32,7 @@
     "clsx": "2.1.1",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "recharts": "3.10.1",
     "sonner": "2.0.8",
     "tailwind-merge": "3.6.0"
   },

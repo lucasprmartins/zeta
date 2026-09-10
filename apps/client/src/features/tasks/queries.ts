@@ -9,16 +9,6 @@ export type TaskFilter = "all" | Task["status"];
 export const MAX_MENTIONS = 20;
 
 export const taskKeys = { all: (userId: string) => ["tasks", userId] as const };
-export const tasksQuery = (userId: string, filter: TaskFilter, page: number) =>
-  queryOptions({
-    queryKey: [...taskKeys.all(userId), "page", filter, page],
-    queryFn: ({ signal }) =>
-      rpc.tasks.list(
-        { page, ...(filter === "all" ? {} : { status: filter }) },
-        { signal }
-      ),
-  });
-
 // Chave distinta: uma consulta comum e uma infinita têm formatos de cache diferentes.
 export const infiniteTasksQuery = (userId: string, filter: TaskFilter) =>
   infiniteQueryOptions({
@@ -42,4 +32,13 @@ export const mentionableUsersQuery = (userId: string, search: string) =>
     queryKey: [...taskKeys.all(userId), "mentionable", search],
     queryFn: ({ signal }) => rpc.tasks.mentionableUsers({ search }, { signal }),
     staleTime: 30_000,
+  });
+
+export type TaskSummary = Awaited<ReturnType<typeof rpc.tasks.summary>>;
+
+// Agregado pelo servidor: o painel não deduz totais do tamanho da página.
+export const taskSummaryQuery = (userId: string) =>
+  queryOptions({
+    queryKey: [...taskKeys.all(userId), "summary"],
+    queryFn: ({ signal }) => rpc.tasks.summary({}, { signal }),
   });

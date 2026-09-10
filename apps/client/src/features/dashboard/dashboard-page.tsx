@@ -2,49 +2,288 @@ import {
   ArrowUpRightIcon,
   CheckCircleIcon,
   CheckSquareIcon,
-  CircleIcon,
   ClockIcon,
+  TrendUpIcon,
+  UsersIcon,
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useEffect } from "react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  RadialBar,
+  RadialBarChart,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { ErrorNotice } from "@/components/feedback";
 import { PageContent } from "@/components/layout/page-content";
 import { PageHeader } from "@/components/layout/page-header";
-import { usePermissions } from "@/components/permission-boundary";
+import { Avatar } from "@/components/ui/avatar";
 import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import {
+  type ChartConfig,
+  ChartContainer,
+  ChartLegend,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
 import {
   Empty,
   EmptyDescription,
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { tasksQuery } from "@/features/tasks/queries";
-import { permissions } from "@/lib/access";
+import { type TaskSummary, taskSummaryQuery } from "@/features/tasks/queries";
 import { authClient } from "@/lib/auth";
 import { isForbidden, isUnauthorized } from "@/lib/query";
 import { DashboardSkeleton } from "./dashboard-skeleton";
 
+// Duas séries, ordem categórica fixa; a cor nunca muda com o ranking.
+const statusConfig = {
+  completed: { label: "Concluídas", color: "var(--chart-1)" },
+  pending: { label: "Pendentes", color: "var(--chart-2)" },
+} satisfies ChartConfig;
+
+const NAME_LIMIT = 14;
+const shortName = (name: string) => {
+  const [first = name] = name.trim().split(/\s+/);
+  return first.length > NAME_LIMIT ? `${first.slice(0, NAME_LIMIT)}…` : first;
+};
+
+function StatCard({
+  label,
+  value,
+  hint,
+  icon: Icon,
+  status,
+}: {
+  label: string;
+  value: string | number;
+  hint?: string;
+  icon: typeof CheckSquareIcon;
+  status?: "all" | "pending" | "completed";
+}) {
+  const body = (
+    <Card className="h-full p-5 shadow-none transition-colors group-hover:bg-sidebar">
+      <div className="flex items-center justify-between text-muted-foreground text-xs">
+        <span>{label}</span>
+        <Icon className="size-[18px]" weight="regular" />
+      </div>
+      <div className="mt-5 flex items-end justify-between gap-2">
+        <span className="font-semibold text-3xl tabular-nums tracking-tight">
+          {value}
+        </span>
+        {status ? (
+          <ArrowUpRightIcon className="size-4 text-muted-foreground group-hover:text-foreground" />
+        ) : (
+          <span className="truncate text-muted-foreground text-xs">{hint}</span>
+        )}
+      </div>
+    </Card>
+  );
+  return status ? (
+    <Link className="group rounded-xl" search={{ status }} to="/tasks">
+      {body}
+    </Link>
+  ) : (
+    <div className="group">{body}</div>
+  );
+}
+
+// Um número-herói: o anel dá a leitura imediata, o texto dá o valor exato.
+function ProgressChart({ summary }: { summary: TaskSummary }) {
+  const progress = summary.total
+    ? Math.round((summary.completed / summary.total) * 100)
+    : 0;
+  return (
+    <Card className="flex flex-col p-5 shadow-none">
+      <div className="flex items-center justify-between text-muted-foreground text-xs">
+        <span id="progress-heading">Progresso da equipe</span>
+        <TrendUpIcon className="size-[18px]" weight="regular" />
+      </div>
+      <div className="relative mx-auto mt-2 w-full max-w-56">
+        <ChartContainer
+          aria-hidden="true"
+          className="aspect-square"
+          config={statusConfig}
+        >
+          <RadialBarChart
+            barSize={14}
+            data={[
+              {
+                name: "completed",
+                value: progress,
+                fill: "var(--color-completed)",
+              },
+            ]}
+            endAngle={-270}
+            innerRadius="72%"
+            outerRadius="100%"
+            startAngle={90}
+          >
+            <RadialBar
+              background={{ fill: "var(--muted)" }}
+              cornerRadius={7}
+              dataKey="value"
+              isAnimationActive={false}
+            />
+          </RadialBarChart>
+        </ChartContainer>
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+          <span className="font-semibold text-4xl tabular-nums tracking-tight">
+            {progress}
+            <span className="text-lg text-muted-foreground">%</span>
+          </span>
+          <span className="text-muted-foreground text-xs">concluído</span>
+        </div>
+      </div>
+      <p className="mt-2 text-center text-muted-foreground text-xs">
+        {summary.completed} de {summary.total}{" "}
+        {summary.total === 1 ? "tarefa concluída" : "tarefas concluídas"}
+      </p>
+    </Card>
+  );
+}
+
+function AssigneeChart({ summary }: { summary: TaskSummary }) {
+  const data = summary.assignees.map((row) => ({
+    id: row.user.id,
+    name: shortName(row.user.name),
+    completed: row.completed,
+    pending: row.pending,
+  }));
+  const unassignedTotal =
+    summary.unassigned.pending + summary.unassigned.completed;
+  if (unassignedTotal > 0) {
+    data.push({
+      id: "__none__",
+      name: "Sem resp.",
+      completed: summary.unassigned.completed,
+      pending: summary.unassigned.pending,
+    });
+  }
+  const height = Math.max(180, data.length * 40 + 40);
+  return (
+    <Card className="p-5 shadow-none lg:col-span-2">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="font-medium text-sm" id="assignees-heading">
+            Carga por responsável
+          </h2>
+          <p className="mt-1 text-muted-foreground text-xs">
+            As contas com mais tarefas indicadas, divididas por status.
+          </p>
+        </div>
+        <UsersIcon
+          className="size-[18px] shrink-0 text-muted-foreground"
+          weight="regular"
+        />
+      </div>
+      {data.length === 0 ? (
+        <Empty className="min-h-48">
+          <EmptyMedia>
+            <UsersIcon aria-hidden="true" weight="regular" />
+          </EmptyMedia>
+          <EmptyTitle>Nenhum responsável indicado</EmptyTitle>
+          <EmptyDescription>
+            Indique quem responde por cada tarefa para acompanhar a
+            distribuição.
+          </EmptyDescription>
+        </Empty>
+      ) : (
+        <>
+          <ChartContainer
+            className="mt-4"
+            config={statusConfig}
+            style={{ height }}
+          >
+            <BarChart
+              accessibilityLayer
+              barSize={18}
+              data={data}
+              layout="vertical"
+              margin={{ left: 4, right: 12 }}
+            >
+              <CartesianGrid horizontal={false} strokeDasharray="3 3" />
+              <XAxis
+                allowDecimals={false}
+                axisLine={false}
+                tickLine={false}
+                type="number"
+              />
+              <YAxis
+                axisLine={false}
+                dataKey="name"
+                tickLine={false}
+                tickMargin={8}
+                type="category"
+                width={84}
+              />
+              <ChartTooltip
+                content={<ChartTooltipContent config={statusConfig} />}
+                cursor={{ fill: "var(--muted)", fillOpacity: 0.5 }}
+              />
+              {/* 2 px de superfície entre os segmentos empilhados. */}
+              <Bar
+                dataKey="completed"
+                fill="var(--color-completed)"
+                isAnimationActive={false}
+                stackId="status"
+              >
+                {data.map((row) => (
+                  <Cell key={row.id} stroke="var(--card)" strokeWidth={2} />
+                ))}
+              </Bar>
+              <Bar
+                dataKey="pending"
+                fill="var(--color-pending)"
+                isAnimationActive={false}
+                radius={[0, 4, 4, 0]}
+                stackId="status"
+              >
+                {data.map((row) => (
+                  <Cell key={row.id} stroke="var(--card)" strokeWidth={2} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ChartContainer>
+          <div className="mt-4 flex items-center justify-between gap-4 border-t pt-4">
+            <ChartLegend config={statusConfig} />
+            <ul className="flex shrink-0 -space-x-1.5">
+              {summary.assignees.slice(0, 5).map((row) => (
+                <li key={row.user.id}>
+                  <Avatar
+                    className="ring-2 ring-card"
+                    image={row.user.image}
+                    name={row.user.name}
+                    size="sm"
+                  />
+                </li>
+              ))}
+            </ul>
+          </div>
+        </>
+      )}
+    </Card>
+  );
+}
+
 export function DashboardPage({ userId }: { userId: string }) {
-  const { can } = usePermissions();
   const session = authClient.useSession();
-  const pending = useQuery(tasksQuery(userId, "pending", 1));
-  const completed = useQuery(tasksQuery(userId, "completed", 1));
+  const summary = useQuery(taskSummaryQuery(userId));
   useEffect(() => {
-    if (
-      [pending.error, completed.error].some(
-        (error) => isUnauthorized(error) || isForbidden(error)
-      )
-    ) {
+    if (isUnauthorized(summary.error) || isForbidden(summary.error)) {
       void session.refetch();
     }
-  }, [pending.error, completed.error, session.refetch]);
-  const loading = pending.isPending || completed.isPending;
-  const error = pending.error ?? completed.error;
-  const total = (pending.data?.total ?? 0) + (completed.data?.total ?? 0);
-  const progress = total
-    ? Math.round(((completed.data?.total ?? 0) / total) * 100)
+  }, [summary.error, session.refetch]);
+  const data = summary.data;
+  const progress = data?.total
+    ? Math.round((data.completed / data.total) * 100)
     : 0;
   return (
     <PageContent>
@@ -62,155 +301,57 @@ export function DashboardPage({ userId }: { userId: string }) {
         description="Uma visão geral das tarefas da equipe."
         title="Dashboard"
       />
-      {error ? (
+      {summary.isError ? (
         <ErrorNotice
           message="Não foi possível carregar o resumo."
-          retry={() => {
-            void pending.refetch();
-            void completed.refetch();
-          }}
+          retry={() => void summary.refetch()}
         />
-      ) : loading || !pending.data || !completed.data ? (
+      ) : summary.isPending || !data ? (
         <DashboardSkeleton />
+      ) : data.total === 0 ? (
+        <Empty className="min-h-96 rounded-xl border">
+          <EmptyMedia>
+            <CheckSquareIcon aria-hidden="true" weight="regular" />
+          </EmptyMedia>
+          <EmptyTitle>Ainda não há tarefas</EmptyTitle>
+          <EmptyDescription>
+            Assim que a equipe registrar as primeiras tarefas, o progresso e a
+            distribuição por responsável aparecem aqui.
+          </EmptyDescription>
+        </Empty>
       ) : (
-        <>
-          <div className="grid gap-4 sm:grid-cols-3">
-            {(
-              [
-                {
-                  label: "Total de tarefas",
-                  value: total,
-                  icon: CheckSquareIcon,
-                  status: "all",
-                },
-                {
-                  label: "Pendentes",
-                  value: pending.data.total,
-                  icon: ClockIcon,
-                  status: "pending",
-                },
-                {
-                  label: "Concluídas",
-                  value: completed.data.total,
-                  icon: CheckCircleIcon,
-                  status: "completed",
-                },
-              ] as const
-            ).map(({ label, value, icon: Icon, status }) => (
-              <Link
-                className="group rounded-xl"
-                key={status}
-                search={{ status }}
-                to="/tasks"
-              >
-                <Card className="h-full p-5 shadow-none transition-colors group-hover:bg-sidebar">
-                  <div className="flex items-center justify-between text-muted-foreground text-xs">
-                    <span>{label}</span>
-                    <Icon className="size-[18px]" weight="regular" />
-                  </div>
-                  <div className="mt-5 flex items-end justify-between">
-                    <span className="font-semibold text-3xl tracking-tight">
-                      {value}
-                    </span>
-                    <ArrowUpRightIcon className="size-4 text-muted-foreground group-hover:text-foreground" />
-                  </div>
-                </Card>
-              </Link>
-            ))}
+        <div className="space-y-6">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <StatCard
+              icon={CheckSquareIcon}
+              label="Total de tarefas"
+              status="all"
+              value={data.total}
+            />
+            <StatCard
+              icon={ClockIcon}
+              label="Pendentes"
+              status="pending"
+              value={data.pending}
+            />
+            <StatCard
+              icon={CheckCircleIcon}
+              label="Concluídas"
+              status="completed"
+              value={data.completed}
+            />
+            <StatCard
+              hint="do total"
+              icon={TrendUpIcon}
+              label="Conclusão"
+              value={`${progress}%`}
+            />
           </div>
-          <div className="space-y-6">
-            <section
-              aria-labelledby="progress-heading"
-              className="rounded-xl border bg-sidebar p-5"
-            >
-              <div className="mb-4 flex items-center justify-between gap-4">
-                <div>
-                  <h2 className="font-semibold text-sm" id="progress-heading">
-                    Progresso da equipe
-                  </h2>
-                  <p className="mt-1 text-muted-foreground text-xs">
-                    {completed.data.total} de {total} tarefas concluídas
-                  </p>
-                </div>
-                <span className="font-semibold text-2xl tracking-tight">
-                  {progress}
-                  <span className="text-muted-foreground text-sm">%</span>
-                </span>
-              </div>
-              <progress
-                aria-label="Percentual de tarefas concluídas"
-                className="task-progress block h-1.5 w-full overflow-hidden rounded-full"
-                max={100}
-                value={progress}
-              />
-            </section>
-            <section
-              aria-labelledby="recent-tasks"
-              className="overflow-hidden rounded-xl border"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
-                <div>
-                  <h2 className="font-semibold text-sm" id="recent-tasks">
-                    Pendentes recentes
-                  </h2>
-                  <p className="mt-1 text-muted-foreground text-xs">
-                    As últimas tarefas registradas pela equipe.
-                  </p>
-                </div>
-                <Link
-                  className="font-medium text-xs hover:underline"
-                  search={{ status: "pending" }}
-                  to="/tasks"
-                >
-                  Ver todas →
-                </Link>
-              </div>
-              {pending.data.items.length === 0 ? (
-                <Empty>
-                  <EmptyMedia>
-                    <CheckSquareIcon aria-hidden="true" />
-                  </EmptyMedia>
-                  <EmptyTitle>
-                    {total === 0
-                      ? can(permissions.tasks.create)
-                        ? "Pronto para começar?"
-                        : "Nenhuma tarefa pendente"
-                      : "Tudo concluído por aqui."}
-                  </EmptyTitle>
-                  <EmptyDescription>
-                    {total === 0 && can(permissions.tasks.create)
-                      ? "Acesse Tarefas e registre o primeiro passo."
-                      : "As próximas tarefas aparecerão neste espaço."}
-                  </EmptyDescription>
-                </Empty>
-              ) : (
-                <ul className="divide-y">
-                  {pending.data.items.slice(0, 5).map((task) => (
-                    <li
-                      className="flex items-start gap-3 px-5 py-4"
-                      key={task.id}
-                    >
-                      <CircleIcon
-                        className="mt-0.5 size-4 shrink-0 text-muted-foreground"
-                        weight="regular"
-                      />
-                      <div className="min-w-0">
-                        <p className="break-words font-medium text-sm">
-                          {task.title}
-                        </p>
-                        {task.description && (
-                          <p className="mt-1 truncate text-muted-foreground text-xs">
-                            {task.description}
-                          </p>
-                        )}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
+          <div className="grid gap-4 lg:grid-cols-3">
+            <ProgressChart summary={data} />
+            <AssigneeChart summary={data} />
           </div>
-        </>
+        </div>
       )}
     </PageContent>
   );
