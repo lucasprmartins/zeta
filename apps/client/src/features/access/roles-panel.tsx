@@ -8,7 +8,9 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
+import { ConfirmModal } from "@/components/confirm-modal";
 import { ErrorNotice, Loading } from "@/components/feedback";
+import { useUserId } from "@/components/permission-boundary";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Modal } from "@/components/ui/modal";
@@ -17,16 +19,14 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { actionErrorMessage } from "@/lib/query";
 import { rpc } from "@/lib/rpc";
-import {
-  type AccessRole,
-  accessError,
-  accessKeys,
-  rolesQuery,
-} from "./queries";
+import { type AccessRole, accessKeys, rolesQuery } from "./queries";
+import { RoleDot } from "./role-dot";
 import { RoleForm } from "./role-form";
 
-export function RolesPanel({ userId }: { userId: string }) {
+export function RolesPanel() {
+  const userId = useUserId();
   const client = useQueryClient();
   const query = useQuery(rolesQuery(userId));
   const [editor, setEditor] = useState<AccessRole | "new" | null>(null);
@@ -45,7 +45,7 @@ export function RolesPanel({ userId }: { userId: string }) {
       toast.success("Papel salvo.");
       await refresh();
     },
-    onError: (error) => toast.error(accessError(error)),
+    onError: (error) => toast.error(actionErrorMessage(error)),
   });
   const remove = useMutation({
     mutationFn: (id: string) => rpc.access.deleteRole({ id }),
@@ -54,7 +54,7 @@ export function RolesPanel({ userId }: { userId: string }) {
       toast.success("Papel excluído.");
       await refresh();
     },
-    onError: (error) => toast.error(accessError(error)),
+    onError: (error) => toast.error(actionErrorMessage(error)),
   });
   return (
     <section aria-label="Papéis e permissões" className="space-y-6">
@@ -91,11 +91,7 @@ export function RolesPanel({ userId }: { userId: string }) {
                   key={role.id}
                 >
                   <div className="flex min-w-0 flex-1 items-center gap-3">
-                    <span
-                      aria-hidden="true"
-                      className="size-3 shrink-0 rounded-full border border-foreground/15"
-                      style={{ backgroundColor: role.color }}
-                    />
+                    <RoleDot color={role.color} />
                     <span className="min-w-0 break-words font-medium text-sm">
                       {role.name}
                     </span>
@@ -163,7 +159,7 @@ export function RolesPanel({ userId }: { userId: string }) {
         >
           {save.error && (
             <div className="mb-4">
-              <ErrorNotice message={accessError(save.error)} />
+              <ErrorNotice message={actionErrorMessage(save.error)} />
             </div>
           )}
           <RoleForm
@@ -180,35 +176,16 @@ export function RolesPanel({ userId }: { userId: string }) {
         </Modal>
       )}
       {deleting && (
-        <Modal
+        <ConfirmModal
+          confirmLabel="Excluir papel"
           description={`O papel “${deleting.name}” só pode ser excluído se não estiver atribuído a nenhum usuário.`}
+          error={remove.error ? actionErrorMessage(remove.error) : undefined}
           onClose={() => setDeleting(null)}
+          onConfirm={() => remove.mutate(deleting.id)}
           pending={remove.isPending}
+          pendingLabel="Excluindo…"
           title="Excluir papel?"
-          variant="confirmation"
-        >
-          {remove.error && (
-            <div className="mb-4">
-              <ErrorNotice message={accessError(remove.error)} />
-            </div>
-          )}
-          <div className="modal-actions flex flex-col-reverse justify-end gap-2 sm:flex-row">
-            <Button
-              data-modal-autofocus
-              disabled={remove.isPending}
-              onClick={() => setDeleting(null)}
-              variant="outline"
-            >
-              Cancelar
-            </Button>
-            <Button
-              disabled={remove.isPending}
-              onClick={() => remove.mutate(deleting.id)}
-            >
-              {remove.isPending ? "Excluindo…" : "Excluir papel"}
-            </Button>
-          </div>
-        </Modal>
+        />
       )}
     </section>
   );
@@ -235,7 +212,7 @@ function RoleInfo({
         }}
         type="button"
       >
-        <Icon aria-hidden="true" className="size-[18px]" />
+        <Icon aria-hidden="true" className="size-icon" />
       </TooltipTrigger>
       <TooltipContent>{description}</TooltipContent>
     </Tooltip>

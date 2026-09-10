@@ -2,22 +2,26 @@ import { SpinnerGapIcon } from "@phosphor-icons/react";
 import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 
-// A feature controla o Query; este componente cuida só do gatilho e da interação.
 export function InfiniteScroll({
-  hasNextPage,
-  isFetching,
-  isFetchingNextPage,
-  error = false,
-  paused = false,
+  query,
   onLoadMore,
 }: {
-  hasNextPage: boolean;
-  isFetching: boolean;
-  isFetchingNextPage: boolean;
-  error?: boolean;
-  paused?: boolean;
+  query: {
+    hasNextPage: boolean;
+    isFetching: boolean;
+    isFetchingNextPage: boolean;
+    isFetchNextPageError: boolean;
+    isRefetchError: boolean;
+  };
   onLoadMore: () => void;
 }) {
+  const {
+    hasNextPage,
+    isFetching,
+    isFetchingNextPage,
+    isFetchNextPageError: error,
+    isRefetchError: paused,
+  } = query;
   const sentinel = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (

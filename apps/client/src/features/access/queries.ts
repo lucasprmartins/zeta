@@ -1,4 +1,5 @@
 import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
+import { nextPageIfMore } from "@/lib/query";
 import { rpc } from "@/lib/rpc";
 export type AccessRole = Awaited<
   ReturnType<typeof rpc.access.roles>
@@ -20,21 +21,13 @@ export const usersQuery = (userId: string, search: string) =>
     initialPageParam: 1,
     queryFn: ({ pageParam, signal }) =>
       rpc.access.users({ page: pageParam, search }, { signal }),
-    getNextPageParam: (page, _, previous) =>
-      page.hasMore ? previous + 1 : undefined,
+    getNextPageParam: nextPageIfMore,
   });
-export function accessError(error: unknown) {
-  return error instanceof Error &&
-    "status" in error &&
-    [400, 403, 404, 409].includes(Number(error.status))
-    ? error.message
-    : "Não foi possível salvar. Tente novamente.";
-}
+// Consultada pela tela de acesso, inclusive sem sessão: sem sondagem contínua.
+// O servidor reavalia a política no próprio cadastro.
 export const registrationPolicyQuery = queryOptions({
   queryKey: ["registration-policy"],
   queryFn: ({ signal }) => rpc.access.registrationPolicy(undefined, { signal }),
-  staleTime: 0,
-  refetchInterval: 15_000,
 });
 export const registrationStatusQuery = (userId: string) =>
   queryOptions({
@@ -49,6 +42,5 @@ export const approvalsQuery = (userId: string) =>
     initialPageParam: 1,
     queryFn: ({ pageParam, signal }) =>
       rpc.access.pendingUsers({ page: pageParam }, { signal }),
-    getNextPageParam: (page, _, previous) =>
-      page.hasMore ? previous + 1 : undefined,
+    getNextPageParam: nextPageIfMore,
   });

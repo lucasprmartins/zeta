@@ -5,14 +5,13 @@ import {
 } from "@phosphor-icons/react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useCallback } from "react";
 import { ErrorNotice, Loading } from "@/components/feedback";
 import { InfiniteScroll } from "@/components/infinite-scroll";
 import { BackLink } from "@/components/layout/back-link";
 import { usePageCrumb } from "@/components/layout/breadcrumbs";
 import { PageContent } from "@/components/layout/page-content";
 import { PageHeader } from "@/components/layout/page-header";
-import { usePermissions } from "@/components/permission-boundary";
+import { usePermissions, useUserId } from "@/components/permission-boundary";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -25,11 +24,13 @@ import {
 import { Empty, EmptyDescription, EmptyTitle } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
 import { permissions } from "@/lib/access";
-import { GuideContent, GuideOutline } from "./content";
+import { bySlug, useInfiniteList } from "@/lib/query";
+import { GuideContent, GuideOutline, useGuideBlocks } from "./content";
 import { guideQuery, guidesQuery } from "./queries";
 
 // Leitores e administradores usam a mesma página; a permissão decide o que aparece além da leitura.
-export function GuidesPage({ userId }: { userId: string }) {
+export function GuidesPage() {
+  const userId = useUserId();
   const { can, pending } = usePermissions();
   const admin = can(permissions.access.manage);
   // Só busque depois de conhecer a permissão: a listagem administrativa usa outra chave.
@@ -37,19 +38,7 @@ export function GuidesPage({ userId }: { userId: string }) {
     ...guidesQuery(userId, admin),
     enabled: !pending,
   });
-  const { hasNextPage, isFetching, fetchNextPage } = query;
-  const loadMore = useCallback(() => {
-    if (hasNextPage && !isFetching) {
-      void fetchNextPage({ cancelRefetch: false });
-    }
-  }, [hasNextPage, isFetching, fetchNextPage]);
-  const items = [
-    ...new Map(
-      query.data?.pages
-        .flatMap((page) => page.items)
-        .map((item) => [item.slug, item]) ?? []
-    ).values(),
-  ];
+  const { items, loadMore } = useInfiniteList(query, bySlug);
   const groups = Map.groupBy(items, (item) => item.section);
   return (
     <PageContent>
@@ -107,7 +96,6 @@ export function GuidesPage({ userId }: { userId: string }) {
             <Card className="overflow-hidden">
               <ul className="divide-y">
                 {guides.map((guide) => (
-                  // O realce cobre a linha inteira, inclusive a ação de editar.
                   <li
                     className="flex items-center transition-colors focus-within:bg-muted/40 hover:bg-muted/40"
                     key={guide.slug}
@@ -172,14 +160,7 @@ export function GuidesPage({ userId }: { userId: string }) {
         </Empty>
       )}
       {(query.hasNextPage || query.isFetchNextPageError) && (
-        <InfiniteScroll
-          error={query.isFetchNextPageError}
-          hasNextPage={query.hasNextPage}
-          isFetching={query.isFetching}
-          isFetchingNextPage={query.isFetchingNextPage}
-          onLoadMore={loadMore}
-          paused={query.isRefetchError}
-        />
+        <InfiniteScroll onLoadMore={loadMore} query={query} />
       )}
     </PageContent>
   );
@@ -203,15 +184,10 @@ function GuideReadSkeleton() {
     </div>
   );
 }
-export function GuideReadPage({
-  userId,
-  slug,
-}: {
-  userId: string;
-  slug: string;
-}) {
+export function GuideReadPage({ slug }: { slug: string }) {
   const { can } = usePermissions();
-  const query = useQuery(guideQuery(userId, slug));
+  const query = useQuery(guideQuery(useUserId(), slug));
+  const parsed = useGuideBlocks(query.data?.markdown ?? "");
   usePageCrumb(query.data?.title);
   return (
     <PageContent>
@@ -241,11 +217,10 @@ export function GuideReadPage({
             eyebrow={<Badge variant="outline">{query.data.section}</Badge>}
             title={query.data.title}
           />
-          {/* O índice acompanha a leitura no desktop e recolhe acima dele no mobile. */}
           <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_15rem] lg:gap-14">
-            <GuideOutline markdown={query.data.markdown} />
+            <GuideOutline parsed={parsed} />
             <article className="min-w-0 max-w-[68ch] border-t pt-8 lg:col-start-1 lg:row-start-1">
-              <GuideContent markdown={query.data.markdown} />
+              <GuideContent parsed={parsed} />
             </article>
           </div>
         </>

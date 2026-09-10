@@ -1,11 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useBlocker, useNavigate } from "@tanstack/react-router";
-import { useRef, useState } from "react";
+import { MAX_GUIDE_MARKDOWN } from "@zeta/guide-content";
+import { useState } from "react";
 import { toast } from "sonner";
+import { ConfirmModal } from "@/components/confirm-modal";
 import { ErrorNotice, Loading } from "@/components/feedback";
 import { BackLink } from "@/components/layout/back-link";
 import { PageContent } from "@/components/layout/page-content";
 import { PageHeader } from "@/components/layout/page-header";
+import { useUserId } from "@/components/permission-boundary";
+import { PermissionPicker } from "@/components/permission-picker";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,24 +19,18 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Radio } from "@/components/ui/checkbox";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Modal } from "@/components/ui/modal";
-import { PermissionPicker } from "@/features/access/permission-picker";
-import { accessError } from "@/features/access/queries";
 import { catalog } from "@/lib/access";
+import { actionErrorMessage } from "@/lib/query";
 import { rpc } from "@/lib/rpc";
 import { BlockEditor } from "./block-editor";
-import { GuideContent } from "./content";
+import { GuideContent, useGuideBlocks } from "./content";
 import { type Guide, guideEditQuery, guideKeys } from "./queries";
 
-function EditorForm({
-  userId,
-  initial,
-}: {
-  userId: string;
-  initial: Guide | null;
-}) {
+function EditorForm({ initial }: { initial: Guide | null }) {
+  const userId = useUserId();
   const client = useQueryClient(),
     navigate = useNavigate();
   const [slug, setSlug] = useState(initial?.slug ?? "");
@@ -47,15 +45,12 @@ function EditorForm({
   );
   const [saved, setSaved] = useState(initial);
   const [preview, setPreview] = useState(false);
+  const parsed = useGuideBlocks(draft.markdown);
   const [restricted, setRestricted] = useState(
     (initial?.draft.permissions.length ?? 0) > 0
   );
   const [dirty, setDirty] = useState(false);
-  const unsaved = useRef(false);
-  const markDirty = () => {
-    unsaved.current = true;
-    setDirty(true);
-  };
+  const markDirty = () => setDirty(true);
   const save = useMutation({
     mutationFn: (action: "draft" | "publish" | "unpublish") =>
       rpc.guides.save({
@@ -65,7 +60,6 @@ function EditorForm({
         ...(saved ? { version: saved.version } : {}),
       }),
     onSuccess: async (result, action) => {
-      unsaved.current = false;
       setDirty(false);
       setSaved(result);
       client.setQueryData(guideEditQuery(userId, result.slug).queryKey, result);
@@ -85,11 +79,11 @@ function EditorForm({
         });
       }
     },
-    onError: (error) => toast.error(accessError(error)),
+    onError: (error) => toast.error(actionErrorMessage(error)),
   });
   const blocker = useBlocker({
-    shouldBlockFn: () => unsaved.current,
-    enableBeforeUnload: () => unsaved.current,
+    shouldBlockFn: () => dirty,
+    enableBeforeUnload: () => dirty,
     withResolver: true,
   });
   const update = <K extends keyof Guide["draft"]>(
@@ -103,7 +97,7 @@ function EditorForm({
     !!draft.title.trim() &&
     !!draft.section.trim() &&
     /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) &&
-    draft.markdown.length <= 50_000;
+    draft.markdown.length <= MAX_GUIDE_MARKDOWN;
   return (
     <PageContent>
       <BackLink to="/help/guides">Guia de uso</BackLink>
@@ -143,7 +137,6 @@ function EditorForm({
         </p>
       </div>
 
-      {/* O conteúdo ocupa a largura da leitura; as decisões de catálogo vêm depois dele. */}
       <section aria-label="Conteúdo do guia" className="max-w-4xl space-y-5">
         <Field>
           <FieldLabel htmlFor="guide-title">Título do guia</FieldLabel>
@@ -175,15 +168,19 @@ function EditorForm({
         </div>
         {preview && (
           <div className="min-h-80 rounded-lg border p-5 sm:p-8">
-            {draft.markdown.length <= 50_000 ? (
-              <GuideContent markdown={draft.markdown} />
+            {draft.markdown.length <= MAX_GUIDE_MARKDOWN ? (
+              <GuideContent parsed={parsed} />
             ) : (
-              <ErrorNotice message="Reduza o conteúdo para até 50 mil caracteres." />
+              <ErrorNotice
+                message={`Reduza o conteúdo para até ${MAX_GUIDE_MARKDOWN.toLocaleString("pt-BR")} caracteres.`}
+              />
             )}
           </div>
         )}
-        {draft.markdown.length > 50_000 && (
-          <ErrorNotice message="O conteúdo ultrapassa o limite de 50 mil caracteres." />
+        {draft.markdown.length > MAX_GUIDE_MARKDOWN && (
+          <ErrorNotice
+            message={`O conteúdo ultrapassa o limite de ${MAX_GUIDE_MARKDOWN.toLocaleString("pt-BR")} caracteres.`}
+          />
         )}
       </section>
 
@@ -250,27 +247,23 @@ function EditorForm({
         <CardContent className="space-y-4">
           <div className="space-y-1">
             <label className="flex min-h-11 cursor-pointer items-center gap-3">
-              <input
+              <Radio
                 checked={!restricted}
-                className="size-5 shrink-0 accent-foreground"
                 disabled={save.isPending}
                 name="guide-audience"
                 onChange={() => {
                   setRestricted(false);
                   update("permissions", []);
                 }}
-                type="radio"
               />
               <span className="font-medium text-sm">Todos os usuários</span>
             </label>
             <label className="flex min-h-11 cursor-pointer items-center gap-3">
-              <input
+              <Radio
                 checked={restricted}
-                className="size-5 shrink-0 accent-foreground"
                 disabled={save.isPending}
                 name="guide-audience"
                 onChange={() => setRestricted(true)}
-                type="radio"
               />
               <span className="font-medium text-sm">
                 Somente quem tem uma destas permissões
@@ -318,46 +311,30 @@ function EditorForm({
         </Card>
       )}
 
-      {save.error && <ErrorNotice message={accessError(save.error)} />}
+      {save.error && <ErrorNotice message={actionErrorMessage(save.error)} />}
       {blocker.status === "blocked" && (
-        <Modal
+        <ConfirmModal
+          cancelLabel="Continuar editando"
+          confirmLabel="Sair sem salvar"
           description="As alterações não salvas serão perdidas."
           onClose={() => blocker.reset()}
+          onConfirm={() => blocker.proceed()}
           pending={save.isPending}
+          pendingLabel="Saindo…"
           title="Sair sem salvar?"
-          variant="confirmation"
-        >
-          <div className="modal-actions flex flex-col-reverse justify-end gap-2 sm:flex-row">
-            <Button
-              disabled={save.isPending}
-              onClick={() => blocker.reset()}
-              variant="outline"
-            >
-              Continuar editando
-            </Button>
-            <Button disabled={save.isPending} onClick={() => blocker.proceed()}>
-              Sair sem salvar
-            </Button>
-          </div>
-        </Modal>
+        />
       )}
     </PageContent>
   );
 }
-export function GuideEditorPage({
-  userId,
-  slug,
-}: {
-  userId: string;
-  slug?: string;
-}) {
+export function GuideEditorPage({ slug }: { slug?: string }) {
   const query = useQuery({
-    ...guideEditQuery(userId, slug ?? ""),
+    ...guideEditQuery(useUserId(), slug ?? ""),
     enabled: !!slug,
     refetchOnWindowFocus: false,
   });
   if (!slug) {
-    return <EditorForm initial={null} userId={userId} />;
+    return <EditorForm initial={null} />;
   }
   if (query.isPending) {
     return <Loading />;
@@ -372,5 +349,5 @@ export function GuideEditorPage({
       </PageContent>
     );
   }
-  return <EditorForm initial={query.data} key={slug} userId={userId} />;
+  return <EditorForm initial={query.data} key={slug} />;
 }

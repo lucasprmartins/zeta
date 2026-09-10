@@ -5,10 +5,12 @@ import { type FormEvent, useEffect, useState } from "react";
 import { ErrorNotice, Loading } from "@/components/feedback";
 import { AuthLayout } from "@/components/layout/auth-layout";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { registrationPolicyQuery } from "@/features/access/queries";
 import { authClient } from "@/lib/auth";
+import { authErrorMessage, CONNECTION_FAILED } from "@/lib/auth-errors";
 import { queryClient } from "@/lib/query";
 
 const rememberedIdentifierKey = "zeta:remembered-identifier";
@@ -32,29 +34,6 @@ function rememberIdentifier(identifier: string | null) {
     /* O login continua disponível quando o armazenamento está bloqueado. */
   }
 }
-
-const authErrors: Record<string, string> = {
-  EMAIL_PASSWORD_SIGN_UP_DISABLED:
-    "O cadastro de novas contas está desativado.",
-  SIGNUP_DISABLED: "O cadastro de novas contas está desativado.",
-  ACCOUNT_PENDING_APPROVAL:
-    "Sua conta aguarda aprovação de um administrador. Tente entrar novamente após a aprovação.",
-  INVALID_EMAIL_OR_PASSWORD: "Email, nome de usuário ou senha incorretos.",
-  INVALID_USERNAME_OR_PASSWORD: "Email, nome de usuário ou senha incorretos.",
-  USERNAME_IS_ALREADY_TAKEN:
-    "Este nome de usuário já está em uso. Escolha outro.",
-  USERNAME_TOO_SHORT: "O nome de usuário deve ter pelo menos 3 caracteres.",
-  USERNAME_TOO_LONG: "O nome de usuário deve ter no máximo 30 caracteres.",
-  INVALID_USERNAME:
-    "Use apenas letras sem acentos, números, ponto e sublinhado no nome de usuário.",
-  INVALID_DISPLAY_USERNAME: "Nome de usuário inválido.",
-  USER_ALREADY_EXISTS:
-    "Já existe uma conta com esse email. Entre para continuar.",
-  USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL:
-    "Já existe uma conta com esse email. Entre para continuar.",
-  PASSWORD_TOO_SHORT: "A senha deve ter pelo menos 8 caracteres.",
-  TOO_MANY_REQUESTS: "Muitas tentativas. Aguarde um pouco e tente novamente.",
-};
 
 export function AuthPage({
   mode,
@@ -108,10 +87,12 @@ export function AuthPage({
             });
       if (result.error) {
         setError(
-          authErrors[result.error.code ?? ""] ??
-            (signingUp
+          authErrorMessage(
+            result.error,
+            signingUp
               ? "Não foi possível criar sua conta. Confira os dados e tente novamente."
-              : "Não foi possível entrar. Confira os dados e tente novamente.")
+              : "Não foi possível entrar. Confira os dados e tente novamente."
+          )
         );
         return;
       }
@@ -127,9 +108,7 @@ export function AuthPage({
       queryClient.clear();
       await session.refetch();
     } catch {
-      setError(
-        "Não foi possível conectar. Verifique sua conexão e tente novamente."
-      );
+      setError(CONNECTION_FAILED);
     } finally {
       setPending(false);
     }
@@ -254,7 +233,7 @@ export function AuthPage({
                   maxLength={30}
                   minLength={3}
                   name="username"
-                  pattern="[a-zA-Z0-9_.]+"
+                  pattern="[a-zA-Z0-9_.]{3,30}"
                   placeholder="seu.usuario"
                   required
                   spellCheck={false}
@@ -317,9 +296,8 @@ export function AuthPage({
                 className="flex min-h-11 cursor-pointer items-center gap-3 text-sm"
                 htmlFor="remember-identifier"
               >
-                <input
+                <Checkbox
                   checked={remember}
-                  className="size-4 shrink-0 cursor-pointer rounded border-input accent-primary focus-visible:outline-2 focus-visible:outline-offset-2"
                   id="remember-identifier"
                   onChange={(event) => {
                     setRemember(event.target.checked);
@@ -327,7 +305,6 @@ export function AuthPage({
                       rememberIdentifier(null);
                     }
                   }}
-                  type="checkbox"
                 />
                 Lembrar-me
               </label>

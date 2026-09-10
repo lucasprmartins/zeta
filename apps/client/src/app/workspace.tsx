@@ -51,7 +51,7 @@ export function Workspace() {
 
   const user = session.data.user;
   return (
-    <AccessProvider key={user.id} userId={user.id}>
+    <AccessProvider key={user.id} user={user}>
       <AppShell leaving={leaving} onSignOut={() => void signOut()} user={user}>
         {error && (
           <div className="mx-auto max-w-7xl px-5 pt-6 sm:px-8">

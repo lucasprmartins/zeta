@@ -2,13 +2,14 @@ import { LinkIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ErrorNotice } from "@/components/feedback";
+import { useUserId } from "@/components/permission-boundary";
 import { Avatar } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SidePanel } from "@/components/ui/side-panel";
 import { Skeleton } from "@/components/ui/skeleton";
-import { isForbidden, isUnauthorized } from "@/lib/query";
+import { hasStatus } from "@/lib/query";
 import { type Task, type TaskUser, taskQuery } from "./queries";
+import { TaskStatusBadge } from "./task-status";
 
 const dateFormat = new Intl.DateTimeFormat("pt-BR", {
   dateStyle: "long",
@@ -33,9 +34,7 @@ function TaskDetails({ task }: { task: Task }) {
   return (
     <div className="space-y-7 text-sm">
       <section aria-label="Status">
-        <Badge variant={task.status === "completed" ? "default" : "outline"}>
-          {task.status === "completed" ? "Concluída" : "Pendente"}
-        </Badge>
+        <TaskStatusBadge status={task.status} />
       </section>
       <section className="space-y-2">
         <h3 className="font-medium">Descrição</h3>
@@ -94,20 +93,15 @@ function TaskDetails({ task }: { task: Task }) {
 }
 
 export function TaskPanel({
-  userId,
   taskId,
   onClose,
 }: {
-  userId: string;
   taskId: string;
   onClose: () => void;
 }) {
-  const query = useQuery(taskQuery(userId, taskId));
-  const unavailable =
-    query.error &&
-    "status" in query.error &&
-    (query.error.status === 404 || query.error.status === 400);
-  const denied = isForbidden(query.error) || isUnauthorized(query.error);
+  const query = useQuery(taskQuery(useUserId(), taskId));
+  const unavailable = hasStatus(query.error, 400, 404);
+  const denied = hasStatus(query.error, 401, 403);
   // Não mantém detalhes em tela após uma resposta de revogação ou exclusão.
   const task = unavailable || denied ? undefined : query.data;
   async function copyLink() {

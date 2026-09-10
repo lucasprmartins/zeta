@@ -1,10 +1,11 @@
 import { useState } from "react";
+import { PermissionPicker } from "@/components/permission-picker";
 import { Button } from "@/components/ui/button";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { catalog } from "@/lib/access";
-import { PermissionPicker } from "./permission-picker";
 import type { AccessRole } from "./queries";
+import { DEFAULT_ROLE_COLOR, RoleDot } from "./role-dot";
 
 export function RoleForm({
   initial,
@@ -18,7 +19,7 @@ export function RoleForm({
   onCancel: () => void;
 }) {
   const [name, setName] = useState(initial?.name ?? "");
-  const [color, setColor] = useState(initial?.color ?? "#737373");
+  const [color, setColor] = useState(initial?.color ?? DEFAULT_ROLE_COLOR);
   const [grants, setGrants] = useState(
     initial?.grants.filter((id) =>
       catalog.some((group) => group.actions.some((action) => action.id === id))
@@ -56,11 +57,7 @@ export function RoleForm({
               value={color}
             />
             <span className="inline-flex max-w-full items-center gap-2 rounded-md border px-3 py-2 text-sm">
-              <span
-                aria-hidden="true"
-                className="size-3 shrink-0 rounded-full border border-foreground/15"
-                style={{ backgroundColor: color }}
-              />
+              <RoleDot color={color} />
               <span className="break-words">
                 {name.trim() || "Prévia do papel"}
               </span>
@@ -89,7 +86,7 @@ export function RoleForm({
           </>
         )}
       </fieldset>
-      <div className="modal-actions flex flex-col-reverse justify-end gap-2 sm:flex-row">
+      <div className="modal-actions">
         <Button
           disabled={pending}
           onClick={onCancel}

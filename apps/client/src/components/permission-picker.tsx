@@ -6,6 +6,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Empty, EmptyDescription, EmptyTitle } from "@/components/ui/empty";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -129,9 +130,9 @@ export function PermissionPicker({
                         className="flex min-h-11 cursor-pointer items-start gap-3 rounded-md px-2 py-3 hover:bg-muted"
                         key={action.id}
                       >
-                        <input
+                        <Checkbox
                           checked={grants.includes(action.id)}
-                          className="mt-0.5 size-5 shrink-0 accent-foreground"
+                          className="mt-0.5"
                           disabled={disabled}
                           onChange={(event) =>
                             onChange(
@@ -140,7 +141,6 @@ export function PermissionPicker({
                                 : grants.filter((id) => id !== action.id)
                             )
                           }
-                          type="checkbox"
                         />
                         <span>
                           <span className="block font-medium text-sm">

@@ -2,6 +2,7 @@ import { CheckIcon, UsersIcon, XIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useId, useState } from "react";
 import { ErrorNotice } from "@/components/feedback";
+import { useUserId } from "@/components/permission-boundary";
 import { Avatar } from "@/components/ui/avatar";
 import { Empty, EmptyDescription, EmptyTitle } from "@/components/ui/empty";
 import { Field, FieldLabel } from "@/components/ui/field";
@@ -12,17 +13,16 @@ import { MAX_MENTIONS, mentionableUsersQuery, type TaskUser } from "./queries";
 const placeholders = ["first", "second", "third"];
 
 export function MentionPicker({
-  userId,
   value,
   onChange,
   disabled,
 }: {
-  userId: string;
   value: TaskUser[];
   onChange: (users: TaskUser[]) => void;
   disabled: boolean;
 }) {
   const id = useId();
+  const userId = useUserId();
   const [search, setSearch] = useState("");
   const [term, setTerm] = useState("");
   useEffect(() => {

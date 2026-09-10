@@ -8,7 +8,6 @@ import {
 } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useEffect } from "react";
 import {
   Bar,
   BarChart,
@@ -23,7 +22,11 @@ import {
 import { ErrorNotice } from "@/components/feedback";
 import { PageContent } from "@/components/layout/page-content";
 import { PageHeader } from "@/components/layout/page-header";
-import { Avatar } from "@/components/ui/avatar";
+import {
+  useRefreshSessionOnAuthError,
+  useUserId,
+} from "@/components/permission-boundary";
+import { AvatarStack } from "@/components/ui/avatar";
 import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -40,9 +43,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { type TaskSummary, taskSummaryQuery } from "@/features/tasks/queries";
-import { authClient } from "@/lib/auth";
 import { shortName } from "@/lib/names";
-import { isForbidden, isUnauthorized } from "@/lib/query";
 import { DashboardSkeleton } from "./dashboard-skeleton";
 
 // Duas séries, ordem categórica fixa; a cor nunca muda com o ranking.
@@ -68,7 +69,7 @@ function StatCard({
     <Card className="h-full p-5 shadow-none transition-colors group-hover:bg-sidebar">
       <div className="flex items-center justify-between text-muted-foreground text-xs">
         <span>{label}</span>
-        <Icon className="size-[18px]" weight="regular" />
+        <Icon className="size-icon" weight="regular" />
       </div>
       <div className="mt-5 flex items-end justify-between gap-2">
         <span className="font-semibold text-3xl tabular-nums tracking-tight">
@@ -91,7 +92,6 @@ function StatCard({
   );
 }
 
-// Um número-herói: o anel dá a leitura imediata, o texto dá o valor exato.
 function ProgressChart({ summary }: { summary: TaskSummary }) {
   const progress = summary.total
     ? Math.round((summary.completed / summary.total) * 100)
@@ -100,7 +100,7 @@ function ProgressChart({ summary }: { summary: TaskSummary }) {
     <Card className="flex flex-col p-5 shadow-none">
       <div className="flex items-center justify-between text-muted-foreground text-xs">
         <span id="progress-heading">Progresso da equipe</span>
-        <TrendUpIcon className="size-[18px]" weight="regular" />
+        <TrendUpIcon className="size-icon" weight="regular" />
       </div>
       <div className="flex flex-1 flex-col justify-center py-4">
         <div className="relative mx-auto w-full max-w-52">
@@ -182,7 +182,7 @@ function AssigneeChart({ summary }: { summary: TaskSummary }) {
           </p>
         </div>
         <UsersIcon
-          className="size-[18px] shrink-0 text-muted-foreground"
+          className="size-icon shrink-0 text-muted-foreground"
           weight="regular"
         />
       </div>
@@ -256,18 +256,11 @@ function AssigneeChart({ summary }: { summary: TaskSummary }) {
           </ChartContainer>
           <div className="mt-4 flex items-center justify-between gap-4 border-t pt-4">
             <ChartLegend config={statusConfig} />
-            <ul className="flex shrink-0 -space-x-1.5">
-              {summary.assignees.slice(0, 5).map((row) => (
-                <li key={row.user.id}>
-                  <Avatar
-                    className="ring-2 ring-card"
-                    image={row.user.image}
-                    name={row.user.name}
-                    size="sm"
-                  />
-                </li>
-              ))}
-            </ul>
+            <AvatarStack
+              limit={5}
+              people={summary.assignees.map((row) => row.user)}
+              ring="ring-card"
+            />
           </div>
         </>
       )}
@@ -275,14 +268,10 @@ function AssigneeChart({ summary }: { summary: TaskSummary }) {
   );
 }
 
-export function DashboardPage({ userId }: { userId: string }) {
-  const session = authClient.useSession();
+export function DashboardPage() {
+  const userId = useUserId();
   const summary = useQuery(taskSummaryQuery(userId));
-  useEffect(() => {
-    if (isUnauthorized(summary.error) || isForbidden(summary.error)) {
-      void session.refetch();
-    }
-  }, [summary.error, session.refetch]);
+  useRefreshSessionOnAuthError([summary.error]);
   const data = summary.data;
   const progress = data?.total
     ? Math.round((data.completed / data.total) * 100)

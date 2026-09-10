@@ -181,8 +181,18 @@
 .modal-body {
   padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
 }
+/* Linha de ações dos diálogos: ordem invertida no mobile e área segura. */
 .modal-actions {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 0.5rem;
+  justify-content: flex-end;
   padding-bottom: 0.25rem;
+}
+@media (min-width: 640px) {
+  .modal-actions {
+    flex-direction: row;
+  }
 }
 .responsive-modal[data-variant="confirmation"] {
   top: auto;

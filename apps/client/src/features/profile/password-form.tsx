@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth";
+import { authErrorMessage, CONNECTION_FAILED } from "@/lib/auth-errors";
+import { SESSION_EXPIRED } from "@/lib/query";
 
 export function PasswordForm() {
   const session = authClient.useSession();
@@ -33,18 +35,13 @@ export function PasswordForm() {
         revokeOtherSessions: true,
       });
       if (result.error) {
-        const messages: Record<string, string> = {
-          INVALID_PASSWORD: "A senha atual está incorreta.",
-          PASSWORD_TOO_SHORT: "A nova senha deve ter pelo menos 8 caracteres.",
-          PASSWORD_TOO_LONG: "A nova senha deve ter no máximo 128 caracteres.",
-          TOO_MANY_REQUESTS:
-            "Muitas tentativas. Aguarde um pouco e tente novamente.",
-        };
         toast.error(
           result.error.status === 401
-            ? "Sua sessão expirou. Entre novamente."
-            : (messages[result.error.code ?? ""] ??
-                "Não foi possível alterar a senha. Tente novamente.")
+            ? SESSION_EXPIRED
+            : authErrorMessage(
+                result.error,
+                "Não foi possível alterar a senha. Tente novamente."
+              )
         );
         if (result.error.status === 401) {
           void session.refetch();
@@ -57,9 +54,7 @@ export function PasswordForm() {
       });
       void session.refetch();
     } catch {
-      toast.error(
-        "Não foi possível conectar. Verifique sua conexão e tente novamente."
-      );
+      toast.error(CONNECTION_FAILED);
     } finally {
       setPending(false);
     }

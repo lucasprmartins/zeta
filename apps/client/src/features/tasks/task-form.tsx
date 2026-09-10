@@ -11,14 +11,12 @@ import type { TaskUser } from "./queries";
 
 type Fields = { title: string; description: string; mentions: TaskUser[] };
 export function TaskForm({
-  userId,
   initial,
   pending,
   error,
   onSubmit,
   onCancel,
 }: {
-  userId: string;
   initial?: Fields;
   pending: boolean;
   error: string | null;
@@ -75,20 +73,12 @@ export function TaskForm({
           <MentionPicker
             disabled={pending}
             onChange={setMentions}
-            userId={userId}
             value={mentions}
           />
         )}
       </fieldset>
       {error && <ErrorNotice message={error} />}
-      <div className="modal-actions sticky bottom-0 flex flex-col gap-2 border-t bg-background pt-4 sm:flex-row-reverse [&>button]:w-full sm:[&>button]:w-auto">
-        <Button disabled={pending || !title.trim()} type="submit">
-          {pending
-            ? "Salvando…"
-            : initial
-              ? "Salvar alterações"
-              : "Criar tarefa"}
-        </Button>
+      <div className="modal-actions sticky bottom-0 border-t bg-background pt-4 [&>button]:w-full sm:[&>button]:w-auto">
         {onCancel && (
           <Button
             disabled={pending}
@@ -99,6 +89,13 @@ export function TaskForm({
             Cancelar
           </Button>
         )}
+        <Button disabled={pending || !title.trim()} type="submit">
+          {pending
+            ? "Salvando…"
+            : initial
+              ? "Salvar alterações"
+              : "Criar tarefa"}
+        </Button>
       </div>
     </form>
   );

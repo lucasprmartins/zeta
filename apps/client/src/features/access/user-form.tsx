@@ -12,13 +12,9 @@ import {
   NativeSelectOption,
 } from "@/components/ui/native-select";
 import { authClient } from "@/lib/auth";
+import { actionErrorMessage } from "@/lib/query";
 import { rpc } from "@/lib/rpc";
-import {
-  type AccessRole,
-  type AccessUser,
-  accessError,
-  accessKeys,
-} from "./queries";
+import { type AccessRole, type AccessUser, accessKeys } from "./queries";
 
 export function UserForm({
   initial,
@@ -68,7 +64,7 @@ export function UserForm({
           : []),
       ]);
     } catch (cause) {
-      const message = accessError(cause);
+      const message = actionErrorMessage(cause);
       setError(message);
       toast.error(message);
     } finally {
@@ -230,7 +226,7 @@ export function UserForm({
             </Button>
           </section>
         </fieldset>
-        <div className="modal-actions flex flex-col-reverse justify-end gap-2 sm:flex-row">
+        <div className="modal-actions">
           <Button
             disabled={pending}
             onClick={onClose}

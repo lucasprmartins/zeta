@@ -4,12 +4,13 @@ import {
   SpinnerGapIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
+import { memo } from "react";
 import { Can, usePermissions } from "@/components/permission-boundary";
-import { Avatar } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
+import { AvatarStack } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { permissions } from "@/lib/access";
 import type { Task } from "./queries";
+import { TaskStatusBadge } from "./task-status";
 
 const dateFormat = new Intl.DateTimeFormat("pt-BR", {
   day: "2-digit",
@@ -21,7 +22,6 @@ const STACKED_AVATARS = 3;
 const allNames = (people: Task["mentions"]) =>
   people.map((person) => person.name).join(", ");
 
-// Um responsável aparece pelo nome; vários viram contagem para caber na coluna.
 function Assignees({ people }: { people: Task["mentions"] }) {
   const [first] = people;
   if (!first) {
@@ -31,17 +31,7 @@ function Assignees({ people }: { people: Task["mentions"] }) {
   }
   return (
     <span className="flex min-w-0 items-center gap-2" title={allNames(people)}>
-      <span className="flex shrink-0 -space-x-1.5">
-        {people.slice(0, STACKED_AVATARS).map((person) => (
-          <Avatar
-            className="ring-2 ring-background"
-            image={person.image}
-            key={person.id}
-            name={person.name}
-            size="sm"
-          />
-        ))}
-      </span>
+      <AvatarStack limit={STACKED_AVATARS} people={people} />
       <span className="truncate text-xs">
         {people.length === 1 ? first.name : `${people.length} responsáveis`}
       </span>
@@ -49,7 +39,7 @@ function Assignees({ people }: { people: Task["mentions"] }) {
   );
 }
 
-export function TaskItem({
+function TaskRow({
   task,
   pending,
   onStatus,
@@ -66,7 +56,6 @@ export function TaskItem({
 }) {
   const { can } = usePermissions();
   const completed = task.status === "completed";
-  const label = completed ? "Concluída" : "Pendente";
   return (
     <li className="group grid grid-cols-[44px_minmax(0,1fr)] items-start gap-2 border-b px-3 py-3 last:border-b-0 hover:bg-sidebar/70 sm:flex sm:items-center sm:gap-3 sm:px-4">
       {/* biome-ignore lint/a11y/useSemanticElements: alternar status é uma ação, não um campo de formulário. */}
@@ -102,22 +91,12 @@ export function TaskItem({
         </span>
         {/* No celular não há colunas: status, data e responsáveis vêm aqui. */}
         <span className="mt-2 flex flex-wrap items-center gap-2 sm:hidden">
-          <Badge variant={completed ? "default" : "outline"}>{label}</Badge>
+          <TaskStatusBadge status={task.status} />
           <span className="text-[11px] text-muted-foreground">
             {dateFormat.format(new Date(task.createdAt))}
           </span>
           {task.mentions.length > 0 && (
-            <span className="flex shrink-0 -space-x-1.5">
-              {task.mentions.slice(0, STACKED_AVATARS).map((person) => (
-                <Avatar
-                  className="ring-2 ring-background"
-                  image={person.image}
-                  key={person.id}
-                  name={person.name}
-                  size="sm"
-                />
-              ))}
-            </span>
+            <AvatarStack limit={STACKED_AVATARS} people={task.mentions} />
           )}
         </span>
       </button>
@@ -125,7 +104,7 @@ export function TaskItem({
         <Assignees people={task.mentions} />
       </span>
       <span className="hidden w-24 shrink-0 sm:block">
-        <Badge variant={completed ? "default" : "outline"}>{label}</Badge>
+        <TaskStatusBadge status={task.status} />
       </span>
       <time
         className="hidden w-28 shrink-0 text-muted-foreground text-xs xl:block"
@@ -166,3 +145,6 @@ export function TaskItem({
     </li>
   );
 }
+
+// A lista carrega várias páginas: só a linha alterada precisa redesenhar.
+export const TaskItem = memo(TaskRow);

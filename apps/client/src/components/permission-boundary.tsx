@@ -4,26 +4,36 @@ import {
   type ReactNode,
   useContext,
   useEffect,
+  useMemo,
   useRef,
 } from "react";
 import { ErrorNotice, Loading } from "@/components/feedback";
 import { RouteFeedback } from "@/components/route-feedback";
 import { can, type Permission } from "@/lib/access";
+import { authClient } from "@/lib/auth";
+import { isForbidden, isUnauthorized } from "@/lib/query";
 import { rpc } from "@/lib/rpc";
 
+// A sessão já foi validada pelo Workspace; daqui para baixo a identidade existe.
+type SessionUser = NonNullable<
+  ReturnType<typeof authClient.useSession>["data"]
+>["user"];
+
 const AccessContext = createContext<{
+  user: SessionUser;
   grants: string[];
   pending: boolean;
   error: boolean;
   retry: () => void;
 } | null>(null);
 export function AccessProvider({
-  userId,
+  user,
   children,
 }: {
-  userId: string;
+  user: SessionUser;
   children: ReactNode;
 }) {
+  const userId = user.id;
   const client = useQueryClient();
   const query = useQuery({
     queryKey: ["permissions", userId],
@@ -51,29 +61,42 @@ export function AccessProvider({
     }
     previous.current = fingerprint;
   }, [client, fingerprint]);
-  return (
-    <AccessContext
-      value={{
-        grants: query.isError ? [] : (query.data?.grants ?? []),
-        pending: query.isPending,
-        error: query.isError,
-        retry: () => void query.refetch(),
-      }}
-    >
-      {children}
-    </AccessContext>
+  const { data, isError, isPending, refetch } = query;
+  // O compartilhamento estrutural do Query preserva a referência de `data`
+  // enquanto as concessões não mudam, e as telas memoizadas não redesenham.
+  const value = useMemo(
+    () => ({
+      user,
+      grants: isError ? [] : (data?.grants ?? []),
+      pending: isPending,
+      error: isError,
+      retry: () => void refetch(),
+    }),
+    [user, data, isError, isPending, refetch]
   );
+  return <AccessContext value={value}>{children}</AccessContext>;
 }
-export function usePermissions() {
+function useAccess() {
   const access = useContext(AccessContext);
   if (!access) {
     throw new Error("Use controles de permissão dentro de AccessProvider.");
   }
-  return {
-    ...access,
-    can: (permission: Permission) =>
-      !(access.pending || access.error) && can(access.grants, permission),
-  };
+  return access;
+}
+
+export const useCurrentUser = () => useAccess().user;
+export const useUserId = () => useAccess().user.id;
+
+export function usePermissions() {
+  const access = useAccess();
+  return useMemo(
+    () => ({
+      ...access,
+      can: (permission: Permission) =>
+        !(access.pending || access.error) && can(access.grants, permission),
+    }),
+    [access]
+  );
 }
 export function Can({
   permission,
@@ -116,4 +139,18 @@ export function PermissionBoundary({
     );
   }
   return children;
+}
+
+// Uma resposta 401/403 significa sessão encerrada ou acesso revogado: revalidar
+// a sessão leva o Workspace a redirecionar ou a recarregar as permissões.
+export function useRefreshSessionOnAuthError(errors: readonly unknown[]) {
+  const { refetch } = authClient.useSession();
+  const expired = errors.some(
+    (error) => isUnauthorized(error) || isForbidden(error)
+  );
+  useEffect(() => {
+    if (expired) {
+      void refetch();
+    }
+  }, [expired, refetch]);
 }

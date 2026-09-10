@@ -1,53 +1,48 @@
-import {
-  ArrowClockwiseIcon,
-  CheckSquareIcon,
-  PlusIcon,
-} from "@phosphor-icons/react";
-import {
-  useInfiniteQuery,
-  useMutation,
-  useQueryClient,
-} from "@tanstack/react-query";
-import { useCallback, useEffect, useState } from "react";
+import { ArrowClockwiseIcon, PlusIcon } from "@phosphor-icons/react";
+import { useInfiniteQuery, useMutation } from "@tanstack/react-query";
+import { useCallback, useState } from "react";
 import { ErrorNotice } from "@/components/feedback";
 import { InfiniteScroll } from "@/components/infinite-scroll";
 import { PageContent } from "@/components/layout/page-content";
 import { PageHeader } from "@/components/layout/page-header";
-import { Can, usePermissions } from "@/components/permission-boundary";
-import { Button } from "@/components/ui/button";
 import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
-import { Modal } from "@/components/ui/modal";
+  Can,
+  usePermissions,
+  useRefreshSessionOnAuthError,
+  useUserId,
+} from "@/components/permission-boundary";
+import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { permissions } from "@/lib/access";
-import { authClient } from "@/lib/auth";
-import { isForbidden, isUnauthorized } from "@/lib/query";
+import { actionErrorMessage, byId, useInfiniteList } from "@/lib/query";
 import { rpc } from "@/lib/rpc";
+import { DeleteTaskModal } from "./delete-task-modal";
 import {
   infiniteTasksQuery,
   type Task,
   type TaskFilter,
-  taskKeys,
+  useTasksRefresh,
 } from "./queries";
-import { TaskForm } from "./task-form";
+import { TaskEditorModal } from "./task-editor-modal";
 import { TaskItem } from "./task-item";
 import { TaskPanel } from "./task-panel";
+import { statusLabels } from "./task-status";
+import { TasksEmpty } from "./tasks-empty";
 import { TasksSkeleton } from "./tasks-skeleton";
 
+const filters = [
+  ["all", "Todas"],
+  ["pending", `${statusLabels.pending}s`],
+  ["completed", `${statusLabels.completed}s`],
+] as const;
+
 export function TasksPage({
-  userId,
   filter,
   onFilter,
   taskId,
   onOpenTask,
   onCloseTask,
 }: {
-  userId: string;
   taskId: string | undefined;
   onOpenTask: (id: string) => void;
   onCloseTask: () => void;
@@ -55,92 +50,44 @@ export function TasksPage({
   onFilter: (filter: TaskFilter) => void;
 }) {
   const { can } = usePermissions();
-  const client = useQueryClient();
-  const session = authClient.useSession();
+  const refresh = useTasksRefresh();
   const [editor, setEditor] = useState<Task | "new" | null>(null);
   const [deleting, setDeleting] = useState<Task | null>(null);
-  const tasks = useInfiniteQuery(infiniteTasksQuery(userId, filter));
-  const refresh = () =>
-    client.invalidateQueries({ queryKey: taskKeys.all(userId) });
-  const create = useMutation({
-    mutationFn: (input: Parameters<typeof rpc.tasks.create>[0]) =>
-      rpc.tasks.create(input),
-    onSuccess: async () => {
-      setEditor(null);
-      onFilter("all");
-      await refresh();
-    },
-  });
-  const edit = useMutation({
-    mutationFn: (input: Parameters<typeof rpc.tasks.update>[0]) =>
-      rpc.tasks.update(input),
-    onSuccess: async () => {
-      setEditor(null);
-      await refresh();
-    },
-  });
+  const tasks = useInfiniteQuery(infiniteTasksQuery(useUserId(), filter));
   const status = useMutation({
     mutationFn: (input: Parameters<typeof rpc.tasks.setStatus>[0]) =>
       rpc.tasks.setStatus(input),
     onSuccess: refresh,
   });
-  const remove = useMutation({
-    mutationFn: (input: { id: string }) => rpc.tasks.delete(input),
-    onSuccess: async () => {
-      setDeleting(null);
-      await refresh();
-    },
-  });
-  const errorMessage = (error: unknown) =>
-    isUnauthorized(error)
-      ? "Sua sessão expirou. Entre novamente."
-      : isForbidden(error)
-        ? "Sua conta não tem permissão para esta ação."
-        : "Não foi possível salvar. Tente novamente.";
-  useEffect(() => {
-    if (
-      [tasks.error, create.error, edit.error, status.error, remove.error].some(
-        (error) => isUnauthorized(error) || isForbidden(error)
-      )
-    ) {
-      void session.refetch();
-    }
-  }, [
-    tasks.error,
-    create.error,
-    edit.error,
-    status.error,
-    remove.error,
-    session.refetch,
-  ]);
+  useRefreshSessionOnAuthError([tasks.error, status.error]);
 
-  function openEditor(task: Task | "new") {
-    if (
-      !can(task === "new" ? permissions.tasks.create : permissions.tasks.update)
-    ) {
-      return;
-    }
-    create.reset();
-    edit.reset();
-    setEditor(task);
-  }
-  const saving = create.isPending || edit.isPending;
-  const editorError = editor === "new" ? create.error : edit.error;
-  // Mudanças concorrentes na paginação por offset podem repetir IDs entre páginas.
-  const items = [
-    ...new Map(
-      tasks.data?.pages
-        .flatMap((page) => page.items)
-        .map((task) => [task.id, task]) ?? []
-    ).values(),
-  ];
+  const openEditor = useCallback(
+    (task: Task | "new") => {
+      if (
+        can(
+          task === "new" ? permissions.tasks.create : permissions.tasks.update
+        )
+      ) {
+        setEditor(task);
+      }
+    },
+    [can]
+  );
+  const openTask = useCallback(
+    (task: Task) => onOpenTask(task.id),
+    [onOpenTask]
+  );
+  const { mutate: setStatus } = status;
+  const toggleStatus = useCallback(
+    (task: Task) =>
+      setStatus({
+        id: task.id,
+        status: task.status === "pending" ? "completed" : "pending",
+      }),
+    [setStatus]
+  );
+  const { items, loadMore } = useInfiniteList(tasks, byId);
   const total = tasks.data?.pages.at(-1)?.total ?? 0;
-  const { fetchNextPage, hasNextPage, isFetching } = tasks;
-  const loadMore = useCallback(() => {
-    if (hasNextPage && !isFetching) {
-      void fetchNextPage({ cancelRefetch: false });
-    }
-  }, [fetchNextPage, hasNextPage, isFetching]);
 
   return (
     <PageContent>
@@ -166,24 +113,14 @@ export function TasksPage({
             aria-label="Filtrar tarefas"
             className="grid w-full grid-cols-3 sm:flex sm:w-auto"
             onValueChange={(value) => {
-              if (
-                value === "all" ||
-                value === "pending" ||
-                value === "completed"
-              ) {
-                onFilter(value);
+              if (filters.some(([option]) => option === value)) {
+                onFilter(value as TaskFilter);
               }
             }}
             type="single"
             value={filter}
           >
-            {(
-              [
-                ["all", "Todas"],
-                ["pending", "Pendentes"],
-                ["completed", "Concluídas"],
-              ] as const
-            ).map(([value, label]) => (
+            {filters.map(([value, label]) => (
               <ToggleGroupItem
                 className="px-2 text-xs sm:px-3 sm:text-sm"
                 key={value}
@@ -216,7 +153,7 @@ export function TasksPage({
         </div>
         {status.error && (
           <div className="border-b p-4">
-            <ErrorNotice message={errorMessage(status.error)} />
+            <ErrorNotice message={actionErrorMessage(status.error)} />
           </div>
         )}
         {tasks.isRefetchError && tasks.data && (
@@ -237,42 +174,12 @@ export function TasksPage({
             />
           </div>
         ) : items.length === 0 ? (
-          <Empty className="min-h-80">
-            <EmptyMedia>
-              <CheckSquareIcon aria-hidden="true" weight="regular" />
-            </EmptyMedia>
-            <EmptyTitle>
-              {filter === "all"
-                ? can(permissions.tasks.create)
-                  ? "O primeiro passo começa aqui"
-                  : "Nenhuma tarefa encontrada"
-                : filter === "pending"
-                  ? "Nenhuma tarefa pendente"
-                  : "Ainda não há tarefas concluídas"}
-            </EmptyTitle>
-            <EmptyDescription>
-              {filter === "all"
-                ? can(permissions.tasks.create)
-                  ? "Crie a primeira tarefa. Todas as contas veem o que está aqui, e você pode indicar o responsável por cada uma."
-                  : "As tarefas da equipe aparecerão neste espaço."
-                : "Use os filtros para acompanhar as demais tarefas."}
-            </EmptyDescription>
-            <EmptyContent>
-              {(filter !== "all" || can(permissions.tasks.create)) && (
-                <Button
-                  onClick={() =>
-                    filter === "all" ? openEditor("new") : onFilter("all")
-                  }
-                  size="sm"
-                  variant="outline"
-                >
-                  {filter === "all"
-                    ? "Criar primeira tarefa"
-                    : "Ver todas as tarefas"}
-                </Button>
-              )}
-            </EmptyContent>
-          </Empty>
+          <TasksEmpty
+            canCreate={can(permissions.tasks.create)}
+            filter={filter}
+            onClearFilter={() => onFilter("all")}
+            onCreate={() => openEditor("new")}
+          />
         ) : (
           <>
             <div
@@ -290,19 +197,10 @@ export function TasksPage({
               {items.map((task) => (
                 <TaskItem
                   key={task.id}
-                  onDelete={(item) => {
-                    remove.reset();
-                    setDeleting(item);
-                  }}
+                  onDelete={setDeleting}
                   onEdit={openEditor}
-                  onOpen={(item) => onOpenTask(item.id)}
-                  onStatus={(item) => {
-                    status.mutate({
-                      id: item.id,
-                      status:
-                        item.status === "pending" ? "completed" : "pending",
-                    });
-                  }}
+                  onOpen={openTask}
+                  onStatus={toggleStatus}
                   pending={status.isPending && status.variables?.id === task.id}
                   task={task}
                 />
@@ -312,14 +210,7 @@ export function TasksPage({
               tasks.isFetchingNextPage ||
               tasks.isFetchNextPageError) && (
               <footer className="border-t px-4 py-4">
-                <InfiniteScroll
-                  error={tasks.isFetchNextPageError}
-                  hasNextPage={tasks.hasNextPage}
-                  isFetching={tasks.isFetching}
-                  isFetchingNextPage={tasks.isFetchingNextPage}
-                  onLoadMore={loadMore}
-                  paused={tasks.isRefetchError}
-                />
+                <InfiniteScroll onLoadMore={loadMore} query={tasks} />
               </footer>
             )}
           </>
@@ -327,82 +218,18 @@ export function TasksPage({
       </section>
 
       {taskId && (
-        <TaskPanel
-          key={taskId}
-          onClose={onCloseTask}
-          taskId={taskId}
-          userId={userId}
+        <TaskPanel key={taskId} onClose={onCloseTask} taskId={taskId} />
+      )}
+      {editor !== null && (
+        <TaskEditorModal
+          key={editor === "new" ? "new" : editor.id}
+          onClose={() => setEditor(null)}
+          onCreated={() => onFilter("all")}
+          task={editor}
         />
       )}
-
-      {editor !== null &&
-        can(
-          editor === "new" ? permissions.tasks.create : permissions.tasks.update
-        ) && (
-          <Modal
-            description={
-              editor === "new"
-                ? "O que precisa ser feito e quem responde por isso?"
-                : "Atualize o título, os detalhes e o responsável."
-            }
-            onClose={() => setEditor(null)}
-            pending={saving}
-            title={editor === "new" ? "Nova tarefa" : "Editar tarefa"}
-          >
-            <TaskForm
-              key={editor === "new" ? "new" : editor.id}
-              {...(editor === "new" ? {} : { initial: editor })}
-              error={editorError ? errorMessage(editorError) : null}
-              onCancel={() => setEditor(null)}
-              onSubmit={({ mentions, ...fields }) => {
-                const input = {
-                  ...fields,
-                  mentions: mentions.map((user) => user.id),
-                };
-                if (editor === "new") {
-                  create.mutate(input);
-                } else {
-                  edit.mutate({ id: editor.id, ...input });
-                }
-              }}
-              pending={saving}
-              userId={userId}
-            />
-          </Modal>
-        )}
       {deleting && can(permissions.tasks.delete) && (
-        <Modal
-          description="Esta ação é permanente e não pode ser desfeita."
-          onClose={() => setDeleting(null)}
-          pending={remove.isPending}
-          title="Excluir tarefa?"
-          variant="confirmation"
-        >
-          <p className="mb-6 break-words rounded-lg border bg-sidebar p-4 font-medium text-sm">
-            {deleting.title}
-          </p>
-          {remove.error && (
-            <div className="mb-4">
-              <ErrorNotice message={errorMessage(remove.error)} />
-            </div>
-          )}
-          <div className="modal-actions flex flex-col-reverse justify-end gap-2 sm:flex-row [&>button]:w-full sm:[&>button]:w-auto">
-            <Button
-              data-modal-autofocus
-              disabled={remove.isPending}
-              onClick={() => setDeleting(null)}
-              variant="outline"
-            >
-              Cancelar
-            </Button>
-            <Button
-              disabled={remove.isPending}
-              onClick={() => remove.mutate({ id: deleting.id })}
-            >
-              {remove.isPending ? "Excluindo…" : "Excluir tarefa"}
-            </Button>
-          </div>
-        </Modal>
+        <DeleteTaskModal onClose={() => setDeleting(null)} task={deleting} />
       )}
     </PageContent>
   );

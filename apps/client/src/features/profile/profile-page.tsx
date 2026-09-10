@@ -2,19 +2,19 @@ import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
 import { PageContent } from "@/components/layout/page-content";
 import { PageHeader } from "@/components/layout/page-header";
+import { useCurrentUser } from "@/components/permission-boundary";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth";
+import { authErrorMessage, CONNECTION_FAILED } from "@/lib/auth-errors";
+import { SESSION_EXPIRED } from "@/lib/query";
 import { PasswordForm } from "./password-form";
 import { profileUpdate, profileUsername } from "./profile-fields";
 
-export function ProfilePage({
-  user,
-}: {
-  user: typeof authClient.$Infer.Session.user;
-}) {
+export function ProfilePage() {
+  const user = useCurrentUser();
   const session = authClient.useSession();
   const [name, setName] = useState(user.name);
   const initialUsername = profileUsername(user);
@@ -34,24 +34,13 @@ export function ProfilePage({
         profileUpdate(user, value, username)
       );
       if (result.error) {
-        const messages: Record<string, string> = {
-          USERNAME_IS_ALREADY_TAKEN:
-            "Este nome de usuário já está em uso. Escolha outro.",
-          USERNAME_TOO_SHORT:
-            "O nome de usuário deve ter pelo menos 3 caracteres.",
-          USERNAME_TOO_LONG:
-            "O nome de usuário deve ter no máximo 30 caracteres.",
-          INVALID_USERNAME:
-            "Use apenas letras sem acentos, números, ponto e sublinhado.",
-          INVALID_DISPLAY_USERNAME: "Nome de usuário inválido.",
-          TOO_MANY_REQUESTS:
-            "Muitas tentativas. Aguarde um pouco e tente novamente.",
-        };
         toast.error(
           result.error.status === 401
-            ? "Sua sessão expirou. Entre novamente."
-            : (messages[result.error.code ?? ""] ??
-                "Não foi possível atualizar seus dados. Tente novamente.")
+            ? SESSION_EXPIRED
+            : authErrorMessage(
+                result.error,
+                "Não foi possível atualizar seus dados. Tente novamente."
+              )
         );
         if (result.error.status === 401) {
           void session.refetch();
@@ -67,9 +56,7 @@ export function ProfilePage({
         );
       });
     } catch {
-      toast.error(
-        "Não foi possível conectar. Verifique sua conexão e tente novamente."
-      );
+      toast.error(CONNECTION_FAILED);
     } finally {
       setPending(false);
     }
@@ -132,7 +119,7 @@ export function ProfilePage({
                   onChange={(event) => {
                     setUsername(event.target.value);
                   }}
-                  pattern="[a-zA-Z0-9_.]+"
+                  pattern="[a-zA-Z0-9_.]{3,30}"
                   required={Boolean(initialUsername) || username.length > 0}
                   spellCheck={false}
                   value={username}

@@ -2,9 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { PermissionBoundary } from "@/components/permission-boundary";
 import { GuideEditorPage } from "@/features/guides/editor-page";
 import { permissions } from "@/lib/access";
-import { authClient } from "@/lib/auth";
+
 export const Route = createFileRoute("/_authenticated/help/guides/edit/$slug")({
-  component: Page,
+  component: GuideEditRoute,
   staticData: {
     crumbs: [
       { label: "Ajuda", to: "/help" },
@@ -13,12 +13,11 @@ export const Route = createFileRoute("/_authenticated/help/guides/edit/$slug")({
     ],
   },
 });
-function Page() {
-  const { data } = authClient.useSession();
-  const { slug } = Route.useParams();
-  return data ? (
+
+function GuideEditRoute() {
+  return (
     <PermissionBoundary permission={permissions.access.manage}>
-      <GuideEditorPage {...{ userId: data.user.id, slug }} />
+      <GuideEditorPage slug={Route.useParams().slug} />
     </PermissionBoundary>
-  ) : null;
+  );
 }

@@ -4,45 +4,35 @@ import {
   PlusIcon,
 } from "@phosphor-icons/react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { ErrorNotice, Loading } from "@/components/feedback";
 import { InfiniteScroll } from "@/components/infinite-scroll";
+import { useUserId } from "@/components/permission-boundary";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyTitle } from "@/components/ui/empty";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { byId, useInfiniteList } from "@/lib/query";
 import { type AccessUser, rolesQuery, usersQuery } from "./queries";
+import { RoleDot } from "./role-dot";
 import { UserForm } from "./user-form";
 
 export function UsersPanel({
-  userId,
   search,
   onSearch,
 }: {
-  userId: string;
   search: string;
   onSearch: (search: string) => void;
 }) {
+  const userId = useUserId();
   const [draft, setDraft] = useState(search);
   useEffect(() => setDraft(search), [search]);
   const [editing, setEditing] = useState<AccessUser | "new" | null>(null);
   const roles = useQuery(rolesQuery(userId));
   const users = useInfiniteQuery(usersQuery(userId, search));
-  const items = [
-    ...new Map(
-      users.data?.pages
-        .flatMap((page) => page.items)
-        .map((user) => [user.id, user]) ?? []
-    ).values(),
-  ];
+  const { items, loadMore } = useInfiniteList(users, byId);
   const groups = Map.groupBy(items, (user) => user.role);
-  const { hasNextPage, isFetching, fetchNextPage } = users;
-  const loadMore = useCallback(() => {
-    if (hasNextPage && !isFetching) {
-      void fetchNextPage({ cancelRefetch: false });
-    }
-  }, [hasNextPage, isFetching, fetchNextPage]);
   return (
     <section aria-label="Usuários" className="space-y-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
@@ -136,11 +126,7 @@ export function UsersPanel({
             return (
               <Card className="overflow-hidden" key={id}>
                 <h2 className="flex items-center gap-2 border-b bg-muted/40 px-5 py-4 font-semibold text-sm">
-                  <span
-                    aria-hidden="true"
-                    className="size-3 shrink-0 rounded-full border border-foreground/15"
-                    style={{ backgroundColor: role?.color ?? "#737373" }}
-                  />
+                  <RoleDot color={role?.color} />
                   <span className="min-w-0 break-words">
                     {role?.name ?? "Papel indisponível"}
                   </span>
@@ -190,14 +176,7 @@ export function UsersPanel({
       )}
 
       {(users.hasNextPage || users.isFetchNextPageError) && (
-        <InfiniteScroll
-          error={users.isFetchNextPageError}
-          hasNextPage={users.hasNextPage}
-          isFetching={users.isFetching}
-          isFetchingNextPage={users.isFetchingNextPage}
-          onLoadMore={loadMore}
-          paused={users.isRefetchError}
-        />
+        <InfiniteScroll onLoadMore={loadMore} query={users} />
       )}
       {editing && roles.data && (
         <UserForm

@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { ErrorNotice } from "@/components/feedback";
 import { PageContent } from "@/components/layout/page-content";
 import { PageHeader } from "@/components/layout/page-header";
+import { useUserId } from "@/components/permission-boundary";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ApprovalsPanel } from "./approvals-panel";
@@ -11,17 +12,15 @@ import { RolesPanel } from "./roles-panel";
 import { UsersPanel } from "./users-panel";
 
 export function AdminUsersPage({
-  userId,
   view,
   search,
   onSearch,
 }: {
-  userId: string;
   view: "users" | "roles" | "approvals";
   search: string;
   onSearch: (search: string) => void;
 }) {
-  const registration = useQuery(registrationStatusQuery(userId));
+  const registration = useQuery(registrationStatusQuery(useUserId()));
   const showApprovals = Boolean(
     registration.data?.requireApproval ||
       registration.data?.pendingCount ||
@@ -72,11 +71,11 @@ export function AdminUsersPage({
         />
       )}
       {view === "approvals" ? (
-        <ApprovalsPanel userId={userId} />
+        <ApprovalsPanel />
       ) : view === "roles" ? (
-        <RolesPanel userId={userId} />
+        <RolesPanel />
       ) : (
-        <UsersPanel onSearch={onSearch} search={search} userId={userId} />
+        <UsersPanel onSearch={onSearch} search={search} />
       )}
     </PageContent>
   );

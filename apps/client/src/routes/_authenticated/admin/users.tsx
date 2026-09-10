@@ -2,9 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { PermissionBoundary } from "@/components/permission-boundary";
 import { AdminUsersPage } from "@/features/access/admin-users-page";
 import { permissions } from "@/lib/access";
-import { authClient } from "@/lib/auth";
+
 export const Route = createFileRoute("/_authenticated/admin/users")({
-  component: Page,
+  component: AdminUsersRoute,
   staticData: { crumbs: [{ label: "Administração" }, { label: "Usuários" }] },
   validateSearch: (
     search: Record<string, unknown>
@@ -19,20 +19,19 @@ export const Route = createFileRoute("/_authenticated/admin/users")({
       : {}),
   }),
 });
-function Page() {
+
+function AdminUsersRoute() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  const { data } = authClient.useSession();
-  return data ? (
+  return (
     <PermissionBoundary permission={permissions.access.manage}>
       <AdminUsersPage
         onSearch={(q) => {
           void navigate({ search: q ? { q } : {} });
         }}
         search={search.q ?? ""}
-        userId={data.user.id}
         view={search.view ?? "users"}
       />
     </PermissionBoundary>
-  ) : null;
+  );
 }

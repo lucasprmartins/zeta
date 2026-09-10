@@ -1,4 +1,5 @@
 import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
+import { nextPageIfMore } from "@/lib/query";
 import { rpc } from "@/lib/rpc";
 export type Guide = Awaited<ReturnType<typeof rpc.guides.adminGet>>;
 export const guideKeys = {
@@ -35,8 +36,7 @@ export const guidesQuery = (userId: string, admin: boolean) =>
         items: result.items.map((guide) => ({ ...guide, published: true })),
       };
     },
-    getNextPageParam: (page, _, previous) =>
-      page.hasMore ? previous + 1 : undefined,
+    getNextPageParam: nextPageIfMore,
   });
 export const guideQuery = (userId: string, slug: string) =>
   queryOptions({

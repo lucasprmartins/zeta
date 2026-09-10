@@ -12,7 +12,8 @@ function headingId(text: string, index: number) {
   return `${slug || "secao"}-${index + 1}`;
 }
 
-function useBlocks(markdown: string) {
+// Índice e corpo compartilham o mesmo resultado: a página interpreta uma vez.
+export function useGuideBlocks(markdown: string) {
   return useMemo(() => {
     try {
       return { blocks: parseMarkdown(markdown), error: null };
@@ -25,8 +26,10 @@ function useBlocks(markdown: string) {
   }, [markdown]);
 }
 
-export function GuideContent({ markdown }: { markdown: string }) {
-  const { blocks, error } = useBlocks(markdown);
+export type GuideBlocks = ReturnType<typeof useGuideBlocks>;
+
+export function GuideContent({ parsed }: { parsed: GuideBlocks }) {
+  const { blocks, error } = parsed;
   if (error) {
     return (
       <p className="text-destructive text-sm" role="alert">
@@ -57,8 +60,8 @@ const headingTags = { 1: "h1", 2: "h2", 3: "h3" } as const;
 const indent = { 1: "", 2: "pl-3", 3: "pl-6" } as const;
 
 // Guias curtos não ganham nada com um índice: ele só aparece a partir de dois títulos.
-export function GuideOutline({ markdown }: { markdown: string }) {
-  const { blocks } = useBlocks(markdown);
+export function GuideOutline({ parsed }: { parsed: GuideBlocks }) {
+  const { blocks } = parsed;
   const headings = blocks.flatMap((block, index) =>
     block.type === "heading"
       ? [

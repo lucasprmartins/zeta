@@ -4,12 +4,16 @@ import { toast } from "sonner";
 import { ErrorNotice, Loading } from "@/components/feedback";
 import { PageContent } from "@/components/layout/page-content";
 import { PageHeader } from "@/components/layout/page-header";
+import { useUserId } from "@/components/permission-boundary";
 import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
+import { actionErrorMessage } from "@/lib/query";
 import { rpc } from "@/lib/rpc";
-import { accessError, accessKeys, registrationStatusQuery } from "./queries";
+import { accessKeys, registrationStatusQuery } from "./queries";
 
-export function AdminConsolePage({ userId }: { userId: string }) {
+export function AdminConsolePage() {
+  const userId = useUserId();
   const client = useQueryClient();
   const settings = useQuery(registrationStatusQuery(userId));
   const save = useMutation({
@@ -22,7 +26,7 @@ export function AdminConsolePage({ userId }: { userId: string }) {
         client.invalidateQueries({ queryKey: ["registration-policy"] }),
       ]);
     },
-    onError: (error) => toast.error(accessError(error)),
+    onError: (error) => toast.error(actionErrorMessage(error)),
   });
   const policy = settings.data;
   const options = [
@@ -79,10 +83,10 @@ export function AdminConsolePage({ userId }: { userId: string }) {
                     </FieldDescription>
                   </div>
                   <label className="flex size-11 shrink-0 cursor-pointer items-center justify-center">
-                    <input
+                    <Checkbox
                       aria-describedby={`${key}-help`}
                       checked={policy[key]}
-                      className="size-5 cursor-pointer rounded border-input accent-primary focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-wait"
+                      className="disabled:cursor-wait"
                       disabled={save.isPending}
                       id={key}
                       onChange={(event) =>
@@ -92,7 +96,6 @@ export function AdminConsolePage({ userId }: { userId: string }) {
                           [key]: event.target.checked,
                         })
                       }
-                      type="checkbox"
                     />
                     <span className="sr-only">{label}</span>
                   </label>

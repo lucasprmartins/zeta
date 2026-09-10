@@ -4,17 +4,19 @@ import {
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query";
-import { useCallback } from "react";
 import { toast } from "sonner";
 import { ErrorNotice, Loading } from "@/components/feedback";
 import { InfiniteScroll } from "@/components/infinite-scroll";
+import { useUserId } from "@/components/permission-boundary";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyTitle } from "@/components/ui/empty";
+import { actionErrorMessage, byId, useInfiniteList } from "@/lib/query";
 import { rpc } from "@/lib/rpc";
-import { accessError, accessKeys, approvalsQuery } from "./queries";
+import { accessKeys, approvalsQuery } from "./queries";
 
-export function ApprovalsPanel({ userId }: { userId: string }) {
+export function ApprovalsPanel() {
+  const userId = useUserId();
   const client = useQueryClient();
   const users = useInfiniteQuery(approvalsQuery(userId));
   const approve = useMutation({
@@ -23,21 +25,9 @@ export function ApprovalsPanel({ userId }: { userId: string }) {
       toast.success("Cadastro aprovado. O usuário já pode entrar.");
       await client.invalidateQueries({ queryKey: accessKeys.all(userId) });
     },
-    onError: (error) => toast.error(accessError(error)),
+    onError: (error) => toast.error(actionErrorMessage(error)),
   });
-  const { hasNextPage, isFetching, fetchNextPage } = users;
-  const loadMore = useCallback(() => {
-    if (hasNextPage && !isFetching) {
-      void fetchNextPage({ cancelRefetch: false });
-    }
-  }, [hasNextPage, isFetching, fetchNextPage]);
-  const items = [
-    ...new Map(
-      users.data?.pages
-        .flatMap((page) => page.items)
-        .map((item) => [item.id, item]) ?? []
-    ).values(),
-  ];
+  const { items, loadMore } = useInfiniteList(users, byId);
   return (
     <section aria-label="Aprovação de cadastros" className="space-y-6">
       <p className="text-muted-foreground text-sm">
@@ -100,14 +90,7 @@ export function ApprovalsPanel({ userId }: { userId: string }) {
         </Empty>
       )}
       {(users.hasNextPage || users.isFetchNextPageError) && (
-        <InfiniteScroll
-          error={users.isFetchNextPageError}
-          hasNextPage={users.hasNextPage}
-          isFetching={users.isFetching}
-          isFetchingNextPage={users.isFetchingNextPage}
-          onLoadMore={loadMore}
-          paused={users.isRefetchError}
-        />
+        <InfiniteScroll onLoadMore={loadMore} query={users} />
       )}
     </section>
   );

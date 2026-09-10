@@ -1,4 +1,10 @@
-import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
+import {
+  infiniteQueryOptions,
+  queryOptions,
+  useQueryClient,
+} from "@tanstack/react-query";
+import { useUserId } from "@/components/permission-boundary";
+import { nextPageIfMore } from "@/lib/query";
 import { rpc } from "@/lib/rpc";
 
 export type Task = Awaited<ReturnType<typeof rpc.tasks.create>>;
@@ -19,14 +25,10 @@ export const infiniteTasksQuery = (userId: string, filter: TaskFilter) =>
         { page: pageParam, ...(filter === "all" ? {} : { status: filter }) },
         { signal }
       ),
-    getNextPageParam: (lastPage) =>
-      lastPage.items.length > 0 &&
-      lastPage.page * lastPage.pageSize < lastPage.total
-        ? lastPage.page + 1
-        : undefined,
+    getNextPageParam: nextPageIfMore,
   });
 
-// O catálogo de contas muda pouco; o termo entra na chave e cada busca fica em cache.
+// O catálogo de contas muda pouco: cada termo fica em cache pela chave.
 export const mentionableUsersQuery = (userId: string, search: string) =>
   queryOptions({
     queryKey: [...taskKeys.all(userId), "mentionable", search],
@@ -49,3 +51,9 @@ export const taskQuery = (userId: string, id: string) =>
     queryFn: ({ signal }) => rpc.tasks.get({ id }, { signal }),
     retry: false,
   });
+
+export function useTasksRefresh() {
+  const client = useQueryClient();
+  const userId = useUserId();
+  return () => client.invalidateQueries({ queryKey: taskKeys.all(userId) });
+}

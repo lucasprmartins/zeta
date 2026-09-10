@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useCallback } from "react";
 import { PermissionBoundary } from "@/components/permission-boundary";
 import type { TaskFilter } from "@/features/tasks/queries";
 import { TasksPage } from "@/features/tasks/tasks-page";
 import { permissions } from "@/lib/access";
-import { authClient } from "@/lib/auth";
 
 export const Route = createFileRoute("/_authenticated/tasks")({
   component: TasksRoute,
@@ -25,35 +25,32 @@ export const Route = createFileRoute("/_authenticated/tasks")({
 });
 
 function TasksRoute() {
-  const { data } = authClient.useSession();
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  return data ? (
+  const update = useCallback(
+    (next: { status?: TaskFilter; task?: string | undefined }) => {
+      void navigate({
+        search: (previous) => ({ ...previous, ...next }),
+        resetScroll: false,
+      });
+    },
+    [navigate]
+  );
+  const closeTask = useCallback(() => update({ task: undefined }), [update]);
+  const filterBy = useCallback(
+    (status: TaskFilter) => update({ status }),
+    [update]
+  );
+  const openTask = useCallback((task: string) => update({ task }), [update]);
+  return (
     <PermissionBoundary permission={permissions.tasks.read}>
       <TasksPage
         filter={search.status}
-        key={data.user.id}
-        onCloseTask={() => {
-          void navigate({
-            search: (previous) => ({ ...previous, task: undefined }),
-            resetScroll: false,
-          });
-        }}
-        onFilter={(status) => {
-          void navigate({
-            search: (previous) => ({ ...previous, status }),
-            resetScroll: false,
-          });
-        }}
-        onOpenTask={(task) => {
-          void navigate({
-            search: (previous) => ({ ...previous, task }),
-            resetScroll: false,
-          });
-        }}
+        onCloseTask={closeTask}
+        onFilter={filterBy}
+        onOpenTask={openTask}
         taskId={search.task}
-        userId={data.user.id}
       />
     </PermissionBoundary>
-  ) : null;
+  );
 }
