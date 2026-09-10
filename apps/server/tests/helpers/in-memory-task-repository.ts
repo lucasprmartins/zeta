@@ -26,6 +26,34 @@ export class InMemoryTaskRepository implements TaskRepository {
       );
     return { items: items.slice(offset, offset + limit), total: items.length };
   }
+  async summary(limit: number) {
+    const counts = (items: Task[]) => ({
+      pending: items.filter((task) => task.toJSON().status === "pending")
+        .length,
+      completed: items.filter((task) => task.toJSON().status === "completed")
+        .length,
+    });
+    const byUser = new Map<string, Task[]>();
+    for (const task of this.items) {
+      for (const userId of task.toJSON().mentions) {
+        byUser.set(userId, [...(byUser.get(userId) ?? []), task]);
+      }
+    }
+    return {
+      totals: counts(this.items),
+      unassigned: counts(
+        this.items.filter((task) => task.toJSON().mentions.length === 0)
+      ),
+      assignees: [...byUser.entries()]
+        .map(([userId, tasks]) => ({ userId, ...counts(tasks) }))
+        .sort(
+          (a, b) =>
+            b.pending + b.completed - (a.pending + a.completed) ||
+            a.userId.localeCompare(b.userId)
+        )
+        .slice(0, limit),
+    };
+  }
   async update(task: Task) {
     const data = task.toJSON();
     const index = this.items.findIndex((item) => item.toJSON().id === data.id);

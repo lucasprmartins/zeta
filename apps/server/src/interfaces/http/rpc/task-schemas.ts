@@ -2,6 +2,7 @@ import type { JSONSchema } from "@orpc/openapi";
 import { ORPCError, type } from "@orpc/server";
 import type { listMentionableUsers } from "@server/domain/tasks/application/list-mentionable-users";
 import type { listTasks } from "@server/domain/tasks/application/list-tasks";
+import type { TaskSummary } from "@server/domain/tasks/application/summarize-tasks";
 import type { TaskView } from "@server/domain/tasks/application/task-view";
 import {
   MAX_MENTIONS,
@@ -243,3 +244,33 @@ export const mentionListOutput = documented(
     properties: { items: { type: "array", items: taskUser } },
   }
 );
+const counts: JSONSchema = {
+  type: "object",
+  required: ["pending", "completed"],
+  properties: {
+    pending: { type: "integer", minimum: 0 },
+    completed: { type: "integer", minimum: 0 },
+  },
+};
+export const summaryOutput = documented(type<TaskSummary>(), {
+  type: "object",
+  required: ["total", "pending", "completed", "unassigned", "assignees"],
+  properties: {
+    total: { type: "integer", minimum: 0 },
+    pending: { type: "integer", minimum: 0 },
+    completed: { type: "integer", minimum: 0 },
+    unassigned: counts,
+    assignees: {
+      type: "array",
+      items: {
+        type: "object",
+        required: ["user", "pending", "completed"],
+        properties: {
+          user: taskUser,
+          pending: { type: "integer", minimum: 0 },
+          completed: { type: "integer", minimum: 0 },
+        },
+      },
+    },
+  },
+});

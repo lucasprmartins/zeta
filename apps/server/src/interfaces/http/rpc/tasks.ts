@@ -4,6 +4,7 @@ import type { deleteTask } from "@server/domain/tasks/application/delete-task";
 import type { listMentionableUsers } from "@server/domain/tasks/application/list-mentionable-users";
 import type { listTasks } from "@server/domain/tasks/application/list-tasks";
 import type { setTaskStatus } from "@server/domain/tasks/application/set-task-status";
+import type { summarizeTasks } from "@server/domain/tasks/application/summarize-tasks";
 import { TaskNotFoundError } from "@server/domain/tasks/application/task-not-found";
 import type { updateTask } from "@server/domain/tasks/application/update-task";
 import { InvalidTaskError } from "@server/domain/tasks/entities/task";
@@ -17,6 +18,7 @@ import {
   mentionListOutput,
   mentionSearchInput,
   statusInput,
+  summaryOutput,
   taskListOutput,
   taskOutput,
   updateInput,
@@ -29,6 +31,7 @@ export type TaskUseCases = {
   setStatus: ReturnType<typeof setTaskStatus>;
   delete: ReturnType<typeof deleteTask>;
   mentionableUsers: ReturnType<typeof listMentionableUsers>;
+  summary: ReturnType<typeof summarizeTasks>;
 };
 const procedure = protectedProcedure
   .errors({ BAD_REQUEST: {}, UNAUTHORIZED: {}, FORBIDDEN: {}, NOT_FOUND: {} })
@@ -95,6 +98,16 @@ export function createTasksRouter(useCases: TaskUseCases) {
       .input(listInput)
       .output(taskListOutput)
       .handler(({ input }) => useCases.list(input)),
+    summary: procedure
+      .use(requirePermission(permissions.tasks.read))
+      .route({
+        ...route,
+        method: "GET",
+        path: "/tasks/summary",
+        summary: "Resumo das tarefas por status e responsável",
+      })
+      .output(summaryOutput)
+      .handler(() => useCases.summary()),
     update: procedure
       .use(requirePermission(permissions.tasks.update))
       .route({

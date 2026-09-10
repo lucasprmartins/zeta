@@ -4,6 +4,7 @@ import { deleteTask } from "@server/domain/tasks/application/delete-task";
 import { listMentionableUsers } from "@server/domain/tasks/application/list-mentionable-users";
 import { listTasks } from "@server/domain/tasks/application/list-tasks";
 import { setTaskStatus } from "@server/domain/tasks/application/set-task-status";
+import { summarizeTasks } from "@server/domain/tasks/application/summarize-tasks";
 import { updateTask } from "@server/domain/tasks/application/update-task";
 import { createApp } from "@server/interfaces/http/app";
 import { createRouter } from "@server/interfaces/http/rpc/router";
@@ -45,6 +46,7 @@ async function setup(
       ),
       delete: deleteTask(tasks),
       mentionableUsers: listMentionableUsers(directory),
+      summary: summarizeTasks(tasks, directory),
     }),
     authentication: {
       handle: async (request) => Response.json({ body: await request.json() }),

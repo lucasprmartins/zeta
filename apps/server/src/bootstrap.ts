@@ -9,6 +9,7 @@ import { manageGuides } from "./domain/guides/application/manage-guides";
 import { createTask } from "./domain/tasks/application/create-task";
 import { listMentionableUsers } from "./domain/tasks/application/list-mentionable-users";
 import { listTasks } from "./domain/tasks/application/list-tasks";
+import { summarizeTasks } from "./domain/tasks/application/summarize-tasks";
 import { permissionIds } from "./infrastructure/auth/access";
 import { createAuthentication } from "./infrastructure/auth/better-auth";
 import { createUserManagement } from "./infrastructure/auth/manage-users";
@@ -41,6 +42,7 @@ export async function bootstrap(env: Env) {
       ),
       delete: deleteTask(tasks),
       mentionableUsers: listMentionableUsers(directory),
+      summary: summarizeTasks(tasks, directory),
     },
     manageAccess(access, permissionIds, () => crypto.randomUUID()),
     createUserManagement(database.db, env),

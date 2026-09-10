@@ -1,6 +1,7 @@
 import type {
   TaskFilter,
   TaskRepository,
+  TaskSummaryRows,
 } from "@server/domain/tasks/contracts/task-repository";
 import { Task } from "@server/domain/tasks/entities/task";
 import type {
@@ -11,7 +12,7 @@ import {
   taskMentions,
   tasks,
 } from "@server/infrastructure/database/schema/tasks";
-import { asc, count, desc, eq, inArray } from "drizzle-orm";
+import { asc, count, desc, eq, inArray, sql } from "drizzle-orm";
 
 type Row = typeof tasks.$inferSelect;
 
@@ -145,6 +146,48 @@ export class DrizzleTaskRepository implements TaskRepository {
       await this.replaceMentions(tx, id, mentions);
       return true;
     });
+  }
+
+  async summary(limit: number): Promise<TaskSummaryRows> {
+    // Uma transação só: as três contagens descrevem a mesma fotografia do banco.
+    return this.db.transaction(
+      async (tx) => {
+        const [totals] = await tx.execute(sql`select
+            count(*) filter (where ${tasks.status} = 'pending')::int as pending,
+            count(*) filter (where ${tasks.status} = 'completed')::int as completed
+          from ${tasks}`);
+        const [unassigned] = await tx.execute(sql`select
+            count(*) filter (where ${tasks.status} = 'pending')::int as pending,
+            count(*) filter (where ${tasks.status} = 'completed')::int as completed
+          from ${tasks}
+          where not exists (
+            select 1 from ${taskMentions} where ${taskMentions.taskId} = ${tasks.id}
+          )`);
+        // Uma tarefa com vários responsáveis conta uma vez para cada um.
+        const assignees = await tx.execute(sql`select
+            ${taskMentions.userId} as user_id,
+            count(*) filter (where ${tasks.status} = 'pending')::int as pending,
+            count(*) filter (where ${tasks.status} = 'completed')::int as completed
+          from ${taskMentions}
+          join ${tasks} on ${tasks.id} = ${taskMentions.taskId}
+          group by ${taskMentions.userId}
+          order by count(*) desc, ${taskMentions.userId} asc
+          limit ${limit}`);
+        const counts = (row?: Record<string, unknown>) => ({
+          pending: Number(row?.pending ?? 0),
+          completed: Number(row?.completed ?? 0),
+        });
+        return {
+          totals: counts(totals),
+          unassigned: counts(unassigned),
+          assignees: assignees.map((row) => ({
+            userId: String(row.user_id),
+            ...counts(row),
+          })),
+        };
+      },
+      { isolationLevel: "repeatable read", accessMode: "read only" }
+    );
   }
 
   async delete(id: string): Promise<boolean> {

@@ -4,6 +4,7 @@ import { deleteTask } from "@server/domain/tasks/application/delete-task";
 import { listMentionableUsers } from "@server/domain/tasks/application/list-mentionable-users";
 import { listTasks } from "@server/domain/tasks/application/list-tasks";
 import { setTaskStatus } from "@server/domain/tasks/application/set-task-status";
+import { summarizeTasks } from "@server/domain/tasks/application/summarize-tasks";
 import { TaskNotFoundError } from "@server/domain/tasks/application/task-not-found";
 import { updateTask } from "@server/domain/tasks/application/update-task";
 import {
@@ -246,4 +247,42 @@ test("a busca de contas para menção respeita o termo e o limite", async () => 
     { id: "user-3", username: null },
   ]);
   expect((await mentionable({ search: "ninguém" })).items).toEqual([]);
+});
+
+test("o resumo agrega por status e por responsável, sem depender de página", async () => {
+  const tasks = new InMemoryTaskRepository();
+  const make = (id: string, mentions: string[]) =>
+    Task.create({ ...input, id, mentions });
+  await tasks.save(make("t1", ["user-2"]));
+  await tasks.save(make("t2", ["user-2", "user-3"]).complete(later));
+  await tasks.save(make("t3", ["user-3"]));
+  await tasks.save(make("t4", []));
+  await tasks.save(make("t5", []).complete(later));
+  // Conta desconhecida sai do recorte em vez de aparecer sem nome.
+  await tasks.save(make("t6", ["removida"]));
+
+  const summary = await summarizeTasks(tasks, directory)();
+  expect(summary).toMatchObject({ total: 6, pending: 4, completed: 2 });
+  expect(summary.unassigned).toEqual({ pending: 1, completed: 1 });
+  expect(
+    summary.assignees.map((row) => [row.user.id, row.pending, row.completed])
+  ).toEqual([
+    ["user-2", 1, 1],
+    ["user-3", 1, 1],
+  ]);
+  expect(summary.assignees[0]?.user.name).toBe("Bruno");
+});
+
+test("o resumo de um quadro vazio não quebra as divisões da tela", async () => {
+  const summary = await summarizeTasks(
+    new InMemoryTaskRepository(),
+    directory
+  )();
+  expect(summary).toEqual({
+    total: 0,
+    pending: 0,
+    completed: 0,
+    unassigned: { pending: 0, completed: 0 },
+    assignees: [],
+  });
 });

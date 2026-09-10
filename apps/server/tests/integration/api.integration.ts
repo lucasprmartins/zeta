@@ -264,6 +264,52 @@ test("migra, autentica, persiste e compartilha tarefas usando a stack real", asy
   );
 }, 30_000);
 
+test("o resumo agrega no banco por status e por responsável", async () => {
+  const author = await signUp("summary-author@example.com");
+  const helper = await signUp("summary-helper@example.com");
+  const before = await (
+    await request("/api/tasks/summary", undefined, author.cookie)
+  ).json();
+
+  const create = async (mentions: string[], done: boolean) => {
+    const task = await (
+      await request(
+        "/api/tasks",
+        { title: "Tarefa do resumo", mentions },
+        author.cookie
+      )
+    ).json();
+    if (done) {
+      await request(
+        `/api/tasks/${task.id}/status`,
+        { status: "completed" },
+        author.cookie,
+        "PATCH"
+      );
+    }
+    return task;
+  };
+  await create([helper.data.user.id], true);
+  await create([helper.data.user.id], false);
+  await create([], false);
+
+  const after = await (
+    await request("/api/tasks/summary", undefined, author.cookie)
+  ).json();
+  expect(after.total).toBe(before.total + 3);
+  expect(after.pending).toBe(before.pending + 2);
+  expect(after.completed).toBe(before.completed + 1);
+  // A tarefa sem ninguém indicado fica fora do recorte por responsável.
+  expect(after.unassigned.pending).toBe(before.unassigned.pending + 1);
+  const helperRow = after.assignees.find(
+    (row: { user: { id: string } }) => row.user.id === helper.data.user.id
+  );
+  expect(helperRow).toMatchObject({ pending: 1, completed: 1 });
+  expect(helperRow.user.name).toBe("Integration User");
+  // Soma das contagens confere com os totais por status.
+  expect(after.pending + after.completed).toBe(after.total);
+});
+
 test("documentação reúne Better Auth, REST e saúde sem referências quebradas", async () => {
   const response = await request("/openapi/json");
   expect(response.status).toBe(200);
