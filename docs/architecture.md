@@ -117,7 +117,7 @@ Os itens permanecem visíveis durante atualização e continuação. Cada tipo d
 
 Em tarefas, a API usa páginas de 20 itens, ordenadas por criação decrescente e ID, sobre o conjunto compartilhado — a lista não é filtrada por autoria. A tela deduplica IDs, mas paginação por offset pode omitir itens sob alterações concorrentes até atualizar a lista. Edições seguem a última gravação, sem versionamento, e como qualquer conta autorizada edita a mesma tarefa, a última gravação pode ser de outra pessoa.
 
-`/tasks` mantém apenas `status` na URL e usa `ToggleGroup` de seleção única. Criação e edição compartilham `TaskForm` em modal, que embute `MentionPicker` quando a conta tem `tasks:mention`; a busca de contas é adiada em 250 ms e cada termo entra na chave da consulta. Cada item mostra o autor e as contas indicadas. `/dashboard` consulta totais e cinco pendentes recentes; os cards abrem a lista com o filtro correspondente.
+`/tasks` mantém apenas `status` na URL e usa `ToggleGroup` de seleção única. Criação e edição compartilham `TaskForm` em modal, que embute `MentionPicker` quando a conta tem `tasks:mention`; a busca de contas é adiada em 250 ms e cada termo entra na chave da consulta. A lista tem colunas de Responsável e Status: a primeira empilha até três avatares, a segunda usa `Badge`. O item mostra apenas o título; abaixo de `sm`, onde não há colunas, status, data e avatares aparecem sob ele. `/dashboard` consulta totais e cinco pendentes recentes; os cards abrem a lista com o filtro correspondente.
 
 ## Interface
 

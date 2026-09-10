@@ -10,8 +10,11 @@ _Avoid_: Projeto, card, ticket, tarefa privada
 **Autor (Author)**: A conta que criou a tarefa. Registra a autoria e não restringe quem consulta ou altera. Fica em branco quando a conta é removida, e a tarefa permanece.
 _Avoid_: Proprietário, dono, responsável
 
-**Menção (Mention)**: Conta indicada em uma tarefa para saber que está relacionada a ela. Qualquer conta do sistema pode ser mencionada, e mencionar não concede nem retira permissões.
-_Avoid_: Atribuição, responsável, convidado
+**Responsável (Assignee)**: Conta indicada em uma tarefa para responder por ela. Qualquer conta do sistema pode ser indicada, e uma tarefa aceita mais de uma. Indicar não concede nem retira permissões. No código, no banco e na permissão o termo antigo `mention` ainda aparece.
+_Avoid_: Menção, convidado, dono da tarefa
+
+**Status (Status)**: Situação atual da tarefa na lista, exibida como etiqueta. Assume Pendente ou Concluída.
+_Avoid_: Estado, fase, etapa
 
 **Pendente (Pending)**: Estado inicial de uma tarefa que ainda precisa ser concluída.
 _Avoid_: Aberta, em andamento

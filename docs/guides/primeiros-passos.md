@@ -13,16 +13,16 @@ Use a página Tarefas para acompanhar o que precisa ser feito. A lista é compar
 
 Selecione Nova tarefa, informe o título e, se necessário, uma descrição. Salve para incluí-la na lista.
 
-## Indique quem está relacionado
+## Indique o responsável
 
-No formulário da tarefa, busque contas por nome ou usuário e selecione quem precisa saber que está relacionado a ela. Os nomes indicados aparecem na lista, junto da tarefa.
+No formulário da tarefa, busque contas por nome ou usuário e selecione quem responde por ela. Os nomes e as fotos indicados aparecem na coluna Responsável da lista.
 
 Indicar alguém é um aviso, não uma transferência: não muda quem pode consultar ou alterar a tarefa.
 
 ## Acompanhe o andamento
 
-Use os filtros para consultar tarefas pendentes ou concluídas. Marque uma tarefa quando terminar; você pode reabri-la se precisar continuar.
+Use os filtros para consultar tarefas pendentes ou concluídas; a coluna Status mostra em que ponto cada uma está. Marque uma tarefa quando terminar; você pode reabri-la se precisar continuar.
 
 ### Mantenha as informações atualizadas
 
-Use o botão de edição para ajustar o título, a descrição ou as contas indicadas.
+Use o botão de edição para ajustar o título, a descrição ou o responsável.

@@ -71,7 +71,8 @@ O módulo `domain/authorization` administra papéis globais e atribuições; o p
 Tarefas são um recurso compartilhado: `tasks:read` alcança todas elas, e as demais ações valem para qualquer tarefa, não só as criadas pela própria conta. Não reintroduza filtro por proprietário nos casos de uso nem no repositório.
 
 - `authorId` registra autoria e aceita nulo. Remover uma conta não apaga o trabalho compartilhado: a chave estrangeira usa `on delete set null` e a leitura mostra a tarefa sem autor.
-- Menções ficam em `task_mentions` e viajam como identificadores na entidade; a aplicação resolve nome e username pelo contrato `UserDirectory` antes de responder. Mencionar não concede nem retira permissão sobre a tarefa.
+- O produto chama esse vínculo de **Responsável**; o código, a tabela `task_mentions` e a permissão `tasks:mention` mantêm o termo anterior. Ao renomear, mude os dois lados de uma vez — não deixe metade da base com cada nome.
+- Responsáveis viajam como identificadores na entidade; a aplicação resolve nome, username e foto pelo contrato `UserDirectory` antes de responder. Indicar alguém não concede nem retira permissão sobre a tarefa.
 - `tasks:mention` protege a busca de contas e a gravação de menções. Criar ou editar sem menções não exige essa ação; enviar menções sem ela responde 403.
 - Só menções de contas existentes são aceitas — o identificador vem do navegador. O limite é `MAX_MENTIONS` na entidade, repetido como constante própria no cliente.
 
@@ -112,7 +113,8 @@ Use rolagem infinita para carregamento progressivo:
 
 - Antes de criar UI, confira `components/ui`, componentes compartilhados e composições existentes. Reutilize-os; quando faltar comportamento, consulte o catálogo oficial via `find-docs`, incluindo opções além de botões, inputs e cards.
 - Incorpore apenas componentes utilizados, adaptando o código oficial conforme `components.json`, licença, tokens e Phosphor. Uma implementação própria precisa de uma necessidade que essas opções não atendam.
-- Componha telas nas features; primitivas e layouts não conhecem regras de negócio ou consultas. Centralize variantes e confira as props locais antes de copiar exemplos: `Button` é nativo, sem `asChild`; links usam `buttonVariants`.
+- Componha telas nas features; primitivas e layouts não conhecem regras de negócio ou consultas. Centralize variantes e confira as props locais antes de copiar exemplos: `Button` e `Badge` são nativos, sem `asChild`; links usam `buttonVariants`.
+- `Avatar` não usa Radix: a troca por iniciais vem do `onError` da imagem, para não adicionar dependência de produção. A API é `<Avatar name image size />`, não a composição `AvatarImage`/`AvatarFallback` do catálogo. Informe `width`/`height` em qualquer `img` — `useImageSize` recusa imagens sem dimensão.
 - Use `Field` para formulários, `Card` para superfícies, `Empty` para estados vazios e skeletons adequados ao conteúdo. Mantenha IDs, descrições e validações acessíveis.
 - Sonner fica uma vez dentro do `ThemeProvider`. Toasts comunicam resultados de ações; erros persistentes de carregamento usam `ErrorNotice`/`Alert`. Notificações não substituem instruções dos campos.
 - Use Phosphor com sufixo `Icon`, peso `regular` e 18 px em navegação/botões. Use `weight`, não `strokeWidth`; não reintroduza Lucide.
