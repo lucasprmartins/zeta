@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { initials } from "../src/lib/initials";
+import { initials, shortName } from "../src/lib/names";
 
 test("as iniciais do avatar cobrem nomes de uma, várias e nenhuma palavra", () => {
   expect(initials("Ana Souza")).toBe("AS");
@@ -12,4 +12,14 @@ test("as iniciais do avatar cobrem nomes de uma, várias e nenhuma palavra", () 
   expect(initials("")).toBe("?");
   // Acentos e caracteres fora do ASCII são preservados; a caixa vem do CSS.
   expect(initials("Ângela Ótimo")).toBe("ÂÓ");
+});
+
+test("o rótulo curto distingue contas que compartilham o primeiro nome", () => {
+  // O caso real: duas contas diferentes apareciam como "Lucas" no mesmo eixo.
+  expect(shortName("Lucas")).toBe("Lucas");
+  expect(shortName("Lucas juvenal")).toBe("Lucas J.");
+  expect(shortName("Lucas")).not.toBe(shortName("Lucas juvenal"));
+  expect(shortName("Ana Maria de Souza")).toBe("Ana S.");
+  expect(shortName("  Bruno  ")).toBe("Bruno");
+  expect(shortName("Extraordinariamente Longo")).toBe("Extraordinar… L.");
 });

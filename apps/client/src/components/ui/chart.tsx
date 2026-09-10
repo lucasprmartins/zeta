@@ -11,6 +11,7 @@ export function ChartContainer({
   config,
   className,
   children,
+  style,
   ...props
 }: Omit<ComponentProps<"div">, "children"> & {
   config: ChartConfig;
@@ -24,12 +25,17 @@ export function ChartContainer({
         className
       )}
       data-slot="chart"
-      style={Object.fromEntries(
-        Object.entries(config).map(([key, item]) => [
-          `--color-${key}`,
-          item.color,
-        ])
-      )}
+      // As variáveis vêm primeiro e o style de quem chama complementa: sobrescrever
+      // o objeto inteiro apagaria as cores e as marcas ficariam sem preenchimento.
+      style={{
+        ...Object.fromEntries(
+          Object.entries(config).map(([key, item]) => [
+            `--color-${key}`,
+            item.color,
+          ])
+        ),
+        ...style,
+      }}
       {...props}
     >
       <ResponsiveContainer>{children}</ResponsiveContainer>

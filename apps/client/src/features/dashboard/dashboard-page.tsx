@@ -14,6 +14,7 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  PolarAngleAxis,
   RadialBar,
   RadialBarChart,
   XAxis,
@@ -40,6 +41,7 @@ import {
 } from "@/components/ui/empty";
 import { type TaskSummary, taskSummaryQuery } from "@/features/tasks/queries";
 import { authClient } from "@/lib/auth";
+import { shortName } from "@/lib/names";
 import { isForbidden, isUnauthorized } from "@/lib/query";
 import { DashboardSkeleton } from "./dashboard-skeleton";
 
@@ -48,12 +50,6 @@ const statusConfig = {
   completed: { label: "Concluídas", color: "var(--chart-1)" },
   pending: { label: "Pendentes", color: "var(--chart-2)" },
 } satisfies ChartConfig;
-
-const NAME_LIMIT = 14;
-const shortName = (name: string) => {
-  const [first = name] = name.trim().split(/\s+/);
-  return first.length > NAME_LIMIT ? `${first.slice(0, NAME_LIMIT)}…` : first;
-};
 
 function StatCard({
   label,
@@ -106,46 +102,52 @@ function ProgressChart({ summary }: { summary: TaskSummary }) {
         <span id="progress-heading">Progresso da equipe</span>
         <TrendUpIcon className="size-[18px]" weight="regular" />
       </div>
-      <div className="relative mx-auto mt-2 w-full max-w-56">
-        <ChartContainer
-          aria-hidden="true"
-          className="aspect-square"
-          config={statusConfig}
-        >
-          <RadialBarChart
-            barSize={14}
-            data={[
-              {
-                name: "completed",
-                value: progress,
-                fill: "var(--color-completed)",
-              },
-            ]}
-            endAngle={-270}
-            innerRadius="72%"
-            outerRadius="100%"
-            startAngle={90}
+      <div className="flex flex-1 flex-col justify-center py-4">
+        <div className="relative mx-auto w-full max-w-52">
+          <ChartContainer
+            aria-hidden="true"
+            className="aspect-square"
+            config={statusConfig}
           >
-            <RadialBar
-              background={{ fill: "var(--muted)" }}
-              cornerRadius={7}
-              dataKey="value"
-              isAnimationActive={false}
-            />
-          </RadialBarChart>
-        </ChartContainer>
-        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-          <span className="font-semibold text-4xl tabular-nums tracking-tight">
-            {progress}
-            <span className="text-lg text-muted-foreground">%</span>
-          </span>
-          <span className="text-muted-foreground text-xs">concluído</span>
+            <RadialBarChart
+              barSize={14}
+              cx="50%"
+              cy="50%"
+              data={[{ name: "completed", value: progress }]}
+              endAngle={-270}
+              innerRadius="76%"
+              outerRadius="98%"
+              startAngle={90}
+            >
+              <PolarAngleAxis
+                angleAxisId={0}
+                domain={[0, 100]}
+                tick={false}
+                type="number"
+              />
+              <RadialBar
+                angleAxisId={0}
+                background={{ fill: "var(--muted)" }}
+                cornerRadius={7}
+                dataKey="value"
+                fill="var(--color-completed)"
+                isAnimationActive={false}
+              />
+            </RadialBarChart>
+          </ChartContainer>
+          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+            <span className="font-semibold text-4xl tabular-nums tracking-tight">
+              {progress}
+              <span className="text-lg text-muted-foreground">%</span>
+            </span>
+            <span className="text-muted-foreground text-xs">concluído</span>
+          </div>
         </div>
+        <p className="mt-4 text-center text-muted-foreground text-xs">
+          {summary.completed} de {summary.total}{" "}
+          {summary.total === 1 ? "tarefa concluída" : "tarefas concluídas"}
+        </p>
       </div>
-      <p className="mt-2 text-center text-muted-foreground text-xs">
-        {summary.completed} de {summary.total}{" "}
-        {summary.total === 1 ? "tarefa concluída" : "tarefas concluídas"}
-      </p>
     </Card>
   );
 }

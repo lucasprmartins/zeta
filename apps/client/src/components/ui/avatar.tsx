@@ -3,7 +3,7 @@
 
 import { cva, type VariantProps } from "class-variance-authority";
 import { type ComponentProps, useState } from "react";
-import { initials } from "@/lib/initials";
+import { initials } from "@/lib/names";
 import { cn } from "@/lib/utils";
 
 const avatarVariants = cva(
