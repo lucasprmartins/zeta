@@ -1,6 +1,7 @@
 import { XIcon } from "@phosphor-icons/react";
-import { type ReactNode, useEffect, useId, useRef } from "react";
+import { type ReactNode, useId } from "react";
 import { Button } from "./button";
+import { useModalDialog } from "./use-modal-dialog";
 
 // Montar somente quando aberto. O dialog nativo contém o foco e o devolve ao acionador.
 export function Modal({
@@ -18,52 +19,8 @@ export function Modal({
   children: ReactNode;
   variant?: "form" | "confirmation";
 }) {
-  const ref = useRef<HTMLDialogElement>(null);
+  const ref = useModalDialog(variant === "confirmation");
   const id = useId();
-  // biome-ignore lint/correctness/useExhaustiveDependencies: abrir, focar e restaurar acontece só na montagem.
-  useEffect(() => {
-    const dialog = ref.current!;
-    const trigger =
-      document.activeElement instanceof HTMLElement
-        ? document.activeElement
-        : null;
-    // No celular, abra sem acionar o teclado antes de o usuário escolher um campo.
-    const mobile = window.matchMedia("(max-width: 639px)").matches;
-    const heading = dialog.querySelector<HTMLElement>("h2");
-    heading?.setAttribute("autofocus", "");
-    dialog.showModal();
-    const initialFocus =
-      mobile && variant === "form"
-        ? heading
-        : (dialog.querySelector<HTMLElement>("[data-modal-autofocus]") ??
-          heading);
-    initialFocus?.focus({ preventScroll: true });
-    const viewport = window.visualViewport;
-    const fitViewport = () => {
-      dialog.style.setProperty(
-        "--dialog-height",
-        `${viewport?.height ?? window.innerHeight}px`
-      );
-      dialog.style.setProperty("--dialog-top", `${viewport?.offsetTop ?? 0}px`);
-    };
-    fitViewport();
-    viewport?.addEventListener("resize", fitViewport);
-    viewport?.addEventListener("scroll", fitViewport);
-    const overflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      viewport?.removeEventListener("resize", fitViewport);
-      viewport?.removeEventListener("scroll", fitViewport);
-      dialog.close();
-      document.body.style.overflow = overflow;
-      // O item acionador pode desaparecer após uma exclusão ou mudança de filtro.
-      if (trigger?.isConnected) {
-        trigger.focus();
-      } else {
-        document.getElementById("main-content")?.focus();
-      }
-    };
-  }, []);
   return (
     // biome-ignore lint/a11y/useKeyWithClickEvents: Escape é tratado por onCancel do dialog nativo.
     // biome-ignore lint/a11y/noNoninteractiveElementInteractions: o clique só fecha pelo backdrop.
