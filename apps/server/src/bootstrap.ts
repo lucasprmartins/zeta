@@ -1,4 +1,5 @@
 import { deleteTask } from "@server/domain/tasks/application/delete-task";
+import { getTask } from "@server/domain/tasks/application/get-task";
 import { setTaskStatus } from "@server/domain/tasks/application/set-task-status";
 import { updateTask } from "@server/domain/tasks/application/update-task";
 import { sql } from "drizzle-orm";
@@ -36,6 +37,7 @@ export async function bootstrap(env: Env) {
         now: () => new Date().toISOString(),
       }),
       list: listTasks(tasks, directory),
+      get: getTask(tasks, directory),
       update: updateTask(tasks, directory, () => new Date().toISOString()),
       setStatus: setTaskStatus(tasks, directory, () =>
         new Date().toISOString()

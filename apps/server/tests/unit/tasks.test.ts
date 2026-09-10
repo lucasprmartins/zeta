@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { createTask } from "@server/domain/tasks/application/create-task";
 import { deleteTask } from "@server/domain/tasks/application/delete-task";
+import { getTask } from "@server/domain/tasks/application/get-task";
 import { listMentionableUsers } from "@server/domain/tasks/application/list-mentionable-users";
 import { listTasks } from "@server/domain/tasks/application/list-tasks";
 import { setTaskStatus } from "@server/domain/tasks/application/set-task-status";
@@ -285,4 +286,27 @@ test("o resumo de um quadro vazio não quebra as divisões da tela", async () =>
     unassigned: { pending: 0, completed: 0 },
     assignees: [],
   });
+});
+
+test("consulta individual independe da paginação e preserva tarefa sem autor", async () => {
+  const tasks = new InMemoryTaskRepository();
+  for (let i = 0; i < 25; i++) {
+    await tasks.save(Task.create({ ...input, id: `task-${i}` }));
+  }
+  await tasks.save(
+    Task.restore({
+      ...Task.create({ ...input, id: "orphan", mentions: ["user-2"] }).toJSON(),
+      authorId: null,
+    })
+  );
+  const view = await getTask(tasks, directory)({ id: "orphan" });
+  expect(view).toMatchObject({
+    id: "orphan",
+    authorId: null,
+    author: null,
+    mentions: [{ name: "Bruno" }],
+  });
+  await expect(getTask(tasks, directory)({ id: "missing" })).rejects.toThrow(
+    TaskNotFoundError
+  );
 });

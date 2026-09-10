@@ -1,11 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import { createTask } from "@server/domain/tasks/application/create-task";
 import { deleteTask } from "@server/domain/tasks/application/delete-task";
+import { getTask } from "@server/domain/tasks/application/get-task";
 import { listMentionableUsers } from "@server/domain/tasks/application/list-mentionable-users";
 import { listTasks } from "@server/domain/tasks/application/list-tasks";
 import { setTaskStatus } from "@server/domain/tasks/application/set-task-status";
 import { summarizeTasks } from "@server/domain/tasks/application/summarize-tasks";
 import { updateTask } from "@server/domain/tasks/application/update-task";
+import { Task } from "@server/domain/tasks/entities/task";
 import { createApp } from "@server/interfaces/http/app";
 import { createRouter } from "@server/interfaces/http/rpc/router";
 import {
@@ -40,6 +42,7 @@ async function setup(
         now: () => new Date().toISOString(),
       }),
       list: listTasks(tasks, directory),
+      get: getTask(tasks, directory),
       update: updateTask(tasks, directory, () => new Date().toISOString()),
       setStatus: setTaskStatus(tasks, directory, () =>
         new Date().toISOString()
@@ -59,16 +62,18 @@ async function setup(
               grants:
                 options.role === "unknown"
                   ? []
-                  : [
-                      "tasks:read",
-                      "tasks:create",
-                      "tasks:update",
-                      "tasks:set-status",
-                      "tasks:delete",
-                      ...(options.role === "no-mention"
-                        ? []
-                        : ["tasks:mention"]),
-                    ],
+                  : options.role === "reader"
+                    ? ["tasks:read"]
+                    : [
+                        "tasks:read",
+                        "tasks:create",
+                        "tasks:update",
+                        "tasks:set-status",
+                        "tasks:delete",
+                        ...(options.role === "no-mention"
+                          ? []
+                          : ["tasks:mention"]),
+                      ],
             }
           : null;
       },
@@ -133,6 +138,7 @@ describe("HTTP e RPC", () => {
     const id = "00000000-0000-4000-8000-000000000001";
     for (const [operation, input] of [
       ["list", {}],
+      ["get", { id }],
       ["create", { title: "Denied" }],
       ["update", { id, title: "Denied" }],
       ["setStatus", { id, status: "completed" }],
@@ -323,4 +329,69 @@ describe("HTTP e RPC", () => {
     const list = await (await rpc("list", undefined, "user-1")).json();
     expect(list.json.items).toHaveLength(1);
   });
+});
+
+test("consulta individual exige sessão, valida ID e hidrata a tarefa via RPC e REST", async () => {
+  const { rpc, app } = await setup();
+  const response = await rpc(
+    "create",
+    { title: "Detalhes", description: "Texto completo", mentions: ["user-2"] },
+    "user-1"
+  );
+  const created = (await response.json()).json;
+  expect((await rpc("get", { id: created.id })).status).toBe(401);
+  expect((await rpc("get", { id: "invalid" }, "user-2")).status).toBe(400);
+  expect(
+    (await rpc("get", { id: "00000000-0000-4000-8000-0000000000ff" }, "user-2"))
+      .status
+  ).toBe(404);
+  const read = await rpc("get", { id: created.id }, "user-2");
+  expect(read.status).toBe(200);
+  expect((await read.json()).json).toMatchObject({
+    id: created.id,
+    description: "Texto completo",
+    author: { name: "Ana" },
+    mentions: [{ name: "Bruno" }],
+  });
+  const rest = await app.handle(
+    new Request(`http://localhost/api/tasks/${created.id}`, {
+      headers: { "x-test-user": "user-2" },
+    })
+  );
+  expect(rest.status).toBe(200);
+  expect(await rest.json()).toMatchObject({
+    id: created.id,
+    title: "Detalhes",
+  });
+  await rpc("delete", { id: created.id }, "user-1");
+  expect((await rpc("get", { id: created.id }, "user-2")).status).toBe(404);
+});
+
+test("somente tasks:read permite consultar detalhes de outra autoria, sem editar", async () => {
+  const { rpc, app, tasks } = await setup({ role: "reader" });
+  const id = "00000000-0000-4000-8000-000000000001";
+  await tasks.save(
+    Task.create({
+      id,
+      authorId: "user-1",
+      title: "Leitura compartilhada",
+      description: "Completa",
+      mentions: ["user-1"],
+      createdAt: "2026-09-10T12:00:00.000Z",
+    })
+  );
+  expect((await rpc("get", { id }, "user-2")).status).toBe(200);
+  const response = await app.handle(
+    new Request(`http://localhost/api/tasks/${id}`, {
+      headers: { "x-test-user": "user-2" },
+    })
+  );
+  expect(response.status).toBe(200);
+  expect(await response.json()).toMatchObject({
+    author: { name: "Ana" },
+    mentions: [{ name: "Ana" }],
+  });
+  expect(
+    (await rpc("update", { id, title: "Não permitido" }, "user-2")).status
+  ).toBe(403);
 });

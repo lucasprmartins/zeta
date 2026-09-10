@@ -1,6 +1,7 @@
 import { ORPCError } from "@orpc/server";
 import type { createTask } from "@server/domain/tasks/application/create-task";
 import type { deleteTask } from "@server/domain/tasks/application/delete-task";
+import type { getTask } from "@server/domain/tasks/application/get-task";
 import type { listMentionableUsers } from "@server/domain/tasks/application/list-mentionable-users";
 import type { listTasks } from "@server/domain/tasks/application/list-tasks";
 import type { setTaskStatus } from "@server/domain/tasks/application/set-task-status";
@@ -27,6 +28,7 @@ import {
 export type TaskUseCases = {
   create: ReturnType<typeof createTask>;
   list: ReturnType<typeof listTasks>;
+  get: ReturnType<typeof getTask>;
   update: ReturnType<typeof updateTask>;
   setStatus: ReturnType<typeof setTaskStatus>;
   delete: ReturnType<typeof deleteTask>;
@@ -108,6 +110,17 @@ export function createTasksRouter(useCases: TaskUseCases) {
       })
       .output(summaryOutput)
       .handler(() => useCases.summary()),
+    get: procedure
+      .use(requirePermission(permissions.tasks.read))
+      .route({
+        ...route,
+        method: "GET",
+        path: "/tasks/{id}",
+        summary: "Consultar tarefa",
+      })
+      .input(idInput)
+      .output(taskOutput)
+      .handler(({ input }) => useCases.get(input)),
     update: procedure
       .use(requirePermission(permissions.tasks.update))
       .route({
