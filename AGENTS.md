@@ -50,7 +50,7 @@ Os caminhos `server/` e `client/` da tabela são relativos a `apps/`; versões e
 ## Domínio, HTTP e autenticação
 
 - Defina módulos e regras a partir do produto, usando apenas as pastas necessárias. Não imponha CRUD, proprietário individual ou estados herdados de outro módulo. Atualize `CONTEXT.md` quando mudar regras ou vocabulário.
-- Autorize cada operação, inclusive listagens. Identidade e escopo vêm de uma sessão validada ou de outro chamador confiável, nunca de um proprietário enviado pelo navegador. Não revele recursos privados fora do escopo autorizado.
+- Autorize cada operação, inclusive listagens. Identidade vem de uma sessão validada ou de outro chamador confiável, nunca de um autor ou proprietário enviado pelo navegador. Não revele recursos privados fora do escopo autorizado.
 - `/rpc/*` e `/api` usam as mesmas procedures e casos de uso via `RPCHandler` e `OpenAPIHandler`. Defina rotas com `.route()` e mantenha validação e JSON Schema coerentes com `documented()`.
 - `/api/auth/*` pertence ao Better Auth. `/health` verifica o processo; `/ready`, o banco. `/openapi` e `/openapi/json` servem Scalar e especificação. Altere a origem dos schemas e o agrupamento em `interfaces/http/openapi`, não documentos gerados.
 - Aguarde `createApp` e `bootstrap`; são assíncronos. Preserve o fechamento do pool na falha de inicialização e no encerramento.
@@ -62,9 +62,18 @@ Os caminhos `server/` e `client/` da tabela são relativos a `apps/`; versões e
 
 ## Autorização por permissões
 
-`packages/access` define ações e rótulos públicos; concessões dos papéis ficam no banco. Use permissões, não nomes de papéis, nas funcionalidades. Procedures aplicam `requirePermission`; navegação, páginas e controles usam `usePermissions`, `PermissionBoundary` e `Can` dentro de `AccessProvider`. A API consulta as concessões atuais em cada requisição. O cliente consulta `/access/me` e limpa dados afetados quando elas mudam. `admin` recebe automaticamente todas as ações do catálogo; `user` e papéis personalizados usam concessões explícitas. Esse acesso total não altera o escopo dos dados: papéis não concedem acesso aos registros de outro proprietário.
+`packages/access` define ações e rótulos públicos; concessões dos papéis ficam no banco. Use permissões, não nomes de papéis, nas funcionalidades. Procedures aplicam `requirePermission`; navegação, páginas e controles usam `usePermissions`, `PermissionBoundary` e `Can` dentro de `AccessProvider`. A API consulta as concessões atuais em cada requisição. O cliente consulta `/access/me` e limpa dados afetados quando elas mudam. `admin` recebe automaticamente todas as ações do catálogo; `user` e papéis personalizados usam concessões explícitas. O alcance de cada ação pertence à funcionalidade que a define, não ao papel: consulte o módulo antes de presumir que uma permissão se limita aos registros criados pela própria conta.
 
 O módulo `domain/authorization` administra papéis globais e atribuições; o plugin Admin do Better Auth mantém operações nativas limitadas de contas/sessões. Todas as atribuições, inclusive via CLI, passam pelo mesmo fluxo transacional para preservar o último administrador. Não reabilite mutações alternativas do plugin que contornem essas regras. Política de cadastro e aprovação são independentes e persistidas; preserve a aplicação no Better Auth e o bloqueio de sessões pendentes, sem depender da visibilidade dos controles no cliente. Consulte [docs/authorization.md](docs/authorization.md) para extensão e operação.
+
+## Tarefas
+
+Tarefas são um recurso compartilhado: `tasks:read` alcança todas elas, e as demais ações valem para qualquer tarefa, não só as criadas pela própria conta. Não reintroduza filtro por proprietário nos casos de uso nem no repositório.
+
+- `authorId` registra autoria e aceita nulo. Remover uma conta não apaga o trabalho compartilhado: a chave estrangeira usa `on delete set null` e a leitura mostra a tarefa sem autor.
+- Menções ficam em `task_mentions` e viajam como identificadores na entidade; a aplicação resolve nome e username pelo contrato `UserDirectory` antes de responder. Mencionar não concede nem retira permissão sobre a tarefa.
+- `tasks:mention` protege a busca de contas e a gravação de menções. Criar ou editar sem menções não exige essa ação; enviar menções sem ela responde 403.
+- Só menções de contas existentes são aceitas — o identificador vem do navegador. O limite é `MAX_MENTIONS` na entidade, repetido como constante própria no cliente.
 
 ## Guia de Uso
 

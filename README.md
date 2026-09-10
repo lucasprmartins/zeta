@@ -34,7 +34,7 @@ Bun de ponta a ponta · Domínio independente · Autenticação pronta · Interf
 
 O Zeta reúne a infraestrutura comum de uma aplicação web para você concentrar o trabalho nas regras do seu produto. O monorepo usa workspaces nativos do Bun, composição explícita de dependências e um domínio que não importa frameworks ou banco de dados.
 
-O gerenciador de tarefas é um **exemplo completo de implementação**: entidade, contrato, caso de uso, persistência, API e interface. Use-o para entender o fluxo e desenvolver seu próprio domínio.
+O gerenciador de tarefas é um **exemplo completo de implementação**: entidade, contrato, caso de uso, persistência, API e interface. As tarefas são compartilhadas entre as contas autorizadas e podem indicar quem está relacionado a elas, mostrando como modelar um recurso coletivo com autoria e permissões próprias. Use-o para entender o fluxo e desenvolver seu próprio domínio.
 
 ## Começar
 

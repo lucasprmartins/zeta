@@ -1,14 +1,17 @@
 # Gerenciamento de tarefas
 
-Um espaço pessoal para registrar o que precisa ser feito e acompanhar sua conclusão.
+Um espaço compartilhado para registrar o que precisa ser feito, à vista de todas as contas autorizadas.
 
 ## Language
 
-**Tarefa (Task)**: Uma atividade com título, descrição opcional e estado. Pertence a um único proprietário.
-_Avoid_: Projeto, card, ticket
+**Tarefa (Task)**: Uma atividade com título, descrição opcional e estado. É visível a todas as contas que podem consultar tarefas; não pertence a ninguém em exclusividade.
+_Avoid_: Projeto, card, ticket, tarefa privada
 
-**Proprietário (Owner)**: A pessoa que criou a tarefa e é a única que pode consultá-la ou alterá-la.
-_Avoid_: Responsável, colaborador
+**Autor (Author)**: A conta que criou a tarefa. Registra a autoria e não restringe quem consulta ou altera. Fica em branco quando a conta é removida, e a tarefa permanece.
+_Avoid_: Proprietário, dono, responsável
+
+**Menção (Mention)**: Conta indicada em uma tarefa para saber que está relacionada a ela. Qualquer conta do sistema pode ser mencionada, e mencionar não concede nem retira permissões.
+_Avoid_: Atribuição, responsável, convidado
 
 **Pendente (Pending)**: Estado inicial de uma tarefa que ainda precisa ser concluída.
 _Avoid_: Aberta, em andamento
@@ -22,13 +25,13 @@ _Avoid_: Restaurar, desfazer exclusão
 
 ## Controle de acesso
 
-**Papel (Role)**: Conjunto nomeado de ações permitidas, atribuído a uma conta. Não altera a propriedade dos dados.
+**Papel (Role)**: Conjunto nomeado de ações permitidas, atribuído a uma conta. Não concede nada além das ações que lista.
 _Avoid_: Cargo, organização
 
-**Permissão (Permission)**: Autorização para uma ação específica de uma funcionalidade, como consultar ou criar tarefas.
+**Permissão (Permission)**: Autorização para uma ação específica de uma funcionalidade, como consultar ou criar tarefas. O alcance de cada ação é definido pela funcionalidade: em tarefas, quem pode editar edita qualquer uma.
 _Avoid_: Acesso total, nível
 
-**Administrador (Admin)**: Usuário autorizado a configurar papéis e atribuí-los às contas. Suas tarefas continuam privadas, como as dos demais usuários.
+**Administrador (Admin)**: Usuário autorizado a configurar papéis e atribuí-los às contas. Não tem sobre as tarefas nenhum alcance além do que o catálogo de permissões concede.
 _Avoid_: Proprietário de todas as tarefas
 
 ## Guia de Uso

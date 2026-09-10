@@ -8,7 +8,7 @@ A autenticação pertence ao Better Auth. A autorização de funcionalidades usa
 - Apenas `admin` administra contas, papéis e atribuições. `access:manage` é reservado; papéis personalizados só recebem ações do catálogo de funcionalidades.
 - `user` e papéis personalizados podem ter nome, cor e permissões de funcionalidades editados pelo painel. `admin` permite editar apenas nome e cor: recebe automaticamente todas as ações atuais e futuras do catálogo, além de `access:manage`; sua lista persistida de concessões não limita esse acesso. A cor usa hexadecimal de seis dígitos e aparece junto ao nome, nunca como único identificador. `user` e `admin` preservam seus IDs e não podem ser excluídos; `admin` sempre conserva `access:manage`. Papéis personalizados podem ser criados e excluídos. O nome tem até 60 caracteres; há no máximo 100 papéis, incluindo os protegidos. A lista de papéis é carregada por inteiro para edição/seleção; usuários usam rolagem infinita de 20 itens por página, ordenados por nome do papel, ID do papel, nome e ID do usuário. A interface agrupa os itens carregados por ID do papel; os grupos continuam nas próximas páginas e não representam contagens totais.
 - Papéis atribuídos não podem ser excluídos. Reatribua seus usuários primeiro. O último administrador ativo não pode perder seu papel; contas bloqueadas ou pendentes de aprovação não contam nessa proteção.
-- Permissões liberam ações, não outros proprietários. Administradores também mantêm tarefas privadas. Concessões desconhecidas ou removidas do catálogo não liberam acesso.
+- Permissões liberam ações; o alcance de cada ação pertence à funcionalidade. Em tarefas, quem tem a ação alcança qualquer tarefa, inclusive as de outras contas. Concessões desconhecidas ou removidas do catálogo não liberam acesso.
 
 O painel cria e edita nome, username, e-mail, papel e senha por `/api/access/users` (POST) e `/api/access/users/{userId}` (PATCH), também disponíveis em RPC. A busca filtra a lista por trechos de nome, nome de usuário ou e-mail, sem diferenciar maiúsculas e sem interpretar curingas. O filtro fica em `q` na URL e é aplicado no servidor antes da paginação; a edição abre pelo botão de cada usuário.
 
@@ -77,7 +77,7 @@ A API resolve sessão sem cache de cookie e carrega concessões em cada requisi�
 
 `AccessProvider` consulta `access.me` por identidade na entrada, no foco/reconexão e a cada 15 segundos em abas ativas. Mudanças de papel ou concessões cancelam e reiniciam os dados afetados; respostas 403 também forçam atualização das permissões. Outras abas convergem no próximo foco ou intervalo. A revogação na API independe dessa atualização visual. Erro ao carregar permissões bloqueia o conteúdo e oferece nova tentativa.
 
-O frontend nunca substitui a autorização no servidor. Consultas iniciadas por loaders também precisam de endpoints protegidos. Mantenha os checks por proprietário nos casos de uso.
+O frontend nunca substitui a autorização no servidor. Consultas iniciadas por loaders também precisam de endpoints protegidos. Mantenha nos casos de uso os checks de escopo que a funcionalidade exigir.
 
 ## Primeiro administrador
 

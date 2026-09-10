@@ -26,7 +26,7 @@ O histórico permanece em `drizzle.migrations`. `drizzle.config.ts` limita intro
 
 ### RLS
 
-RLS não é obrigatório nesta arquitetura e permanece desativado. O navegador usa a API, que valida sessão/permissões; repositórios de dados privados filtram pelo proprietário validado. Os testes de integração verificam isolamento entre contas. Essa proteção depende da correção das consultas; RLS pode acrescentar defesa contra filtros esquecidos, especialmente em produtos com múltiplos tenants ou outros consumidores do banco.
+RLS não é obrigatório nesta arquitetura e permanece desativado. O navegador usa a API, que valida sessão/permissões; repositórios de dados privados filtram pelo escopo validado na sessão, e recursos compartilhados como as tarefas dependem apenas da permissão. Os testes de integração verificam esse alcance entre contas. Essa proteção depende da correção das consultas; RLS pode acrescentar defesa contra filtros esquecidos, especialmente em produtos com múltiplos tenants ou outros consumidores do banco.
 
 A API e o migrador hoje compartilham `DATABASE_URL`; no Compose, o usuário inicial é superusuário. Antes de adotar RLS, separe credenciais de migração e runtime, use um papel de runtime sem superusuário/BYPASSRLS e trate a propriedade das tabelas. A identidade validada precisa ser definida localmente na mesma transação/conexão das consultas, sem vazar entre requisições do pool. Planeje políticas por operação e fluxos de autenticação/administração separadamente.
 
@@ -46,7 +46,7 @@ Caminhos relativos a `apps/server/src`:
 | `config/env.ts` | Validação do ambiente |
 | `bootstrap.ts` / `main.ts` | Composição / ciclo de vida do processo |
 
-O HTTP deriva a identidade da sessão e passa o escopo confiável aos casos de uso. As operações privadas aplicam autorização também nas listagens. O domínio não recebe objetos de sessão nem tipos HTTP.
+O HTTP deriva a identidade da sessão e passa o escopo confiável aos casos de uso — nas tarefas, a identidade vira autoria, não filtro. Toda operação aplica autorização, inclusive as listagens. O domínio não recebe objetos de sessão nem tipos HTTP.
 
 ### Transporte e persistência
 
@@ -115,9 +115,9 @@ TanStack Query armazena dados de negócio com chaves por identidade, formato e f
 
 Os itens permanecem visíveis durante atualização e continuação. Cada tipo de erro tem feedback próprio; falha de atualização pausa a continuação. Após mutations, a invalidação recompõe as páginas carregadas.
 
-Em tarefas, a API usa páginas de 20 itens, ordenadas por criação decrescente e ID. A tela deduplica IDs, mas paginação por offset pode omitir itens sob alterações concorrentes até atualizar a lista. Edições seguem a última gravação, sem versionamento.
+Em tarefas, a API usa páginas de 20 itens, ordenadas por criação decrescente e ID, sobre o conjunto compartilhado — a lista não é filtrada por autoria. A tela deduplica IDs, mas paginação por offset pode omitir itens sob alterações concorrentes até atualizar a lista. Edições seguem a última gravação, sem versionamento, e como qualquer conta autorizada edita a mesma tarefa, a última gravação pode ser de outra pessoa.
 
-`/tasks` mantém apenas `status` na URL e usa `ToggleGroup` de seleção única. Criação e edição compartilham `TaskForm` em modal. `/dashboard` consulta totais e cinco pendentes recentes; os cards abrem a lista com o filtro correspondente.
+`/tasks` mantém apenas `status` na URL e usa `ToggleGroup` de seleção única. Criação e edição compartilham `TaskForm` em modal, que embute `MentionPicker` quando a conta tem `tasks:mention`; a busca de contas é adiada em 250 ms e cada termo entra na chave da consulta. Cada item mostra o autor e as contas indicadas. `/dashboard` consulta totais e cinco pendentes recentes; os cards abrem a lista com o filtro correspondente.
 
 ## Interface
 
