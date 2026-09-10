@@ -23,8 +23,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyTitle } from "@/components/ui/empty";
+import { Skeleton } from "@/components/ui/skeleton";
 import { permissions } from "@/lib/access";
-import { GuideContent } from "./content";
+import { GuideContent, GuideOutline } from "./content";
 import { guideQuery, guidesQuery } from "./queries";
 
 // Leitores e administradores usam a mesma página; a permissão decide o que aparece além da leitura.
@@ -183,6 +184,25 @@ export function GuidesPage({ userId }: { userId: string }) {
     </PageContent>
   );
 }
+function GuideReadSkeleton() {
+  return (
+    <div className="space-y-8" role="status">
+      <span className="sr-only">Carregando guia…</span>
+      <div className="space-y-3">
+        <Skeleton className="h-5 w-24 rounded-full" />
+        <Skeleton className="h-8 w-72 max-w-full" />
+      </div>
+      <div className="max-w-[68ch] space-y-3 border-t pt-8">
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-11/12" />
+        <Skeleton className="h-4 w-10/12" />
+        <Skeleton className="mt-8 h-6 w-52" />
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-9/12" />
+      </div>
+    </div>
+  );
+}
 export function GuideReadPage({
   userId,
   slug,
@@ -197,7 +217,7 @@ export function GuideReadPage({
     <PageContent>
       <BackLink to="/help/guides">Guia de uso</BackLink>
       {query.isPending ? (
-        <Loading />
+        <GuideReadSkeleton />
       ) : query.isError ? (
         <ErrorNotice
           message="Este guia não está disponível para seu acesso ou não pôde ser carregado."
@@ -218,12 +238,16 @@ export function GuideReadPage({
                 </Link>
               ) : undefined
             }
-            description={query.data.section}
+            eyebrow={<Badge variant="outline">{query.data.section}</Badge>}
             title={query.data.title}
           />
-          <article className="w-full max-w-3xl">
-            <GuideContent markdown={query.data.markdown} />
-          </article>
+          {/* O índice acompanha a leitura no desktop e recolhe acima dele no mobile. */}
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_15rem] lg:gap-14">
+            <GuideOutline markdown={query.data.markdown} />
+            <article className="min-w-0 max-w-[68ch] border-t pt-8 lg:col-start-1 lg:row-start-1">
+              <GuideContent markdown={query.data.markdown} />
+            </article>
+          </div>
         </>
       )}
     </PageContent>
