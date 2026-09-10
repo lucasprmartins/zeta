@@ -27,6 +27,8 @@ export function listTasks(tasks: TaskRepository, users: UserDirectory) {
       total: result.total,
       page,
       pageSize,
+      // Mesmo envelope das demais listagens: o cliente não recalcula a próxima página.
+      hasMore: page * pageSize < result.total,
     };
   };
 }

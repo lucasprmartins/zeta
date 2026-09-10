@@ -155,12 +155,13 @@ export const taskListOutput = documented(
   type<Awaited<ReturnType<ReturnType<typeof listTasks>>>>(),
   {
     type: "object",
-    required: ["items", "total", "page", "pageSize"],
+    required: ["items", "total", "page", "pageSize", "hasMore"],
     properties: {
       items: { type: "array", items: task, maxItems: 20 },
       total: { type: "integer" },
       page: { type: "integer" },
       pageSize: { type: "integer", const: 20 },
+      hasMore: { type: "boolean" },
     },
   }
 );
