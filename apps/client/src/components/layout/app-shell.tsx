@@ -119,6 +119,7 @@ export function AppShell({ title, user, leaving, onSignOut, children }: Props) {
             className="inline-flex size-11 items-center justify-center rounded-md hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 lg:hidden"
             onClick={() => setMobileOpen(true)}
             ref={menuTrigger}
+            type="button"
           >
             <ListIcon className="size-[18px]" />
           </button>
@@ -145,6 +146,8 @@ export function AppShell({ title, user, leaving, onSignOut, children }: Props) {
         </main>
       </div>
 
+      {/* biome-ignore lint/a11y/useKeyWithClickEvents: Escape é tratado por onCancel do dialog nativo. */}
+      {/* biome-ignore lint/a11y/noNoninteractiveElementInteractions: o clique só fecha a gaveta pelo backdrop. */}
       <dialog
         aria-label="Menu de navegação"
         className="mobile-drawer border-0 border-r bg-sidebar p-0 text-foreground shadow-xl backdrop:bg-black/30"

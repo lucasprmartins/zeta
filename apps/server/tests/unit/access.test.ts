@@ -62,7 +62,9 @@ function setup() {
       allowSignUp: true,
       requireApproval: false,
     }),
-    saveRegistrationPolicy: async () => {},
+    saveRegistrationPolicy: async () => {
+      // A política não é persistida no repositório em memória.
+    },
     pendingUsers: async () => ({ items: [], hasMore: false }),
     pendingCount: async () => 0,
     approve: async () => false,

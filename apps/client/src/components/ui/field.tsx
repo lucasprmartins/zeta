@@ -14,6 +14,7 @@ export function Field({ className, ...props }: ComponentProps<"div">) {
 
 export function FieldLabel({ className, ...props }: ComponentProps<"label">) {
   return (
+    // biome-ignore lint/a11y/noLabelWithoutControl: a associação vem do htmlFor informado por quem usa o campo.
     <label
       className={cn("font-medium text-sm leading-relaxed", className)}
       data-slot="field-label"

@@ -20,6 +20,7 @@ export function Modal({
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const id = useId();
+  // biome-ignore lint/correctness/useExhaustiveDependencies: abrir, focar e restaurar acontece só na montagem.
   useEffect(() => {
     const dialog = ref.current!;
     const trigger =
@@ -64,6 +65,8 @@ export function Modal({
     };
   }, []);
   return (
+    // biome-ignore lint/a11y/useKeyWithClickEvents: Escape é tratado por onCancel do dialog nativo.
+    // biome-ignore lint/a11y/noNoninteractiveElementInteractions: o clique só fecha pelo backdrop.
     <dialog
       aria-describedby={`${id}-description`}
       aria-labelledby={`${id}-title`}

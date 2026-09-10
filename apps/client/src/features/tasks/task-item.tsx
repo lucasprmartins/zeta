@@ -32,6 +32,7 @@ export function TaskItem({
   const completed = task.status === "completed";
   return (
     <li className="group grid grid-cols-[44px_minmax(0,1fr)] items-start gap-2 border-b px-3 py-3 last:border-b-0 hover:bg-sidebar/70 sm:flex sm:items-center sm:gap-3 sm:px-4">
+      {/* biome-ignore lint/a11y/useSemanticElements: alternar status é uma ação, não um campo de formulário. */}
       <button
         aria-checked={completed}
         aria-label={`${completed ? "Reabrir" : "Concluir"} ${task.title}`}

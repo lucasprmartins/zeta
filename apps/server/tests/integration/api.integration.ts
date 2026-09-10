@@ -1011,7 +1011,7 @@ test("persiste cores e pagina usuários em grupos contíguos por papel", async (
     const role = i < 12 ? groupA.id : groupB.id;
     // Nomes em ordem inversa comprovam que o papel precede o nome da conta.
     await database.db.execute(
-      sql`insert into auth.user (id, name, email, role) values (${id}, ${i < 12 ? "Zeta" : "Alpha"}, ${id + "@example.com"}, ${role})`
+      sql`insert into auth.user (id, name, email, role) values (${id}, ${i < 12 ? "Zeta" : "Alpha"}, ${`${id}@example.com`}, ${role})`
     );
   }
   const page1 = await (

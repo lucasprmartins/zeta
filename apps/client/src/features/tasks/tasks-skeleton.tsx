@@ -1,5 +1,8 @@
 import { Skeleton } from "@/components/ui/skeleton";
 
+// Linhas fixas do esqueleto: identidade estável, sem depender do índice.
+const rows = ["first", "second", "third", "fourth", "fifth"];
+
 export function TasksSkeleton() {
   return (
     <div aria-label="Buscando tarefas…" className="divide-y" role="status">
@@ -10,11 +13,11 @@ export function TasksSkeleton() {
       >
         <Skeleton className="h-3 w-20" />
       </div>
-      {Array.from({ length: 5 }, (_, index) => (
+      {rows.map((row) => (
         <div
           aria-hidden="true"
           className="flex items-center gap-4 px-5 py-5"
-          key={index}
+          key={row}
         >
           <Skeleton className="size-5 shrink-0" />
           <div className="min-w-0 flex-1 space-y-2">

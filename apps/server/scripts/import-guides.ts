@@ -41,7 +41,8 @@ const parsed = await Promise.all(
       return guide;
     } catch (error) {
       throw new Error(
-        `${path}: ${error instanceof Error ? error.message : "Arquivo inválido"}`
+        `${path}: ${error instanceof Error ? error.message : "Arquivo inválido"}`,
+        { cause: error }
       );
     }
   })

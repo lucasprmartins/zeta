@@ -16,7 +16,9 @@
       let theme = "system";
       try {
         theme = localStorage.getItem("zeta:theme") || "system";
-      } catch {}
+      } catch {
+        // localStorage indisponível: segue com a preferência do sistema.
+      }
       const resolved =
         theme === "light" || theme === "dark"
           ? theme

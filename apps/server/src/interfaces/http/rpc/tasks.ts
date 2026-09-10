@@ -33,10 +33,16 @@ const procedure = protectedProcedure
       return await next();
     } catch (error) {
       if (error instanceof InvalidTaskError) {
-        throw new ORPCError("BAD_REQUEST", { message: error.message });
+        throw new ORPCError("BAD_REQUEST", {
+          cause: error,
+          message: error.message,
+        });
       }
       if (error instanceof TaskNotFoundError) {
-        throw new ORPCError("NOT_FOUND", { message: error.message });
+        throw new ORPCError("NOT_FOUND", {
+          cause: error,
+          message: error.message,
+        });
       }
       throw error;
     }

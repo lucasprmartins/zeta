@@ -121,7 +121,7 @@ export const listInput = documented(
     { status?: TaskStatus; page?: number } | undefined,
     { status?: TaskStatus; page: number }
   >((input) => {
-    const data = input == null ? {} : object(input);
+    const data = object(input ?? {});
     const page =
       data.page === undefined
         ? 1

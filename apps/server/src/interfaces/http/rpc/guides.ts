@@ -52,7 +52,7 @@ const slugInput = documented(
 );
 const pageInput = documented(
   type<{ page?: number } | undefined, { page: number }>((input) => {
-    const page = input == null ? 1 : Number(object(input).page ?? 1);
+    const page = Number(object(input ?? {}).page ?? 1);
     if (!Number.isSafeInteger(page) || page < 1 || page > 1_000_000) {
       throw new ORPCError("BAD_REQUEST");
     }
@@ -86,6 +86,7 @@ const saveInput = documented(
       markdown = toMarkdown(parseMarkdown(text(draft.markdown, 50_000)));
     } catch (error) {
       throw new ORPCError("BAD_REQUEST", {
+        cause: error,
         message: error instanceof Error ? error.message : "Conteúdo inválido.",
       });
     }
@@ -128,7 +129,10 @@ const procedure = protectedProcedure
       return await next();
     } catch (error) {
       if (error instanceof GuideError) {
-        throw new ORPCError(error.code, { message: error.message });
+        throw new ORPCError(error.code, {
+          cause: error,
+          message: error.message,
+        });
       }
       throw error;
     }

@@ -26,10 +26,7 @@ const upstream = Bun.serve({
       host: request.headers.get("x-forwarded-host"),
     };
     if (url.pathname === "/api/redirect") {
-      return new Response(null, {
-        status: 302,
-        headers: { location: "https://example.com/next" },
-      });
+      return Response.redirect("https://example.com/next", 302);
     }
     if (url.pathname === "/api/compressed") {
       return new Response(Bun.gzipSync("compressed response"), {

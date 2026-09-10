@@ -81,7 +81,7 @@ export function UserForm({
     setPassword(
       Array.from(
         crypto.getRandomValues(new Uint8Array(20)),
-        (value) => alphabet[value & 63]
+        (value) => alphabet[value % 64]
       ).join("")
     );
     setVisible(true);

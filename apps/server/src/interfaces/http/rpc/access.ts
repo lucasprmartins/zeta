@@ -91,7 +91,7 @@ const usersInput = documented(
     { page?: number; search?: string } | undefined,
     { page: number; search: string }
   >((input) => {
-    const data = input == null ? {} : object(input);
+    const data = object(input ?? {});
     const page = data.page === undefined ? 1 : Number(data.page);
     if (
       !Number.isSafeInteger(page) ||
@@ -199,7 +199,10 @@ const procedure = protectedProcedure
       return await next();
     } catch (error) {
       if (error instanceof AccessError) {
-        throw new ORPCError(error.code, { message: error.message });
+        throw new ORPCError(error.code, {
+          cause: error,
+          message: error.message,
+        });
       }
       throw error;
     }

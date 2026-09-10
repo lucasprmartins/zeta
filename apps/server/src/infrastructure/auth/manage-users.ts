@@ -100,7 +100,7 @@ export function createUserManagement(db: Database, env: Env): UserManagement {
           headers,
           query: { disableCookieCache: true },
         });
-        if (!session || session.user.role !== "admin" || session.user.banned) {
+        if (session?.user.role !== "admin" || session.user.banned) {
           throw new AccessError(
             "FORBIDDEN",
             "Você não tem permissão para gerenciar usuários."

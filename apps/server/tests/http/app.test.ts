@@ -56,7 +56,9 @@ async function setup(
         throw new Error("db down");
       }
     },
-    reportError: () => {},
+    reportError: () => {
+      // Silencia o relatório de erros durante os testes.
+    },
   });
   const rpc = (procedure: string, input?: unknown, user?: string) =>
     app.handle(
