@@ -11,6 +11,7 @@ const fields = {
   name: user.name,
   username: user.displayUsername,
   canonical: user.username,
+  image: user.image,
 };
 
 // O nome de exibição pode divergir do canônico apenas na capitalização.
@@ -19,13 +20,19 @@ function present(row: {
   name: string;
   username: string | null;
   canonical: string | null;
+  image: string | null;
 }): TaskUser {
   const { canonical, username } = row;
   const display =
     username && canonical && username.toLowerCase() === canonical.toLowerCase()
       ? username
       : canonical;
-  return { id: row.id, name: row.name, username: display };
+  return {
+    id: row.id,
+    name: row.name,
+    username: display,
+    image: row.image,
+  };
 }
 
 function escapeLike(term: string): string {

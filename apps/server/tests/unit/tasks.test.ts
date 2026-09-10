@@ -25,9 +25,14 @@ const input = {
 };
 const later = "2026-09-05T13:00:00.000Z";
 const directory = new InMemoryUserDirectory([
-  { id: "author-1", name: "Ana", username: "ana" },
-  { id: "user-2", name: "Bruno", username: "bruno" },
-  { id: "user-3", name: "Carla", username: null },
+  { id: "author-1", name: "Ana", username: "ana", image: null },
+  {
+    id: "user-2",
+    name: "Bruno",
+    username: "bruno",
+    image: "https://example.test/bruno.png",
+  },
+  { id: "user-3", name: "Carla", username: null, image: null },
 ]);
 
 test("normaliza a tarefa e protege seu estado interno", () => {
@@ -183,6 +188,7 @@ test("menções só aceitam contas existentes e voltam resolvidas na leitura", a
   expect(created.mentions[1]).toMatchObject({
     name: "Bruno",
     username: "bruno",
+    image: "https://example.test/bruno.png",
   });
 
   const cleared = await updateTask(

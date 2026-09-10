@@ -17,8 +17,13 @@ async function setup(
 ) {
   const tasks = new InMemoryTaskRepository();
   const directory = new InMemoryUserDirectory([
-    { id: "user-1", name: "Ana", username: "ana" },
-    { id: "user-2", name: "Bruno", username: "bruno" },
+    { id: "user-1", name: "Ana", username: "ana", image: null },
+    {
+      id: "user-2",
+      name: "Bruno",
+      username: "bruno",
+      image: "https://example.test/bruno.png",
+    },
   ]);
   if (options.failSave) {
     tasks.save = async () => {
@@ -212,7 +217,7 @@ describe("HTTP e RPC", () => {
     );
     expect(response.status).toBe(200);
     expect((await response.json()).json.mentions).toMatchObject([
-      { id: "user-2", name: "Bruno" },
+      { id: "user-2", name: "Bruno", image: "https://example.test/bruno.png" },
     ]);
     expect(
       (

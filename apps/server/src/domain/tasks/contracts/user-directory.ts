@@ -1,8 +1,9 @@
-// Só o necessário para mencionar e atribuir autoria: nada de email, papel ou estado da conta.
+// Só o necessário para identificar a conta na tela: nada de email, papel ou estado.
 export type TaskUser = {
   id: string;
   name: string;
   username: string | null;
+  image: string | null;
 };
 
 export interface UserDirectory {

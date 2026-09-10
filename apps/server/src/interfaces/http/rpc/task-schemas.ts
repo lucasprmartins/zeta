@@ -20,11 +20,12 @@ const description: JSONSchema = { type: "string", maxLength: 2000 };
 const status: JSONSchema = { type: "string", enum: ["pending", "completed"] };
 const taskUser: JSONSchema = {
   type: "object",
-  required: ["id", "name", "username"],
+  required: ["id", "name", "username", "image"],
   properties: {
     id: { type: "string" },
     name: { type: "string" },
     username: { type: ["string", "null"] },
+    image: { type: ["string", "null"], format: "uri" },
   },
 };
 const mentions: JSONSchema = {
