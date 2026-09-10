@@ -2,6 +2,7 @@ import { ListIcon, SidebarSimpleIcon, XIcon } from "@phosphor-icons/react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Button } from "@/components/ui/button";
+import { dismissOnBackdrop } from "@/components/ui/use-modal-dialog";
 import { AppSidebar, type SidebarUser } from "./app-sidebar";
 import { Breadcrumbs, PageCrumbProvider } from "./breadcrumbs";
 
@@ -91,7 +92,7 @@ export function AppShell({ user, leaving, onSignOut, children }: Props) {
         <div
           className={`min-w-0 transition-[padding] duration-200 ${collapsed ? "lg:pl-[72px]" : "lg:pl-60"}`}
         >
-          <header className="app-topbar sticky top-0 z-20 flex min-h-16 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur-sm sm:px-6">
+          <header className="app-topbar sticky top-0 z-20 flex min-h-topbar items-center gap-3 border-b bg-background/95 px-4 backdrop-blur-sm sm:px-6">
             <Button
               aria-controls="desktop-sidebar"
               aria-expanded={!collapsed}
@@ -117,7 +118,7 @@ export function AppShell({ user, leaving, onSignOut, children }: Props) {
               ref={menuTrigger}
               type="button"
             >
-              <ListIcon className="size-[18px]" />
+              <ListIcon className="size-icon" />
             </button>
             <div aria-hidden="true" className="h-4 w-px bg-border" />
             <Breadcrumbs />
@@ -130,26 +131,11 @@ export function AppShell({ user, leaving, onSignOut, children }: Props) {
           </main>
         </div>
 
-        {/* biome-ignore lint/a11y/useKeyWithClickEvents: Escape é tratado por onCancel do dialog nativo. */}
-        {/* biome-ignore lint/a11y/noNoninteractiveElementInteractions: o clique só fecha a gaveta pelo backdrop. */}
         <dialog
           aria-label="Menu de navegação"
           className="mobile-drawer border-0 border-r bg-sidebar p-0 text-foreground shadow-xl backdrop:bg-black/30"
           id="mobile-sidebar"
-          onCancel={() => setMobileOpen(false)}
-          onClick={(event) => {
-            if (event.target === event.currentTarget) {
-              const bounds = event.currentTarget.getBoundingClientRect();
-              if (
-                event.clientX < bounds.left ||
-                event.clientX > bounds.right ||
-                event.clientY < bounds.top ||
-                event.clientY > bounds.bottom
-              ) {
-                setMobileOpen(false);
-              }
-            }
-          }}
+          {...dismissOnBackdrop(() => setMobileOpen(false))}
           onClose={() => {
             setMobileOpen(false);
             if (window.matchMedia("(max-width: 1023px)").matches) {

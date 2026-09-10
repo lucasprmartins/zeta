@@ -1,18 +1,15 @@
 import {
   CaretUpDownIcon,
-  CheckSquareIcon,
   GearIcon,
-  LayoutIcon,
-  type Icon as PhosphorIcon,
   QuestionIcon,
   SignOutIcon,
-  SlidersHorizontalIcon,
-  UsersIcon,
 } from "@phosphor-icons/react";
 import { Link, useLocation } from "@tanstack/react-router";
 import { useCallback, useState } from "react";
-import { BlockMark } from "@/components/brand";
+import { administration, navigation } from "@/app/navigation";
+import { Brand } from "@/components/brand";
 import { usePermissions } from "@/components/permission-boundary";
+import { Avatar } from "@/components/ui/avatar";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -20,57 +17,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { type Permission, permissions } from "@/lib/access";
 import { cn } from "@/lib/utils";
-
-// Grupos vazios não aparecem para contas sem as permissões correspondentes.
-type NavigationItem = {
-  label: string;
-  to: "/dashboard" | "/tasks";
-  icon: PhosphorIcon;
-  permission?: Permission;
-};
-const navigation: { label: string; items: NavigationItem[] }[] = [
-  {
-    label: "Workspace",
-    items: [
-      {
-        label: "Dashboard",
-        to: "/dashboard",
-        icon: LayoutIcon,
-        permission: permissions.tasks.read,
-      },
-      {
-        label: "Tarefas",
-        to: "/tasks",
-        icon: CheckSquareIcon,
-        permission: permissions.tasks.read,
-      },
-    ],
-  },
-];
-
-// Administração fica no rodapé, reunida em um menu para não competir com o trabalho do dia.
-type AdministrationItem = {
-  label: string;
-  to: "/admin/console" | "/admin/users";
-  icon: PhosphorIcon;
-  permission: Permission;
-};
-const administration: AdministrationItem[] = [
-  {
-    label: "Console",
-    to: "/admin/console",
-    icon: SlidersHorizontalIcon,
-    permission: permissions.access.manage,
-  },
-  {
-    label: "Usuários",
-    to: "/admin/users",
-    icon: UsersIcon,
-    permission: permissions.access.manage,
-  },
-];
 
 const inRoute = (pathname: string, to: string) =>
   pathname === to || pathname.startsWith(`${to}/`);
@@ -78,6 +25,7 @@ const inRoute = (pathname: string, to: string) =>
 export type SidebarUser = {
   name: string;
   email: string;
+  image?: string | null | undefined;
   role?: string | null | undefined;
 };
 
@@ -124,20 +72,15 @@ export function AppSidebar({
       <div className="flex h-16 shrink-0 items-center border-b px-[22px]">
         <Link
           aria-label="Zeta — início"
-          className="flex min-w-0 items-center gap-3 rounded-sm"
+          className="min-w-0 rounded-sm"
           onClick={onNavigate}
           to="/dashboard"
         >
-          <BlockMark className="size-7 shrink-0" />
-          <span
-            aria-hidden={collapsed}
-            className={cn(
-              "font-mono font-semibold text-xl tracking-[-0.08em]",
-              labelClass
-            )}
-          >
-            zeta
-          </span>
+          <Brand
+            labelClassName={labelClass}
+            labelHidden={collapsed}
+            size="sm"
+          />
         </Link>
       </div>
 
@@ -166,7 +109,7 @@ export function AppSidebar({
               />
             </div>
             <ul className="space-y-1">
-              {group.items.map(({ label, to, icon: Icon }) => (
+              {group.items.map(({ label, to, icon: Icon, search }) => (
                 <li key={to}>
                   <Link
                     activeOptions={{ exact: true, includeSearch: false }}
@@ -178,13 +121,13 @@ export function AppSidebar({
                     className="flex h-12 items-center gap-3 rounded-md px-[15px] text-sm transition-colors hover:bg-sidebar-active hover:text-foreground lg:h-10"
                     inactiveProps={{ className: "text-muted-foreground" }}
                     onClick={onNavigate}
-                    search={to === "/tasks" ? { status: "all" } : {}}
+                    search={search ?? {}}
                     title={collapsed ? label : undefined}
                     to={to}
                   >
                     <Icon
                       aria-hidden="true"
-                      className="size-[18px] shrink-0"
+                      className="size-icon shrink-0"
                       weight="regular"
                     />
                     <span aria-hidden={collapsed} className={labelClass}>
@@ -211,12 +154,7 @@ export function AppSidebar({
           title="Editar perfil"
           to="/profile"
         >
-          <span
-            aria-hidden="true"
-            className="flex size-8 shrink-0 items-center justify-center rounded-md border bg-background font-medium text-xs"
-          >
-            {user.name.trim().slice(0, 1).toUpperCase()}
-          </span>
+          <Avatar image={user.image} name={user.name} />
           <div aria-hidden={collapsed} className={cn("w-36", labelClass)}>
             <p className="truncate font-medium text-xs">{user.name}</p>
             <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
@@ -265,7 +203,7 @@ export function AppSidebar({
                   >
                     <Icon
                       aria-hidden="true"
-                      className="size-[18px] shrink-0"
+                      className="size-icon shrink-0"
                       weight="regular"
                     />
                     {label}
