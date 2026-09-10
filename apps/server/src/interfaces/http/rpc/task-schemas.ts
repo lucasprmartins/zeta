@@ -1,5 +1,5 @@
 import type { JSONSchema } from "@orpc/openapi";
-import { ORPCError, type } from "@orpc/server";
+import { type } from "@orpc/server";
 import type { listMentionableUsers } from "@server/domain/tasks/application/list-mentionable-users";
 import type { listTasks } from "@server/domain/tasks/application/list-tasks";
 import type { TaskSummary } from "@server/domain/tasks/application/summarize-tasks";
@@ -9,6 +9,7 @@ import {
   type TaskStatus,
 } from "@server/domain/tasks/entities/task";
 import { documented } from "@server/interfaces/http/openapi/schema";
+import { invalid, object, page, pageSchema, text, uuid } from "./input";
 
 const id: JSONSchema = { type: "string", format: "uuid" };
 const title: JSONSchema = {
@@ -62,57 +63,21 @@ const task: JSONSchema = {
     completedAt: { type: ["string", "null"], format: "date-time" },
   },
 };
-function object(input: unknown): Record<string, unknown> {
-  if (!input || typeof input !== "object" || Array.isArray(input)) {
-    throw new ORPCError("BAD_REQUEST", {
-      message: "Informe um objeto válido.",
-    });
-  }
-  return input as Record<string, unknown>;
-}
-function text(input: unknown, field: string): string {
-  if (typeof input !== "string") {
-    throw new ORPCError("BAD_REQUEST", {
-      message: `Informe ${field} como texto.`,
-    });
-  }
-  return input;
-}
-function parseId(input: unknown): string {
-  const value = text(input, "id");
-  if (
-    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-      value
-    )
-  ) {
-    throw new ORPCError("BAD_REQUEST", { message: "Identificador inválido." });
-  }
-  return value;
-}
 function parseStatus(input: unknown): TaskStatus {
-  if (input !== "pending" && input !== "completed") {
-    throw new ORPCError("BAD_REQUEST", { message: "Estado inválido." });
-  }
-  return input;
+  return input === "pending" || input === "completed"
+    ? input
+    : invalid("Estado inválido.");
 }
 function parseMentions(input: unknown): string[] {
   if (input === undefined) {
     return [];
   }
   if (!Array.isArray(input) || input.length > MAX_MENTIONS) {
-    throw new ORPCError("BAD_REQUEST", {
-      message: `Informe até ${MAX_MENTIONS} responsáveis.`,
-    });
+    invalid(`Informe até ${MAX_MENTIONS} responsáveis.`);
   }
-  return input.map((value) => {
-    const account = text(value, "o responsável").trim();
-    if (!account || account.length > 255) {
-      throw new ORPCError("BAD_REQUEST", {
-        message: "Responsável inválido.",
-      });
-    }
-    return account;
-  });
+  return input.map((value) =>
+    text(value, { field: "o responsável", max: 255 })
+  );
 }
 export type TaskFields = {
   title: string;
@@ -120,11 +85,15 @@ export type TaskFields = {
   mentions?: string[];
 };
 const fields = (input: Record<string, unknown>) => ({
-  title: text(input.title, "title"),
+  title: text(input.title, { field: "o título" }),
   description:
     input.description === undefined
       ? ""
-      : text(input.description, "description"),
+      : text(input.description, {
+          field: "a descrição",
+          max: 2000,
+          required: false,
+        }),
   mentions: parseMentions(input.mentions),
 });
 export const createInput = documented(
@@ -143,7 +112,7 @@ export const updateInput = documented(
     { id: string; title: string; description: string; mentions: string[] }
   >((input) => {
     const data = object(input);
-    return { ...fields(data), id: parseId(data.id) };
+    return { ...fields(data), id: uuid(data.id) };
   }),
   {
     type: "object",
@@ -154,7 +123,7 @@ export const updateInput = documented(
 export const statusInput = documented(
   type<{ id: string; status: TaskStatus }>((input) => {
     const data = object(input);
-    return { id: parseId(data.id), status: parseStatus(data.status) };
+    return { id: uuid(data.id), status: parseStatus(data.status) };
   }),
   {
     type: "object",
@@ -163,7 +132,7 @@ export const statusInput = documented(
   }
 );
 export const idInput = documented(
-  type<{ id: string }>((input) => ({ id: parseId(object(input).id) })),
+  type<{ id: string }>((input) => ({ id: uuid(object(input).id) })),
   { type: "object", required: ["id"], properties: { id } }
 );
 export const listInput = documented(
@@ -172,34 +141,14 @@ export const listInput = documented(
     { status?: TaskStatus; page: number }
   >((input) => {
     const data = object(input ?? {});
-    const page =
-      data.page === undefined
-        ? 1
-        : typeof data.page === "string" && /^\d+$/.test(data.page)
-          ? Number(data.page)
-          : data.page;
-    if (
-      typeof page !== "number" ||
-      !Number.isSafeInteger(page) ||
-      page < 1 ||
-      page > 1_000_000
-    ) {
-      throw new ORPCError("BAD_REQUEST", { message: "Página inválida." });
-    }
     return {
-      page,
+      page: page(data.page),
       ...(data.status === undefined
         ? {}
         : { status: parseStatus(data.status) }),
     };
   }),
-  {
-    type: "object",
-    properties: {
-      status,
-      page: { type: "integer", minimum: 1, maximum: 1_000_000, default: 1 },
-    },
-  }
+  { type: "object", properties: { status, page: pageSchema } }
 );
 export const taskOutput = documented(type<TaskView>(), task);
 export const taskListOutput = documented(
@@ -223,13 +172,16 @@ export const deleteOutput = documented(type<{ id: string }>(), {
 export const mentionSearchInput = documented(
   type<{ search?: string } | undefined, { search: string }>((input) => {
     const data = object(input ?? {});
-    if (
-      data.search !== undefined &&
-      (typeof data.search !== "string" || data.search.length > 120)
-    ) {
-      throw new ORPCError("BAD_REQUEST", { message: "Busca inválida." });
-    }
-    return { search: typeof data.search === "string" ? data.search : "" };
+    return {
+      search:
+        data.search === undefined
+          ? ""
+          : text(data.search, {
+              field: "a busca",
+              max: 120,
+              required: false,
+            }),
+    };
   }),
   {
     type: "object",

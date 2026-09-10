@@ -7,11 +7,16 @@ import {
   type GuideFields,
 } from "@server/domain/guides/entities/guide";
 import { permissions } from "@server/infrastructure/auth/access";
-import { parseMarkdown, toMarkdown } from "@zeta/guide-content";
+import {
+  MAX_GUIDE_MARKDOWN,
+  parseMarkdown,
+  toMarkdown,
+} from "@zeta/guide-content";
 import { documented } from "../openapi/schema";
-import { protectedProcedure, requirePermission } from "./context";
+import { moduleProcedure, requirePermission } from "./context";
+import { object, page, pageSchema, text, textSchema } from "./input";
 
-const string: JSONSchema = { type: "string" };
+const string = textSchema;
 const fieldsSchema = {
   type: "object",
   required: ["title", "section", "order", "markdown", "permissions"],
@@ -34,34 +39,17 @@ const guideSchema: JSONSchema = {
     updatedAt: string,
   },
 };
-function object(value: unknown): Record<string, unknown> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new ORPCError("BAD_REQUEST");
-  }
-  return value as Record<string, unknown>;
-}
-function text(value: unknown, max = 120): string {
-  if (typeof value !== "string" || value.length > max) {
-    throw new ORPCError("BAD_REQUEST");
-  }
-  return value;
-}
 const slugInput = documented(
-  type<{ slug: string }>((input) => ({ slug: text(object(input).slug, 100) })),
+  type<{ slug: string }>((input) => ({
+    slug: text(object(input).slug, { field: "o identificador", max: 100 }),
+  })),
   { type: "object", required: ["slug"], properties: { slug: string } }
 );
 const pageInput = documented(
-  type<{ page?: number } | undefined, { page: number }>((input) => {
-    const page = Number(object(input ?? {}).page ?? 1);
-    if (!Number.isSafeInteger(page) || page < 1 || page > 1_000_000) {
-      throw new ORPCError("BAD_REQUEST");
-    }
-    return { page };
-  }),
-  {
-    type: "object",
-    properties: { page: { type: "integer", minimum: 1, maximum: 1_000_000 } },
-  }
+  type<{ page?: number } | undefined, { page: number }>((input) => ({
+    page: page(object(input ?? {}).page),
+  })),
+  { type: "object", properties: { page: pageSchema } }
 );
 const saveInput = documented(
   type<{
@@ -86,7 +74,16 @@ const saveInput = documented(
     }
     let markdown: string;
     try {
-      markdown = toMarkdown(parseMarkdown(text(draft.markdown, 50_000)));
+      markdown = toMarkdown(
+        parseMarkdown(
+          text(draft.markdown, {
+            field: "o conteúdo",
+            max: MAX_GUIDE_MARKDOWN,
+            required: false,
+            trim: false,
+          })
+        )
+      );
     } catch (error) {
       throw new ORPCError("BAD_REQUEST", {
         cause: error,
@@ -94,10 +91,14 @@ const saveInput = documented(
       });
     }
     return {
-      slug: text(data.slug, 100),
+      slug: text(data.slug, { field: "o identificador", max: 100 }),
       draft: {
-        title: text(draft.title),
-        section: text(draft.section, 80),
+        title: text(draft.title, { field: "o título", required: false }),
+        section: text(draft.section, {
+          field: "a seção",
+          max: 80,
+          required: false,
+        }),
         order: draft.order,
         markdown,
         permissions: draft.permissions as string[],
@@ -119,34 +120,13 @@ const saveInput = documented(
     },
   }
 );
-const procedure = protectedProcedure
-  .errors({
-    BAD_REQUEST: {},
-    NOT_FOUND: {},
-    CONFLICT: {},
-    UNAUTHORIZED: {},
-    FORBIDDEN: {},
-  })
-  .use(async ({ next }) => {
-    try {
-      return await next();
-    } catch (error) {
-      if (error instanceof GuideError) {
-        throw new ORPCError(error.code, {
-          cause: error,
-          message: error.message,
-        });
-      }
-      throw error;
-    }
-  });
-const route = {
-  tags: ["Guia de uso"],
-  spec: (operation: import("@orpc/openapi").OpenAPI.OperationObject) => ({
-    ...operation,
-    security: [{ sessionCookie: [] }],
-  }),
-};
+const { procedure, route } = moduleProcedure({
+  tag: "Guia de uso",
+  translate: (error) =>
+    error instanceof GuideError
+      ? { code: error.code, message: error.message }
+      : null,
+});
 export function createGuidesRouter(service?: ReturnType<typeof manageGuides>) {
   const get = () => {
     if (!service) {

@@ -9,9 +9,9 @@ import { catalog, permissions } from "@server/infrastructure/auth/access";
 import { documented } from "../openapi/schema";
 import type { UserFields, UserManagement } from "../user-management";
 import type { RpcContext } from "./context";
-import { protectedProcedure, requirePermission } from "./context";
+import { moduleProcedure, requirePermission } from "./context";
+import { invalid, object, page, pageSchema, text, textSchema } from "./input";
 
-const textSchema: JSONSchema = { type: "string" };
 const grantsSchema: JSONSchema = { type: "array", items: textSchema };
 const colorSchema: JSONSchema = {
   type: "string",
@@ -29,18 +29,6 @@ const roleSchema: JSONSchema = {
     protected: { type: "boolean" },
   },
 };
-const object = (input: unknown): Record<string, unknown> => {
-  if (!input || typeof input !== "object" || Array.isArray(input)) {
-    throw new ORPCError("BAD_REQUEST");
-  }
-  return input as Record<string, unknown>;
-};
-const text = (value: unknown, max = 120) => {
-  if (typeof value !== "string" || !value.trim() || value.length > max) {
-    throw new ORPCError("BAD_REQUEST", { message: "Texto inválido." });
-  }
-  return value.trim();
-};
 const saveInput = documented(
   type<{ id?: string; name: string; grants: string[]; color?: string }>(
     (input) => {
@@ -50,12 +38,16 @@ const saveInput = documented(
         data.grants.length > 1000 ||
         data.grants.some((grant) => typeof grant !== "string")
       ) {
-        throw new ORPCError("BAD_REQUEST");
+        invalid("Informe as permissões como uma lista de textos.");
       }
       return {
-        ...(data.id === undefined ? {} : { id: text(data.id) }),
-        name: text(data.name, 60),
-        ...(data.color === undefined ? {} : { color: text(data.color, 7) }),
+        ...(data.id === undefined
+          ? {}
+          : { id: text(data.id, { field: "o papel" }) }),
+        name: text(data.name, { field: "o nome", max: 60 }),
+        ...(data.color === undefined
+          ? {}
+          : { color: text(data.color, { field: "a cor", max: 7 }) }),
         grants: data.grants as string[],
       };
     }
@@ -72,13 +64,18 @@ const saveInput = documented(
   }
 );
 const idInput = documented(
-  type<{ id: string }>((input) => ({ id: text(object(input).id) })),
+  type<{ id: string }>((input) => ({
+    id: text(object(input).id, { field: "o identificador" }),
+  })),
   { type: "object", required: ["id"], properties: { id: textSchema } }
 );
 const assignInput = documented(
   type<{ userId: string; roleId: string }>((input) => {
     const data = object(input);
-    return { userId: text(data.userId), roleId: text(data.roleId) };
+    return {
+      userId: text(data.userId, { field: "a conta" }),
+      roleId: text(data.roleId, { field: "o papel" }),
+    };
   }),
   {
     type: "object",
@@ -92,25 +89,22 @@ const usersInput = documented(
     { page: number; search: string }
   >((input) => {
     const data = object(input ?? {});
-    const page = data.page === undefined ? 1 : Number(data.page);
-    if (
-      !Number.isSafeInteger(page) ||
-      page < 1 ||
-      page > 1_000_000 ||
-      (data.search !== undefined &&
-        (typeof data.search !== "string" || data.search.length > 254))
-    ) {
-      throw new ORPCError("BAD_REQUEST");
-    }
     return {
-      page,
-      search: typeof data.search === "string" ? data.search.trim() : "",
+      page: page(data.page),
+      search:
+        data.search === undefined
+          ? ""
+          : text(data.search, {
+              field: "a busca",
+              max: 254,
+              required: false,
+            }),
     };
   }),
   {
     type: "object",
     properties: {
-      page: { type: "integer", minimum: 1, maximum: 1_000_000 },
+      page: pageSchema,
       search: { type: "string", maxLength: 254 },
     },
   }
@@ -142,13 +136,13 @@ const userFieldsSchema = {
 function parseUser(input: unknown): UserFields {
   const data = object(input);
   if (data.password !== undefined && typeof data.password !== "string") {
-    throw new ORPCError("BAD_REQUEST");
+    invalid("Informe a senha como texto.");
   }
   return {
-    name: text(data.name),
-    username: text(data.username, 30),
-    email: text(data.email, 254),
-    roleId: text(data.roleId),
+    name: text(data.name, { field: "o nome" }),
+    username: text(data.username, { field: "o usuário", max: 30 }),
+    email: text(data.email, { field: "o email", max: 254 }),
+    roleId: text(data.roleId, { field: "o papel" }),
     ...(data.password === undefined
       ? {}
       : { password: data.password as string }),
@@ -170,7 +164,7 @@ const policyInput = documented(
       typeof data.allowSignUp !== "boolean" ||
       typeof data.requireApproval !== "boolean"
     ) {
-      throw new ORPCError("BAD_REQUEST");
+      invalid("Informe as opções de cadastro como valores booleanos.");
     }
     return {
       allowSignUp: data.allowSignUp,
@@ -179,34 +173,13 @@ const policyInput = documented(
   }),
   policySchema
 );
-const route = {
-  tags: ["Controle de acesso"],
-  spec: (operation: import("@orpc/openapi").OpenAPI.OperationObject) => ({
-    ...operation,
-    security: [{ sessionCookie: [] }],
-  }),
-};
-const procedure = protectedProcedure
-  .errors({
-    BAD_REQUEST: {},
-    UNAUTHORIZED: {},
-    FORBIDDEN: {},
-    NOT_FOUND: {},
-    CONFLICT: {},
-  })
-  .use(async ({ next }) => {
-    try {
-      return await next();
-    } catch (error) {
-      if (error instanceof AccessError) {
-        throw new ORPCError(error.code, {
-          cause: error,
-          message: error.message,
-        });
-      }
-      throw error;
-    }
-  });
+const { procedure, route } = moduleProcedure({
+  tag: "Controle de acesso",
+  translate: (error) =>
+    error instanceof AccessError
+      ? { code: error.code, message: error.message }
+      : null,
+});
 export function createAccessRouter(
   service?: ReturnType<typeof manageAccess>,
   users?: UserManagement
@@ -452,7 +425,7 @@ export function createAccessRouter(
         documented(
           type<UserFields & { userId: string }>((input) => ({
             ...parseUser(input),
-            userId: text(object(input).userId),
+            userId: text(object(input).userId, { field: "a conta" }),
           })),
           {
             ...userFieldsSchema,

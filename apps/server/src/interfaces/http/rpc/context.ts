@@ -1,3 +1,4 @@
+import type { OpenAPI } from "@orpc/openapi";
 import { ORPCError, os } from "@orpc/server";
 import { can, type Permission } from "@server/infrastructure/auth/access";
 import type { Authentication } from "@server/interfaces/http/authentication";
@@ -25,3 +26,46 @@ export const requirePermission = (permission: Permission) =>
       }
       return next();
     });
+
+type DomainFailure = {
+  code: "BAD_REQUEST" | "UNAUTHORIZED" | "FORBIDDEN" | "NOT_FOUND" | "CONFLICT";
+  message: string;
+};
+
+// Base comum de cada módulo RPC: sessão exigida, o mesmo catálogo de erros, a
+// tradução dos erros de domínio e a marcação de segurança da documentação.
+export function moduleProcedure(options: {
+  tag: string;
+  translate: (error: unknown) => DomainFailure | null;
+}) {
+  const procedure = protectedProcedure
+    .errors({
+      BAD_REQUEST: {},
+      UNAUTHORIZED: {},
+      FORBIDDEN: {},
+      NOT_FOUND: {},
+      CONFLICT: {},
+    })
+    .use(async ({ next }) => {
+      try {
+        return await next();
+      } catch (error) {
+        const failure = options.translate(error);
+        if (!failure) {
+          throw error;
+        }
+        throw new ORPCError(failure.code, {
+          cause: error,
+          message: failure.message,
+        });
+      }
+    });
+  const route = {
+    tags: [options.tag],
+    spec: (operation: OpenAPI.OperationObject) => ({
+      ...operation,
+      security: [{ sessionCookie: [] }],
+    }),
+  };
+  return { procedure, route };
+}

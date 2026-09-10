@@ -10,7 +10,7 @@ import { TaskNotFoundError } from "@server/domain/tasks/application/task-not-fou
 import type { updateTask } from "@server/domain/tasks/application/update-task";
 import { InvalidTaskError } from "@server/domain/tasks/entities/task";
 import { can, permissions } from "@server/infrastructure/auth/access";
-import { protectedProcedure, requirePermission } from "./context";
+import { moduleProcedure, requirePermission } from "./context";
 import {
   createInput,
   deleteOutput,
@@ -35,34 +35,18 @@ export type TaskUseCases = {
   mentionableUsers: ReturnType<typeof listMentionableUsers>;
   summary: ReturnType<typeof summarizeTasks>;
 };
-const procedure = protectedProcedure
-  .errors({ BAD_REQUEST: {}, UNAUTHORIZED: {}, FORBIDDEN: {}, NOT_FOUND: {} })
-  .use(async ({ next }) => {
-    try {
-      return await next();
-    } catch (error) {
-      if (error instanceof InvalidTaskError) {
-        throw new ORPCError("BAD_REQUEST", {
-          cause: error,
-          message: error.message,
-        });
-      }
-      if (error instanceof TaskNotFoundError) {
-        throw new ORPCError("NOT_FOUND", {
-          cause: error,
-          message: error.message,
-        });
-      }
-      throw error;
+const { procedure, route } = moduleProcedure({
+  tag: "Tarefas",
+  translate: (error) => {
+    if (error instanceof InvalidTaskError) {
+      return { code: "BAD_REQUEST", message: error.message };
     }
-  });
-const route = {
-  tags: ["Tarefas"],
-  spec: (operation: import("@orpc/openapi").OpenAPI.OperationObject) => ({
-    ...operation,
-    security: [{ sessionCookie: [] }],
-  }),
-};
+    if (error instanceof TaskNotFoundError) {
+      return { code: "NOT_FOUND", message: error.message };
+    }
+    return null;
+  },
+});
 
 // Criar e editar não implicam indicar quem responde: é uma permissão própria.
 function ensureMayMention(grants: string[], mentions: readonly string[]) {
