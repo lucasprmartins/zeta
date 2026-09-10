@@ -6,7 +6,15 @@ import { ErrorNotice, Loading } from "@/components/feedback";
 import { BackLink } from "@/components/layout/back-link";
 import { PageContent } from "@/components/layout/page-content";
 import { PageHeader } from "@/components/layout/page-header";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
@@ -99,79 +107,95 @@ function EditorForm({
   return (
     <PageContent>
       <BackLink to="/help/guides">Guia de uso</BackLink>
-      <PageHeader
-        description={
-          saved?.published
-            ? "A versão publicada só muda quando você publicar novamente."
-            : "Salve um rascunho e publique quando estiver pronto."
-        }
-        title={saved ? "Editar guia" : "Novo guia"}
-      />
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
-        <section aria-label="Conteúdo do guia" className="min-w-0 space-y-5">
-          <Field>
-            <FieldLabel htmlFor="guide-title">Título do guia</FieldLabel>
-            <Input
-              disabled={save.isPending}
-              id="guide-title"
-              maxLength={120}
-              onChange={(event) => update("title", event.target.value)}
-              required
-              value={draft.title}
-            />
-          </Field>
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="font-medium text-sm">Conteúdo</h2>
-            <Button
-              onClick={() => setPreview(!preview)}
-              size="sm"
-              variant="outline"
-            >
-              {preview ? "Voltar à edição" : "Prévia"}
-            </Button>
+      <div className="space-y-2">
+        <PageHeader
+          actions={
+            <>
+              <Button
+                disabled={!canSave || save.isPending}
+                onClick={() => save.mutate("draft")}
+                variant="outline"
+              >
+                Salvar rascunho
+              </Button>
+              <Button
+                disabled={!(canSave && draft.markdown.trim()) || save.isPending}
+                onClick={() => save.mutate("publish")}
+              >
+                {save.isPending ? "Salvando…" : "Publicar"}
+              </Button>
+            </>
+          }
+          description="Salve um rascunho quantas vezes quiser; publicar substitui o que os leitores veem."
+          eyebrow={
+            <Badge variant={saved?.published ? "outline" : "secondary"}>
+              {saved?.published ? "Publicado" : "Rascunho"}
+            </Badge>
+          }
+          title={saved ? "Editar guia" : "Novo guia"}
+        />
+        <p className="text-muted-foreground text-xs" role="status">
+          {dirty
+            ? "Há alterações não salvas."
+            : saved
+              ? "Alterações salvas."
+              : "Ainda não salvo."}
+        </p>
+      </div>
+
+      {/* O conteúdo ocupa a largura da leitura; as decisões de catálogo vêm depois dele. */}
+      <section aria-label="Conteúdo do guia" className="max-w-4xl space-y-5">
+        <Field>
+          <FieldLabel htmlFor="guide-title">Título do guia</FieldLabel>
+          <Input
+            disabled={save.isPending}
+            id="guide-title"
+            maxLength={120}
+            onChange={(event) => update("title", event.target.value)}
+            required
+            value={draft.title}
+          />
+        </Field>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-medium text-sm">Conteúdo</h2>
+          <Button
+            onClick={() => setPreview(!preview)}
+            size="sm"
+            variant="outline"
+          >
+            {preview ? "Voltar à edição" : "Prévia"}
+          </Button>
+        </div>
+        <div className={preview ? "hidden" : ""}>
+          <BlockEditor
+            disabled={save.isPending}
+            initial={initial?.draft.markdown ?? ""}
+            onChange={(markdown) => update("markdown", markdown)}
+          />
+        </div>
+        {preview && (
+          <div className="min-h-80 rounded-lg border p-5 sm:p-8">
+            {draft.markdown.length <= 50_000 ? (
+              <GuideContent markdown={draft.markdown} />
+            ) : (
+              <ErrorNotice message="Reduza o conteúdo para até 50 mil caracteres." />
+            )}
           </div>
-          <div className={preview ? "hidden" : ""}>
-            <BlockEditor
-              disabled={save.isPending}
-              initial={initial?.draft.markdown ?? ""}
-              onChange={(markdown) => update("markdown", markdown)}
-            />
-          </div>
-          {preview && (
-            <div className="min-h-80 rounded-lg border p-5 sm:p-8">
-              {draft.markdown.length <= 50_000 ? (
-                <GuideContent markdown={draft.markdown} />
-              ) : (
-                <ErrorNotice message="Reduza o conteúdo para até 50 mil caracteres." />
-              )}
-            </div>
-          )}
-          {draft.markdown.length > 50_000 && (
-            <ErrorNotice message="O conteúdo ultrapassa o limite de 50 mil caracteres." />
-          )}
-        </section>
-        <aside
-          aria-label="Organização e publicação"
-          className="space-y-5 self-start rounded-lg border p-5"
-        >
-          <h2 className="font-medium text-sm">Organização</h2>
-          <Field>
-            <FieldLabel htmlFor="guide-slug">Identificador</FieldLabel>
-            <Input
-              disabled={!!saved || save.isPending}
-              id="guide-slug"
-              maxLength={100}
-              onChange={(event) => {
-                markDirty();
-                setSlug(event.target.value);
-              }}
-              placeholder="primeiros-passos"
-              value={slug}
-            />
-            <FieldDescription>
-              Usado na URL e na importação. Não muda após o primeiro salvamento.
-            </FieldDescription>
-          </Field>
+        )}
+        {draft.markdown.length > 50_000 && (
+          <ErrorNotice message="O conteúdo ultrapassa o limite de 50 mil caracteres." />
+        )}
+      </section>
+
+      <Card className="max-w-4xl">
+        <CardHeader>
+          <CardTitle>Onde o guia aparece</CardTitle>
+          <CardDescription>
+            A seção agrupa os guias na listagem e a ordem define a posição
+            dentro dela.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-5 sm:grid-cols-2">
           <Field>
             <FieldLabel htmlFor="guide-section">Seção</FieldLabel>
             <Input
@@ -194,6 +218,36 @@ function EditorForm({
               value={draft.order}
             />
           </Field>
+          <Field className="sm:col-span-2">
+            <FieldLabel htmlFor="guide-slug">Endereço do guia</FieldLabel>
+            <Input
+              disabled={!!saved || save.isPending}
+              id="guide-slug"
+              maxLength={100}
+              onChange={(event) => {
+                markDirty();
+                setSlug(event.target.value);
+              }}
+              placeholder="primeiros-passos"
+              value={slug}
+            />
+            <FieldDescription>
+              Compõe a URL e liga o guia aos arquivos da importação. Não muda
+              após o primeiro salvamento.
+            </FieldDescription>
+          </Field>
+        </CardContent>
+      </Card>
+
+      <Card className="max-w-4xl">
+        <CardHeader>
+          <CardTitle>Quem pode ler</CardTitle>
+          <CardDescription>
+            A restrição vale para a versão publicada. Rascunhos ficam visíveis
+            apenas para quem administra os guias.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
           <Field>
             <FieldLabel htmlFor="guide-permission">Quem pode ler</FieldLabel>
             <NativeSelect
@@ -215,46 +269,32 @@ function EditorForm({
                 ))
               )}
             </NativeSelect>
-            <FieldDescription>
-              A restrição será aplicada à versão publicada.
-            </FieldDescription>
           </Field>
-          <div className="space-y-2 border-t pt-5">
+        </CardContent>
+      </Card>
+
+      {saved?.published && (
+        <Card className="max-w-4xl">
+          <CardHeader>
+            <CardTitle>Publicação</CardTitle>
+            <CardDescription>
+              A versão publicada só muda quando você publicar novamente. Retirar
+              de publicação oculta o guia dos leitores e preserva o rascunho.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
             <Button
-              className="w-full"
-              disabled={!canSave || save.isPending}
-              onClick={() => save.mutate("draft")}
+              className="w-full sm:w-auto"
+              disabled={save.isPending}
+              onClick={() => save.mutate("unpublish")}
               variant="outline"
             >
-              Salvar rascunho
+              Retirar de publicação
             </Button>
-            <Button
-              className="w-full"
-              disabled={!(canSave && draft.markdown.trim()) || save.isPending}
-              onClick={() => save.mutate("publish")}
-            >
-              {save.isPending ? "Salvando…" : "Publicar"}
-            </Button>
-            {saved?.published && (
-              <Button
-                className="w-full"
-                disabled={save.isPending}
-                onClick={() => save.mutate("unpublish")}
-                variant="ghost"
-              >
-                Retirar de publicação
-              </Button>
-            )}
-          </div>
-          <p className="text-muted-foreground text-xs" role="status">
-            {dirty
-              ? "Há alterações não salvas."
-              : saved
-                ? "Alterações salvas."
-                : "Ainda não salvo."}
-          </p>
-        </aside>
-      </div>
+          </CardContent>
+        </Card>
+      )}
+
       {save.error && <ErrorNotice message={accessError(save.error)} />}
       {blocker.status === "blocked" && (
         <Modal
