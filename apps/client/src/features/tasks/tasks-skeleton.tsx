@@ -24,7 +24,11 @@ export function TasksSkeleton() {
             <Skeleton className="h-4 w-2/3 max-w-64" />
             <Skeleton className="h-3 w-1/2 max-w-48" />
           </div>
-          <Skeleton className="hidden h-4 w-20 sm:block" />
+          <div className="hidden w-32 shrink-0 items-center gap-2 sm:flex lg:w-40">
+            <Skeleton className="size-6 shrink-0 rounded-full" />
+            <Skeleton className="h-3 w-16" />
+          </div>
+          <Skeleton className="hidden h-5 w-20 shrink-0 rounded-full sm:block" />
         </div>
       ))}
     </div>

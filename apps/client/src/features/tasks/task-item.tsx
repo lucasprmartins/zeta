@@ -3,9 +3,10 @@ import {
   PencilSimpleIcon,
   SpinnerGapIcon,
   TrashIcon,
-  UsersIcon,
 } from "@phosphor-icons/react";
 import { Can, usePermissions } from "@/components/permission-boundary";
+import { Avatar } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { permissions } from "@/lib/access";
 import type { Task } from "./queries";
@@ -15,14 +16,37 @@ const dateFormat = new Intl.DateTimeFormat("pt-BR", {
   month: "short",
   year: "numeric",
 });
-const VISIBLE_MENTIONS = 3;
+const STACKED_AVATARS = 3;
 
-// A lista fica longa: mostra os primeiros nomes e conta o restante.
-function mentionSummary(mentions: Task["mentions"]): string {
-  const names = mentions.map((user) => user.name);
-  const shown = names.slice(0, VISIBLE_MENTIONS).join(", ");
-  const rest = names.length - VISIBLE_MENTIONS;
-  return rest > 0 ? `${shown} +${rest}` : shown;
+const allNames = (people: Task["mentions"]) =>
+  people.map((person) => person.name).join(", ");
+
+// Um responsável aparece pelo nome; vários viram contagem para caber na coluna.
+function Assignees({ people }: { people: Task["mentions"] }) {
+  const [first] = people;
+  if (!first) {
+    return (
+      <span className="text-muted-foreground text-xs">Sem responsável</span>
+    );
+  }
+  return (
+    <span className="flex min-w-0 items-center gap-2" title={allNames(people)}>
+      <span className="flex shrink-0 -space-x-1.5">
+        {people.slice(0, STACKED_AVATARS).map((person) => (
+          <Avatar
+            className="ring-2 ring-background"
+            image={person.image}
+            key={person.id}
+            name={person.name}
+            size="sm"
+          />
+        ))}
+      </span>
+      <span className="truncate text-xs">
+        {people.length === 1 ? first.name : `${people.length} responsáveis`}
+      </span>
+    </span>
+  );
 }
 
 export function TaskItem({
@@ -40,6 +64,7 @@ export function TaskItem({
 }) {
   const { can } = usePermissions();
   const completed = task.status === "completed";
+  const label = completed ? "Concluída" : "Pendente";
   return (
     <li className="group grid grid-cols-[44px_minmax(0,1fr)] items-start gap-2 border-b px-3 py-3 last:border-b-0 hover:bg-sidebar/70 sm:flex sm:items-center sm:gap-3 sm:px-4">
       {/* biome-ignore lint/a11y/useSemanticElements: alternar status é uma ação, não um campo de formulário. */}
@@ -74,38 +99,35 @@ export function TaskItem({
         >
           {task.title}
         </span>
-        {task.description && (
-          <span className="mt-1 block truncate text-muted-foreground text-xs">
-            {task.description}
-          </span>
-        )}
-        <span className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-          <span className="truncate">
-            Por {task.author?.name ?? "conta removida"}
+        {/* No celular não há colunas: status, data e responsáveis vêm aqui. */}
+        <span className="mt-2 flex flex-wrap items-center gap-2 sm:hidden">
+          <Badge variant={completed ? "default" : "outline"}>{label}</Badge>
+          <span className="text-[11px] text-muted-foreground">
+            {dateFormat.format(new Date(task.createdAt))}
           </span>
           {task.mentions.length > 0 && (
-            <span
-              className="inline-flex min-w-0 items-center gap-1"
-              title={task.mentions.map((user) => user.name).join(", ")}
-            >
-              <UsersIcon aria-hidden="true" className="size-3 shrink-0" />
-              <span className="truncate">{mentionSummary(task.mentions)}</span>
+            <span className="flex shrink-0 -space-x-1.5">
+              {task.mentions.slice(0, STACKED_AVATARS).map((person) => (
+                <Avatar
+                  className="ring-2 ring-background"
+                  image={person.image}
+                  key={person.id}
+                  name={person.name}
+                  size="sm"
+                />
+              ))}
             </span>
           )}
         </span>
-        <span className="mt-1 block text-[11px] text-muted-foreground sm:hidden">
-          {completed ? "Concluída" : "Pendente"} ·{" "}
-          {dateFormat.format(new Date(task.createdAt))}
-        </span>
       </button>
-      <span className="hidden w-24 shrink-0 text-muted-foreground text-xs sm:block">
-        <span
-          className={`mr-2 inline-block size-1.5 rounded-full ${completed ? "bg-neutral-800" : "border border-neutral-500"}`}
-        />
-        {completed ? "Concluída" : "Pendente"}
+      <span className="hidden w-32 shrink-0 sm:block lg:w-40">
+        <Assignees people={task.mentions} />
+      </span>
+      <span className="hidden w-24 shrink-0 sm:block">
+        <Badge variant={completed ? "default" : "outline"}>{label}</Badge>
       </span>
       <time
-        className="hidden w-28 shrink-0 text-muted-foreground text-xs lg:block"
+        className="hidden w-28 shrink-0 text-muted-foreground text-xs xl:block"
         dateTime={task.createdAt}
       >
         {dateFormat.format(new Date(task.createdAt))}

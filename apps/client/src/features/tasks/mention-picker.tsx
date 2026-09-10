@@ -2,6 +2,7 @@ import { CheckIcon, UsersIcon, XIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useId, useState } from "react";
 import { ErrorNotice } from "@/components/feedback";
+import { Avatar } from "@/components/ui/avatar";
 import { Empty, EmptyDescription, EmptyTitle } from "@/components/ui/empty";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -45,24 +46,28 @@ export function MentionPicker({
   return (
     <Field>
       <FieldLabel htmlFor={`${id}-search`}>
-        Contas relacionadas{" "}
+        Responsável{" "}
         <span className="font-normal text-muted-foreground">(opcional)</span>
       </FieldLabel>
       <p className="text-muted-foreground text-xs" id={`${id}-hint`}>
-        Quem for indicado aqui saberá que está relacionado a esta tarefa.
+        Quem for indicado aqui responde por esta tarefa e aparece na lista.
         {full ? ` Limite de ${MAX_MENTIONS} contas atingido.` : ""}
       </p>
       {value.length > 0 && (
-        <ul aria-label="Contas indicadas" className="flex flex-wrap gap-2">
+        <ul
+          aria-label="Responsáveis indicados"
+          className="flex flex-wrap gap-2"
+        >
           {value.map((user) => (
             <li key={user.id}>
               <button
                 aria-label={`Remover ${user.name}`}
-                className="inline-flex min-h-9 items-center gap-2 rounded-full border bg-sidebar py-1 pr-2 pl-3 text-sm hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50"
+                className="inline-flex min-h-9 items-center gap-2 rounded-full border bg-sidebar py-1 pr-2.5 pl-1 text-sm hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50"
                 disabled={disabled}
                 onClick={() => toggle(user)}
                 type="button"
               >
+                <Avatar image={user.image} name={user.name} size="sm" />
                 <span className="max-w-40 truncate">{user.name}</span>
                 <XIcon aria-hidden="true" className="size-3.5 shrink-0" />
               </button>
@@ -80,7 +85,7 @@ export function MentionPicker({
             event.preventDefault();
           }
         }}
-        placeholder="Buscar por nome ou usuário"
+        placeholder="Buscar responsável por nome ou usuário"
         type="search"
         value={search}
       />
@@ -89,6 +94,7 @@ export function MentionPicker({
           <ul className="divide-y">
             {placeholders.map((row) => (
               <li className="flex items-center gap-3 px-3 py-2.5" key={row}>
+                <Skeleton className="size-6 shrink-0 rounded-full" />
                 <Skeleton className="h-4 w-40" />
               </li>
             ))}
@@ -127,6 +133,7 @@ export function MentionPicker({
                     >
                       {active && <CheckIcon className="size-3.5" />}
                     </span>
+                    <Avatar image={user.image} name={user.name} size="sm" />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm">
                         {user.name}
@@ -147,7 +154,7 @@ export function MentionPicker({
       {value.length === 0 && (
         <p className="flex items-center gap-1.5 text-muted-foreground text-xs">
           <UsersIcon aria-hidden="true" className="size-3.5" />
-          Nenhuma conta indicada.
+          Nenhum responsável indicado.
         </p>
       )}
     </Field>

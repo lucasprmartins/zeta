@@ -246,7 +246,7 @@ export function TasksPage({
             <EmptyDescription>
               {filter === "all"
                 ? can(permissions.tasks.create)
-                  ? "Crie a primeira tarefa. Todas as contas veem o que está aqui, e você pode indicar quem está relacionado a cada uma."
+                  ? "Crie a primeira tarefa. Todas as contas veem o que está aqui, e você pode indicar o responsável por cada uma."
                   : "As tarefas da equipe aparecerão neste espaço."
                 : "Use os filtros para acompanhar as demais tarefas."}
             </EmptyDescription>
@@ -274,9 +274,10 @@ export function TasksPage({
             >
               <span className="w-10 shrink-0" />
               <span className="flex-1">Tarefa</span>
-              <span className="w-24">Estado</span>
-              <span className="hidden w-28 lg:block">Criada em</span>
-              <span className="w-[72px] text-right">Ações</span>
+              <span className="w-32 shrink-0 lg:w-40">Responsável</span>
+              <span className="w-24 shrink-0">Status</span>
+              <span className="hidden w-28 shrink-0 xl:block">Criada em</span>
+              <span className="w-[72px] shrink-0 text-right">Ações</span>
             </div>
             <ul>
               {items.map((task) => (
@@ -324,8 +325,8 @@ export function TasksPage({
           <Modal
             description={
               editor === "new"
-                ? "O que precisa ser feito e quem está relacionado?"
-                : "Atualize o título, os detalhes e as contas relacionadas."
+                ? "O que precisa ser feito e quem responde por isso?"
+                : "Atualize o título, os detalhes e o responsável."
             }
             onClose={() => setEditor(null)}
             pending={saving}
