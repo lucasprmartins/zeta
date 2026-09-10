@@ -56,6 +56,9 @@
 }
 
 @theme inline {
+  /* Dimensões do sistema: o ícone de navegação e a altura da barra superior. */
+  --spacing-icon: 18px;
+  --spacing-topbar: 4rem;
   --color-background: var(--background);
   --color-sidebar: var(--sidebar);
   --color-sidebar-active: var(--sidebar-active);
@@ -107,26 +110,12 @@
   }
 }
 
-.task-progress {
-  appearance: none;
-  background: var(--border);
-}
 .route-feedback {
   min-height: 100svh;
 }
+/* Dentro do shell a página de recuperação desconta a barra superior. */
 #main-content .route-feedback {
-  min-height: calc(100svh - 4rem);
-}
-.task-progress::-webkit-progress-bar {
-  background: var(--border);
-}
-.task-progress::-webkit-progress-value {
-  background: var(--primary);
-  border-radius: 999px;
-}
-.task-progress::-moz-progress-bar {
-  background: var(--primary);
-  border-radius: 999px;
+  min-height: calc(100svh - var(--spacing-topbar));
 }
 
 /* Gaveta de navegação: a rolagem pertence ao menu, sem mover a página por baixo. */
@@ -279,13 +268,11 @@
     height: 0;
   }
 }
-@media (prefers-reduced-motion: no-preference) {
-  [data-slot="accordion-content"][data-state="open"] {
-    animation: accordion-down 180ms ease-out;
-  }
-  [data-slot="accordion-content"][data-state="closed"] {
-    animation: accordion-up 180ms ease-out;
-  }
+[data-slot="accordion-content"][data-state="open"] {
+  animation: accordion-down 180ms ease-out;
+}
+[data-slot="accordion-content"][data-state="closed"] {
+  animation: accordion-up 180ms ease-out;
 }
 
 .guide-content {

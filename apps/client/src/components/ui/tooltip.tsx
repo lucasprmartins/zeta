@@ -1,5 +1,3 @@
-// Adaptado do shadcn/ui (MIT), usando os tokens locais.
-
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";

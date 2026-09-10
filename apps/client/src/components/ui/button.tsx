@@ -1,11 +1,11 @@
-// Adaptado do shadcn/ui (MIT): variantes CVA; somente botão nativo, sem asChild.
+// Sem `asChild`: é um button nativo. Para links, use `buttonVariants`.
 
 import { cva, type VariantProps } from "class-variance-authority";
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 
 export const buttonVariants = cva(
-  "inline-flex min-h-11 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg font-medium text-sm outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/40 disabled:pointer-events-none disabled:opacity-50 sm:min-h-0 [&_svg]:size-[18px] [&_svg]:shrink-0",
+  "inline-flex min-h-11 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg font-medium text-sm outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/40 disabled:pointer-events-none disabled:opacity-50 sm:min-h-0 [&_svg]:size-icon [&_svg]:shrink-0",
   {
     variants: {
       variant: {

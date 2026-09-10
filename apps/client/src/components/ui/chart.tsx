@@ -1,5 +1,5 @@
-// Adaptado do shadcn/ui (MIT): mesma API de `config` e `--color-<chave>`, sem o
-// suporte a temas por objeto nem a legenda — o projeto usa tokens e rótulos diretos.
+// Mesma API de `config` e `--color-<chave>` do shadcn/ui, sem o suporte a temas
+// por objeto nem a legenda: aqui as cores vêm dos tokens e os rótulos, diretos.
 
 import type { ComponentProps, ReactNode } from "react";
 import { ResponsiveContainer, Tooltip } from "recharts";
@@ -57,14 +57,11 @@ export function ChartTooltipContent({
   payload,
   label,
   config,
-  total,
 }: {
   active?: boolean;
   payload?: TooltipEntry[];
   label?: ReactNode;
   config: ChartConfig;
-  // Quando informado, cada linha ganha a fatia que representa do conjunto.
-  total?: number;
 }) {
   if (!(active && payload?.length)) {
     return null;
@@ -87,14 +84,7 @@ export function ChartTooltipContent({
               <span className="flex-1 text-muted-foreground">
                 {item?.label ?? key}
               </span>
-              <span className="font-medium tabular-nums">
-                {value}
-                {total ? (
-                  <span className="ml-1 font-normal text-muted-foreground">
-                    ({Math.round((value / total) * 100)}%)
-                  </span>
-                ) : null}
-              </span>
+              <span className="font-medium tabular-nums">{value}</span>
             </li>
           );
         })}

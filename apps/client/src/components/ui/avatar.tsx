@@ -1,5 +1,5 @@
-// Equivalente ao Avatar do shadcn/ui sem Radix: a troca por iniciais usa o
-// onError nativo da imagem, evitando uma dependência de produção só para isso.
+// Sem Radix: a troca por iniciais usa o onError nativo da imagem, para não
+// custar uma dependência de produção.
 
 import { cva, type VariantProps } from "class-variance-authority";
 import { type ComponentProps, useState } from "react";
@@ -13,14 +13,13 @@ const avatarVariants = cva(
       size: {
         sm: "size-6 text-[10px]",
         default: "size-8 text-xs",
-        lg: "size-10 text-sm",
       },
     },
     defaultVariants: { size: "default" },
   }
 );
 // A classe dimensiona; os atributos evitam deslocamento enquanto a foto carrega.
-const pixels = { sm: 24, default: 32, lg: 40 } as const;
+const pixels = { sm: 24, default: 32 } as const;
 
 export function Avatar({
   name,
@@ -31,7 +30,7 @@ export function Avatar({
 }: Omit<ComponentProps<"span">, "children"> &
   VariantProps<typeof avatarVariants> & {
     name: string;
-    image?: string | null;
+    image?: string | null | undefined;
   }) {
   const [broken, setBroken] = useState(false);
   const side = pixels[size ?? "default"];
@@ -56,6 +55,35 @@ export function Avatar({
         // O nome acessível vem do texto ao lado; aqui a inicial é decorativa.
         <span aria-hidden="true">{initials(name)}</span>
       )}
+    </span>
+  );
+}
+
+// O anel separa os avatares sobrepostos: passe a cor da superfície de fundo.
+export function AvatarStack({
+  people,
+  limit,
+  ring = "ring-background",
+}: {
+  people: readonly {
+    id: string;
+    name: string;
+    image?: string | null | undefined;
+  }[];
+  limit: number;
+  ring?: string;
+}) {
+  return (
+    <span className="flex shrink-0 -space-x-1.5">
+      {people.slice(0, limit).map((person) => (
+        <Avatar
+          className={cn("ring-2", ring)}
+          image={person.image}
+          key={person.id}
+          name={person.name}
+          size="sm"
+        />
+      ))}
     </span>
   );
 }

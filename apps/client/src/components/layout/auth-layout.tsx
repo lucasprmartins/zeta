@@ -24,7 +24,7 @@ export function AuthLayout({
       </div>
       <div className="w-full max-w-[400px]">
         <div className="mb-8 flex justify-center">
-          <Brand className="[&_span]:text-2xl [&_svg]:size-8" />
+          <Brand />
         </div>
         <section aria-labelledby="auth-title">
           <Card className="p-6 shadow-none sm:p-8">

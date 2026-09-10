@@ -15,11 +15,33 @@ export function BlockMark({ className }: { className?: string }) {
   );
 }
 
-export function Brand({ className }: { className?: string }) {
+const sizes = {
+  sm: { mark: "size-7", label: "text-xl" },
+  default: { mark: "size-8", label: "text-2xl" },
+} as const;
+
+export function Brand({
+  className,
+  labelClassName,
+  labelHidden,
+  size = "default",
+}: {
+  className?: string;
+  labelClassName?: string;
+  labelHidden?: boolean;
+  size?: keyof typeof sizes;
+}) {
   return (
     <div className={cn("flex items-center gap-3 text-foreground", className)}>
-      <BlockMark />
-      <span className="font-mono font-semibold text-2xl tracking-[-0.08em]">
+      <BlockMark className={cn(sizes[size].mark, "shrink-0")} />
+      <span
+        aria-hidden={labelHidden}
+        className={cn(
+          "font-mono font-semibold tracking-[-0.08em]",
+          sizes[size].label,
+          labelClassName
+        )}
+      >
         zeta
       </span>
     </div>

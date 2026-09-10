@@ -27,6 +27,14 @@
   ],
   "linter": {
     "rules": {
+      "a11y": {
+        // `Checkbox` e `Radio` são os controles nativos do design system; sem isto
+        // a regra não reconhece o campo dentro de um `<label>`.
+        "noLabelWithoutControl": {
+          "level": "error",
+          "options": { "inputComponents": ["Checkbox", "Radio"] }
+        }
+      },
       "complexity": {
         // `void promise` marca efeitos deliberadamente não aguardados.
         "noVoid": "off",

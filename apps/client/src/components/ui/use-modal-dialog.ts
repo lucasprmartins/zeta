@@ -1,9 +1,10 @@
+import type { MouseEvent, ReactEventHandler, SyntheticEvent } from "react";
 import { useEffect, useRef } from "react";
 
+// Estado de módulo: com diálogos aninhados, só o último fechamento devolve a rolagem.
 let openDialogs = 0;
 let originalOverflow = "";
 
-// Compartilha viewport, foco e bloqueio de rolagem entre painéis e modais aninhados.
 export function useModalDialog(confirmation = false) {
   const ref = useRef<HTMLDialogElement>(null);
   // biome-ignore lint/correctness/useExhaustiveDependencies: abrir, focar e restaurar acontece só na montagem.
@@ -60,4 +61,30 @@ export function useModalDialog(confirmation = false) {
     };
   }, []);
   return ref;
+}
+
+// O dialog nativo ocupa a viewport inteira: só é backdrop o clique fora da caixa.
+export function dismissOnBackdrop(onClose: () => void, disabled = false) {
+  return {
+    onCancel: ((event: SyntheticEvent<HTMLDialogElement>) => {
+      event.preventDefault();
+      if (!disabled) {
+        onClose();
+      }
+    }) as ReactEventHandler<HTMLDialogElement>,
+    onClick: (event: MouseEvent<HTMLDialogElement>) => {
+      if (disabled || event.target !== event.currentTarget) {
+        return;
+      }
+      const bounds = event.currentTarget.getBoundingClientRect();
+      if (
+        event.clientX < bounds.left ||
+        event.clientX > bounds.right ||
+        event.clientY < bounds.top ||
+        event.clientY > bounds.bottom
+      ) {
+        onClose();
+      }
+    },
+  };
 }

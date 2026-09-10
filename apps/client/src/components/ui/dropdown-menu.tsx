@@ -1,5 +1,3 @@
-// Adaptado do shadcn/ui (MIT), com os tokens locais e sem utilitários de animação.
-
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";

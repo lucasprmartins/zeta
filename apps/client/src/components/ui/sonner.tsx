@@ -1,5 +1,3 @@
-// Adaptado do shadcn/ui (MIT), usando o tema local e Phosphor Icons.
-
 import {
   CheckCircleIcon,
   InfoIcon,
@@ -20,14 +18,14 @@ export function Toaster() {
       containerAriaLabel="Notificações"
       duration={5000}
       icons={{
-        success: <CheckCircleIcon aria-hidden="true" className="size-[18px]" />,
-        error: <WarningCircleIcon aria-hidden="true" className="size-[18px]" />,
-        info: <InfoIcon aria-hidden="true" className="size-[18px]" />,
-        warning: <WarningIcon aria-hidden="true" className="size-[18px]" />,
+        success: <CheckCircleIcon aria-hidden="true" className="size-icon" />,
+        error: <WarningCircleIcon aria-hidden="true" className="size-icon" />,
+        info: <InfoIcon aria-hidden="true" className="size-icon" />,
+        warning: <WarningIcon aria-hidden="true" className="size-icon" />,
         loading: (
           <SpinnerGapIcon
             aria-hidden="true"
-            className="size-[18px] animate-spin"
+            className="size-icon animate-spin"
           />
         ),
       }}

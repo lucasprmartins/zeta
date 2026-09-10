@@ -1,5 +1,3 @@
-// Adaptado do shadcn/ui (MIT), com variantes locais e foco gerenciado pelo Radix.
-
 import * as ToggleGroupPrimitive from "@radix-ui/react-toggle-group";
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";

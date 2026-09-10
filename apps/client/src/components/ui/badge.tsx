@@ -1,4 +1,4 @@
-// Adaptado do shadcn/ui (MIT): variantes CVA; somente span nativo, sem asChild.
+// Sem `asChild`: é um span nativo. Para links, use `badgeVariants`.
 
 import { cva, type VariantProps } from "class-variance-authority";
 import type { ComponentProps } from "react";
@@ -12,7 +12,6 @@ export const badgeVariants = cva(
         default: "border-transparent bg-primary text-primary-foreground",
         secondary: "border-transparent bg-secondary text-secondary-foreground",
         outline: "border-input bg-background text-muted-foreground",
-        destructive: "border-transparent bg-destructive text-background",
       },
     },
     defaultVariants: { variant: "default" },

@@ -1,4 +1,3 @@
-// Adaptado do shadcn/ui (MIT); estilos alinhados aos tokens locais.
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 

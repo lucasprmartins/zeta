@@ -1,5 +1,3 @@
-// Adaptado do shadcn/ui (MIT), com Phosphor e tokens locais.
-
 import { CaretDownIcon } from "@phosphor-icons/react";
 import * as AccordionPrimitive from "@radix-ui/react-accordion";
 import type { ComponentProps } from "react";
@@ -40,7 +38,7 @@ export function AccordionTrigger({
         {children}
         <CaretDownIcon
           aria-hidden="true"
-          className="size-[18px] shrink-0 text-muted-foreground transition-transform duration-200 motion-reduce:transition-none"
+          className="size-icon shrink-0 text-muted-foreground transition-transform duration-200"
         />
       </AccordionPrimitive.Trigger>
     </AccordionPrimitive.Header>

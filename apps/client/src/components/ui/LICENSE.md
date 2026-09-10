@@ -1,3 +1,7 @@
+Os componentes deste diretório são adaptados do shadcn/ui, com os tokens, as
+APIs e os ícones locais. Cada arquivo comenta apenas onde o comportamento
+diverge do original.
+
 MIT License
 
 Copyright (c) 2023 shadcn
