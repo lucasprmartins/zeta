@@ -70,7 +70,7 @@ function EditorForm({
       await client.invalidateQueries({ queryKey: guideKeys.all(userId) });
       if (!initial) {
         await navigate({
-          to: "/admin/guides/edit/$slug",
+          to: "/help/guides/edit/$slug",
           params: { slug: result.slug },
           replace: true,
         });
@@ -99,9 +99,9 @@ function EditorForm({
     <PageContent>
       <Link
         className="w-fit py-2 text-muted-foreground text-sm hover:text-foreground"
-        to="/admin/guides"
+        to="/help/guides"
       >
-        ← Administrar guias
+        ← Guia de uso
       </Link>
       <PageHeader
         description={

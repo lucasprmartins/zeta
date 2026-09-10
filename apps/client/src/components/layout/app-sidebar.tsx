@@ -1,5 +1,4 @@
 import {
-  BookOpenIcon,
   CaretUpDownIcon,
   CheckSquareIcon,
   GearIcon,
@@ -54,7 +53,7 @@ const navigation: { label: string; items: NavigationItem[] }[] = [
 // Administração fica no rodapé, reunida em um menu para não competir com o trabalho do dia.
 type AdministrationItem = {
   label: string;
-  to: "/admin/console" | "/admin/users" | "/admin/guides";
+  to: "/admin/console" | "/admin/users";
   icon: PhosphorIcon;
   permission: Permission;
 };
@@ -69,12 +68,6 @@ const administration: AdministrationItem[] = [
     label: "Usuários",
     to: "/admin/users",
     icon: UsersIcon,
-    permission: permissions.access.manage,
-  },
-  {
-    label: "Guias",
-    to: "/admin/guides",
-    icon: BookOpenIcon,
     permission: permissions.access.manage,
   },
 ];
@@ -93,6 +86,9 @@ export function pageBreadcrumb(pathname: string) {
     .find((entry) => inRoute(pathname, entry.to));
   if (item) {
     return { section: "Workspace", title: item.label };
+  }
+  if (inRoute(pathname, "/help/guides")) {
+    return { section: "Ajuda", title: "Guia de uso" };
   }
   if (inRoute(pathname, "/help")) {
     return { section: "Workspace", title: "Ajuda" };

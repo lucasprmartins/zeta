@@ -206,4 +206,4 @@ O frontend gera `apps/client/dist`; seu runtime Bun serve estáticos, faz fallba
 
 ### Guia de Uso
 
-Usuários consultam `/help/guides`; administradores editam e publicam em `/admin/guides`. Desenvolvedores podem importar arquivos Markdown com `bun run guides:import`, sem sobrescrever conteúdo existente. Veja o [guia de autoria](docs/guides-authoring.md).
+Todos consultam `/help/guides`; quem tem `access:manage` cria, edita e publica na mesma página. Desenvolvedores podem importar arquivos Markdown com `bun run guides:import`, sem sobrescrever conteúdo existente. Veja o [guia de autoria](docs/guides-authoring.md).

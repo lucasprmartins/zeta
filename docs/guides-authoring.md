@@ -1,6 +1,6 @@
 # Guia de Uso
 
-O conteúdo é mantido no PostgreSQL (`public.guides`). Usuários autenticados leem em `/help/guides`; administradores criam e editam em `/admin/guides`. A administração usa a mesma autorização de gestão do console, validada também na API.
+O conteúdo é mantido no PostgreSQL (`public.guides`). Leitura e administração vivem na mesma página, `/help/guides`: usuários autenticados veem os guias publicados que o acesso deles permite; quem tem `access:manage` recebe um aviso em destaque, enxerga também os rascunhos e abre o editor em `/help/guides/new` e `/help/guides/edit/{slug}`. A administração usa a mesma autorização de gestão do console, validada também na API, cujas rotas seguem em `/api/admin/guides`. Como a criação é uma rota estática irmã da leitura, um guia com o identificador `new` continua editável, mas não abre pela URL de leitura.
 
 ## Edição e publicação
 
