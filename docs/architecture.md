@@ -37,7 +37,7 @@ Uma funcionalidade atravessa domínio e testes → persistência/migration → p
 | `/openapi` / `/openapi/json` | Scalar / especificação combinada |
 | `/health` / `/ready` | Processo / conexão com PostgreSQL |
 
-`.route()` define método, caminho e tags; `documented()` mantém validação e JSON Schema coerentes. Altere schemas e agrupamento em `interfaces/http/openapi`, não documentos gerados. `createApp` e `bootstrap` são assíncronos; aguarde ambos e preserve o fechamento do pool em falhas de inicialização e encerramento.
+`moduleProcedure({ tag, translate })` monta a base de cada módulo RPC: sessão exigida, catálogo de erros comum, tradução dos erros de domínio e a marcação de segurança da documentação. As entradas usam os validadores de `rpc/input.ts` (`object`, `text`, `uuid`, `page`); `documented()` mantém validação e JSON Schema coerentes. Altere schemas e agrupamento em `interfaces/http/openapi`, não documentos gerados. `createApp` e `bootstrap` são assíncronos; aguarde ambos e preserve o fechamento do pool em falhas de inicialização e encerramento.
 
 Drizzle usa Bun SQL na API e no migrador; `postgres` atende às ferramentas de desenvolvimento. Namespaces de `schema/namespaces.ts` organizam tabelas com nomes simples:
 
@@ -60,7 +60,8 @@ Contas antigas podem não ter username. Ao alterá-lo no perfil, envie também `
 
 ## Rotas e dados do cliente
 
-- Rotas por arquivo validam parâmetros e conectam telas de `features`; páginas autenticadas ficam em `routes/_authenticated/`. Registre navegação em `app-sidebar.tsx` quando necessário.
+- Rotas por arquivo validam parâmetros e conectam telas de `features`; páginas autenticadas ficam em `routes/_authenticated/`. Registre navegação em `app/navigation.ts`; itens com filtro padrão declaram o próprio `search`.
+- A identidade da sessão vem de `useCurrentUser`/`useUserId` do `AccessProvider`. Rotas e telas não repetem a checagem de sessão nem recebem `userId` por props.
 - Cada rota autenticada declara a trilha completa em `staticData.crumbs`; intermediários têm `to`. Rótulos carregados por consulta usam `usePageCrumb`; retornos usam `BackLink`. Não derive trilhas do pathname nem passe títulos pelo `AppShell`.
 - `tsr.config.json` centraliza geração e code splitting. `routes:generate` e o plugin Vite produzem a árvore não versionada.
 - TanStack Query guarda dados de negócio. Chaves incluem identidade, formato e filtros; consultas comuns incluem página e não compartilham chaves com infinitas. Filtros compartilháveis ficam na URL.
@@ -68,7 +69,7 @@ Contas antigas podem não ter username. Ao alterá-lo no perfil, envie também `
 
 ### Listagens incrementais
 
-Defina `infiniteQueryOptions` na feature e use `useInfiniteQuery` na tela, com `initialPageParam` explícito, `getNextPageParam` retornando `undefined` no fim e `signal` encaminhado ao RPC. `InfiniteScroll` oferece gatilho e botão acessível: bloqueie durante `isFetching` e use `fetchNextPage({ cancelRefetch: false })`.
+Toda listagem paginada da API responde `hasMore`. Defina `infiniteQueryOptions` na feature com `initialPageParam` explícito, `getNextPageParam: nextPageIfMore` e `signal` encaminhado ao RPC. Na tela, `useInfiniteList(query, byId)` junta as páginas, deduplica por chave e devolve `loadMore`; `InfiniteScroll` recebe a consulta inteira e cuida do gatilho, do botão acessível e dos estados de erro.
 
 Preserve itens nas atualizações e diferencie erro inicial, atualização e continuação. Falha de atualização pausa novas páginas; erro de continuação exige tentativa manual. Invalide após mutations, sem append manual nem `maxPages` que desloque a rolagem. Ordenação e paginação pertencem à API; deduplicar IDs não garante consistência de paginação por offset sob concorrência.
 
@@ -87,22 +88,23 @@ O dashboard consulta um agregado calculado em transação `repeatable read`: tot
 Reutilize `AppShell`, `AppSidebar`, `PageContent`, `PageHeader` e `AuthLayout`; medidas e paddings pertencem aos layouts. `PageContent` é obrigatório em páginas autenticadas. Os componentes adaptam shadcn/ui conforme `components.json`; confira suas props locais:
 
 - `Button` e `Badge` são nativos, sem `asChild`; links usam `buttonVariants`.
-- `Avatar` usa `<Avatar name image size />`, com fallback por `onError`, sem Radix. Toda `img` precisa de `width` e `height`.
-- Formulários usam `Field`; superfícies e estados usam `Card`, `Empty` e skeletons adequados ao conteúdo.
-- Phosphor usa sufixo `Icon`, peso `regular` e 18 px em navegação/botões; configure `weight`, não `strokeWidth`.
+- `Avatar` usa `<Avatar name image size />`, com fallback por `onError`, sem Radix. Toda `img` precisa de `width` e `height`; listas de responsáveis usam `AvatarStack`.
+- Formulários usam `Field`, `Input`, `Textarea`, `NativeSelect`, `Checkbox` e `Radio`; forma, foco e escala de texto vêm de `controlBase` em `ui/control.ts`. Superfícies e estados usam `Card`, `Empty` e skeletons adequados ao conteúdo.
+- A marca usa `<Brand size />`; não sobrescreva suas medidas por seletor.
+- Phosphor usa sufixo `Icon`, peso `regular` e o token `size-icon` em navegação/botões; configure `weight`, não `strokeWidth`.
 - Gráficos usam Recharts por `chart.tsx`, `config` e `--color-<chave>`. Séries usam `--chart-1`/`--chart-2` por categoria, nunca por ranking; mantenha legenda com duas ou mais séries. Mudanças de cores exigem validação da skill `dataviz` nas duas superfícies.
 
 ### Layout e acessibilidade
 
 Na sidebar desktop, preserve posições dos ícones/avatar e mantenha rótulos montados, ocultos por opacidade. A gaveta mobile controla Escape, foco e rolagem; fecha ao navegar ou mudar para desktop. Menus internos ficam dentro do dialog.
 
-`Modal` usa tela cheia no mobile para formulários e painel inferior para confirmações; centraliza no desktop. Preserve cabeçalho visível, rolagem interna, áreas seguras e `visualViewport`. Foco inicial vai ao título no mobile e a Cancelar nas confirmações; mutations bloqueiam fechamento. `SidePanel` compartilha o controle de diálogo e tem seu contrato em [side-panel.md](side-panel.md).
+`Modal` usa tela cheia no mobile para formulários e painel inferior para confirmações; centraliza no desktop. A linha de ações vai no slot `footer`, que aplica `.modal-actions`: ordem invertida no mobile e área segura. Confirmações destrutivas usam `ConfirmModal`. Preserve cabeçalho visível, rolagem interna, áreas seguras e `visualViewport`. Foco inicial vai ao título no mobile e a Cancelar nas confirmações; mutations bloqueiam fechamento. `dismissOnBackdrop` concentra o teste de clique fora da caixa usado por diálogos, painel e gaveta. `SidePanel` compartilha o controle de diálogo e tem seu contrato em [side-panel.md](side-panel.md).
 
 Mantenha alvos de 44 px, campos de 16 px no mobile, foco visível, nomes acessíveis, `aria-current`, link para pular navegação e movimento reduzido, sem rolagem horizontal.
 
 ### Tema e feedback
 
-`styles.css` centraliza tokens semânticos. Sem escolha salva, o tema segue o sistema; escolha manual prevalece e sincroniza entre abas. Preserve a mesma chave e resolução no `ThemeProvider` e no script inicial de `index.html`. Textos de autenticação tratam do acesso à conta, sem acoplamento ao domínio.
+`styles.css` centraliza tokens semânticos, inclusive as dimensões do sistema (`--spacing-icon`, `--spacing-topbar`). Sem escolha salva, o tema segue o sistema; escolha manual prevalece e sincroniza entre abas. Preserve a mesma chave e resolução no `ThemeProvider` e no script inicial de `index.html`. Textos de autenticação tratam do acesso à conta, sem acoplamento ao domínio.
 
 Sonner aparece uma vez no provider e comunica resultados de ações; erros persistentes usam `ErrorNotice`/`Alert`. `RouteError`, `RouteNotFound` e `RouteFeedback` centralizam recuperação por `router.invalidate()` e reset dos boundaries. Exiba apenas a mensagem técnica em vermelho, sem stack, cause, objetos de resposta ou segredos.
 
