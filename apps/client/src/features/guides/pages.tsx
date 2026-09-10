@@ -106,9 +106,13 @@ export function GuidesPage({ userId }: { userId: string }) {
             <Card className="overflow-hidden">
               <ul className="divide-y">
                 {guides.map((guide) => (
-                  <li className="flex items-center" key={guide.slug}>
+                  // O realce cobre a linha inteira, inclusive a ação de editar.
+                  <li
+                    className="flex items-center transition-colors focus-within:bg-muted/40 hover:bg-muted/40"
+                    key={guide.slug}
+                  >
                     <Link
-                      className="flex min-h-16 min-w-0 flex-1 items-center gap-3 p-5 hover:bg-muted/40 focus-visible:outline-2 focus-visible:outline-offset-[-2px]"
+                      className="flex min-h-16 min-w-0 flex-1 items-center gap-3 p-5 focus-visible:outline-2 focus-visible:outline-offset-[-2px]"
                       params={{ slug: guide.slug }}
                       // Rascunho não tem versão publicada para ler: o item leva direto ao editor.
                       to={
