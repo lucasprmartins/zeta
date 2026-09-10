@@ -1694,7 +1694,7 @@ test("guias separam publicação e rascunho, autorização, importação e pagin
     section: "Guias",
     order: 1,
     markdown: "# Guia\n\nConteúdo publicado",
-    permission: null,
+    permissions: [] as string[],
   };
   const save = (body: unknown, cookie = manager.cookie) =>
     request("/api/admin/guides", body, cookie);
@@ -1793,7 +1793,7 @@ test("guias separam publicação e rascunho, autorização, importação e pagin
       (
         await save({
           slug: `restrito-${i}`,
-          draft: { ...draft, order: 0, permission: "tasks:read" },
+          draft: { ...draft, order: 0, permissions: ["tasks:read"] },
           action: "publish",
         })
       ).status
@@ -1885,4 +1885,65 @@ test("guias separam publicação e rascunho, autorização, importação e pagin
     )
   ).json();
   expect(after.draft.title).toBe("Edição no painel");
+  // A migration converte o campo antigo; roda o arquivo real sobre registros legados.
+  await database.db.execute(
+    sql`insert into guides (slug, draft, published, version, updated_at) values
+      ('legado-restrito',
+        '{"title":"L","section":"S","order":0,"markdown":"x","permission":"tasks:read"}'::jsonb,
+        '{"title":"L","section":"S","order":0,"markdown":"x","permission":"tasks:read"}'::jsonb,
+        1, now()),
+      ('legado-aberto',
+        '{"title":"A","section":"S","order":0,"markdown":"x","permission":null}'::jsonb,
+        null, 1, now())`
+  );
+  await database.db.execute(
+    sql.raw(
+      await Bun.file(
+        new URL(
+          "../../src/infrastructure/database/migrations/0011_guide_permissions.sql",
+          import.meta.url
+        ).pathname
+      ).text()
+    )
+  );
+  const converted = await database.db.execute(
+    sql`select slug, draft->'permissions' as draft, published->'permissions' as published
+      from guides where slug like 'legado-%' order by slug`
+  );
+  expect(converted).toEqual([
+    { slug: "legado-aberto", draft: [], published: null },
+    {
+      slug: "legado-restrito",
+      draft: ["tasks:read"],
+      published: ["tasks:read"],
+    },
+  ]);
+  // Várias permissões: o filtro aceita quem tem qualquer uma delas.
+  expect(
+    (
+      await save({
+        slug: "restrito-duplo",
+        draft: { ...draft, order: 0, permissions: ["tasks:read", "unknown"] },
+        action: "publish",
+      })
+    ).status
+  ).toBe(400);
+  expect(
+    (
+      await save({
+        slug: "restrito-duplo",
+        draft: {
+          ...draft,
+          order: 0,
+          permissions: ["tasks:read", "tasks:create"],
+        },
+        action: "publish",
+      })
+    ).status
+  ).toBe(200);
+  expect((await read("restrito-duplo")).status).toBe(404);
+  expect(
+    (await request("/api/guides/restrito-duplo", undefined, manager.cookie))
+      .status
+  ).toBe(200);
 }, 30_000);

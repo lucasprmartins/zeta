@@ -3,7 +3,8 @@ export type GuideFields = {
   section: string;
   order: number;
   markdown: string;
-  permission: string | null;
+  // Lista vazia libera a leitura para qualquer sessão; com itens, basta ter uma delas.
+  permissions: string[];
 };
 export type Guide = {
   slug: string;
@@ -45,7 +46,11 @@ export function guideFields(input: GuideFields): GuideFields {
       "O conteúdo deve ter até 50 mil caracteres."
     );
   }
-  return { ...input, title, section };
+  const permissions = [...new Set(input.permissions)];
+  if (permissions.some((permission) => !permission.trim())) {
+    throw new GuideError("BAD_REQUEST", "Permissão de leitura inválida.");
+  }
+  return { ...input, title, section, permissions };
 }
 export function guideSlug(slug: string): string {
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) || slug.length > 100) {
@@ -57,8 +62,12 @@ export function guideSlug(slug: string): string {
   return slug;
 }
 export function readable(guide: Guide, grants: readonly string[]): boolean {
+  if (!guide.published) {
+    return false;
+  }
+  const required = guide.published.permissions;
   return (
-    !!guide.published &&
-    (!guide.published.permission || grants.includes(guide.published.permission))
+    required.length === 0 ||
+    required.some((permission) => grants.includes(permission))
   );
 }

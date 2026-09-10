@@ -14,8 +14,9 @@ export function manageGuides(
 ) {
   function fields(input: GuideFields) {
     if (
-      input.permission !== null &&
-      !availablePermissions.includes(input.permission)
+      input.permissions.some(
+        (permission) => !availablePermissions.includes(permission)
+      )
     ) {
       throw new GuideError("BAD_REQUEST", "Permissão de leitura inválida.");
     }

@@ -1,18 +1,18 @@
 # Guia de Uso
 
-O conteúdo é mantido no PostgreSQL (`public.guides`). Leitura e administração vivem na mesma página, `/help/guides`: usuários autenticados veem os guias publicados que o acesso deles permite; quem tem `access:manage` recebe um aviso em destaque, enxerga também os rascunhos e abre o editor em `/help/guides/new` e `/help/guides/edit/{slug}`. A administração usa a mesma autorização de gestão do console, validada também na API, cujas rotas seguem em `/api/admin/guides`. Como a criação é uma rota estática irmã da leitura, um guia com o identificador `new` continua editável, mas não abre pela URL de leitura.
+## Edição e leitura
 
-## Edição e publicação
+`/help/guides` lista publicações permitidas ao usuário autenticado. Quem tem `access:manage` também vê rascunhos, cria em `/help/guides/new` e edita em `/help/guides/edit/{slug}`. A API valida a mesma autorização em `/api/admin/guides`. Evite o slug `new`: ele conflita com a rota de criação na leitura.
 
-Cada guia tem identificador único e permanente (slug), título, seção, ordem e conteúdo. O editor visual oferece Texto, H1, H2 e H3, criação de blocos, desfazer/refazer e prévia. Seção e ordem organizam a leitura; o identificador compõe a URL.
+Cada guia tem slug permanente, título, seção, ordem e conteúdo. Salvar rascunho preserva a publicação; publicar substitui a versão visível; retirar de publicação oculta o guia sem apagar o rascunho. Edições concorrentes são recusadas por versão.
 
-Salvar um rascunho não altera o conteúdo publicado. **Publicar** substitui a versão visível; **Retirar de publicação** oculta o guia e preserva o rascunho. Edições concorrentes são recusadas por versão para evitar sobrescritas silenciosas.
+Em **Quem pode ler**, nenhuma permissão selecionada libera qualquer usuário autenticado; havendo seleção, basta possuir uma das ações. Use ações do catálogo, não papéis. A restrição do rascunho só entra em vigor ao publicar. O servidor filtra antes de paginar e revalida a leitura individual, sem enviar conteúdo restrito a leitores sem acesso.
 
-Em **Quem pode ler**, escolha todos os usuários autenticados ou uma ação do catálogo de permissões. O servidor filtra antes de paginar e verifica novamente na leitura individual. Conteúdo restrito e rascunhos não são enviados a leitores sem acesso. A restrição do rascunho só entra em vigor ao publicar.
+O editor oferece parágrafos, H1/H2/H3, desfazer/refazer e prévia. Na leitura, títulos recebem âncoras únicas; `GuideOutline` usa essas âncoras em índice lateral no desktop e recolhido no mobile, exibido a partir de dois títulos.
 
-## Conteúdo em arquivos
+## Importação de Markdown
 
-O desenvolvedor pode adicionar arquivos `.md` a `docs/guides/`, inclusive em subpastas:
+Arquivos em `docs/guides/`, inclusive subpastas, usam este formato:
 
 ```markdown
 ---
@@ -20,29 +20,25 @@ slug: primeiros-passos
 title: "Primeiros passos"
 section: Começando
 order: 1
-permission: tasks:read
+permissions: tasks:read, tasks:create
 ---
 # Comece aqui
 
 Texto do guia.
-
-## Próximo passo
-
-Outro parágrafo.
 ```
 
-`slug`, `title` e `section` são obrigatórios. `order` é opcional (padrão zero); omita `permission` para permitir qualquer usuário autenticado. Use IDs existentes no catálogo, não nomes de papéis. Metadados aceitam valores simples ou strings JSON entre aspas duplas; não são YAML completo.
+`slug`, `title` e `section` são obrigatórios; `order` assume zero. `permissions` é opcional e aceita IDs do catálogo separados por vírgula. Metadados aceitam valores simples ou strings JSON entre aspas duplas, não YAML completo.
 
-Depois de aplicar as migrations, execute na raiz:
+Após migrations, execute na raiz:
 
 ```sh
 bun run guides:import
 ```
 
-Uma pasta alternativa pode ser passada como argumento; use caminho absoluto para evitar dúvidas sobre o diretório do workspace. O comando usa `DATABASE_URL` do servidor, valida todos os arquivos antes de gravar e cria somente **rascunhos ausentes**. Slugs existentes são preservados integralmente, mesmo que o arquivo tenha mudado. Revise e publique pelo painel. A importação não roda automaticamente no setup nem no deploy.
+Para outra pasta, passe seu caminho absoluto como argumento. O comando usa `DATABASE_URL` do servidor, valida todos os arquivos antes de gravar e cria apenas **rascunhos ausentes**. Slugs existentes são preservados, mesmo que o arquivo tenha mudado. Revise e publique no painel; a importação não roda no setup nem no deploy.
 
-O formato inicial suporta apenas parágrafos e títulos H1/H2/H3, até 50 mil caracteres e 1000 blocos. Linhas consecutivas de texto formam um parágrafo; linhas vazias separam blocos. Imagens, listas, citações e blocos de código são rejeitados. Formatação inline, links e HTML não são interpretados. Não há upload nem armazenamento de imagens nesta etapa.
+O conteúdo aceita até 50 mil caracteres e 1000 blocos de parágrafos ou H1/H2/H3. Linhas consecutivas formam um parágrafo; linhas vazias separam blocos. Imagens, listas, citações e blocos de código são rejeitados; formatação inline, links e HTML não são interpretados. Não há upload de imagens.
 
 ## Implementação
 
-`domain/guides` contém entidades, contrato e casos de uso; o repositório Drizzle aplica filtros, ordenação e controle de versão. `interfaces/http/rpc/guides.ts` expõe as mesmas operações por RPC e REST. `packages/guide-content` centraliza a conversão do subconjunto Markdown usado pelo importador, transporte, editor Tiptap e leitor React, sem HTML executável. Ao ampliar os blocos, atualize conversão, editor, leitor e testes em conjunto.
+`domain/guides` contém entidade, contrato e casos de uso; `public.guides` guarda rascunho e publicação. O repositório aplica filtros, ordenação e controle de versão; `interfaces/http/rpc/guides.ts` compartilha operações REST/RPC. `packages/guide-content` centraliza o formato entre importador, transporte, editor Tiptap e leitor React. Ao ampliar os blocos, atualize conversão, editor, leitor e testes juntos.

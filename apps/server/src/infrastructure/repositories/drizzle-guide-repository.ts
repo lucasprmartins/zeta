@@ -27,17 +27,16 @@ export function createGuideRepository(db: Database): GuideRepository {
     },
     async list(page, grants) {
       const content = grants === null ? guides.draft : guides.published;
+      // Lista vazia é pública entre as sessões; com itens, uma concessão em comum basta.
       const visible =
         grants === null
           ? undefined
           : and(
               isNotNull(guides.published),
               or(
-                sql`${guides.published}->>'permission' is null`,
+                sql`jsonb_array_length(${guides.published}->'permissions') = 0`,
                 grants.length
-                  ? inArray(sql`${guides.published}->>'permission'`, [
-                      ...grants,
-                    ])
+                  ? sql`exists (select 1 from jsonb_array_elements_text(${guides.published}->'permissions') as required(id) where ${inArray(sql`required.id`, [...grants])})`
                   : sql`false`
               )
             );

@@ -32,11 +32,11 @@ const parsed = await Promise.all(
       const guide = parseGuideFile(await file.text());
       guideSlug(guide.slug);
       guideFields(guide.draft);
-      if (
-        guide.draft.permission &&
-        !permissionIds.some((id) => id === guide.draft.permission)
-      ) {
-        throw new Error("Permissão desconhecida.");
+      const unknown = guide.draft.permissions.filter(
+        (permission) => !permissionIds.some((id) => id === permission)
+      );
+      if (unknown.length) {
+        throw new Error(`Permissão desconhecida: ${unknown.join(", ")}.`);
       }
       return guide;
     } catch (error) {

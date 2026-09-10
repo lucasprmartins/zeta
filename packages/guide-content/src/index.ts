@@ -81,7 +81,7 @@ export function parseGuideFile(source: string) {
     if (
       !(
         field &&
-        ["slug", "title", "section", "order", "permission"].includes(field[1]!)
+        ["slug", "title", "section", "order", "permissions"].includes(field[1]!)
       ) ||
       field[1]! in metadata
     ) {
@@ -102,7 +102,11 @@ export function parseGuideFile(source: string) {
       title: metadata.title ?? "",
       section: metadata.section ?? "",
       order: metadata.order ? Number(metadata.order) : 0,
-      permission: metadata.permission || null,
+      // Uma ou mais permissões separadas por vírgula; ausente libera para qualquer sessão.
+      permissions: (metadata.permissions ?? "")
+        .split(",")
+        .map((permission) => permission.trim())
+        .filter(Boolean),
       markdown,
     },
   };

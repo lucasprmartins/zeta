@@ -8,7 +8,7 @@ const fields = {
   section: "Geral",
   order: 1,
   markdown: "# Comece aqui\n\nTexto",
-  permission: null,
+  permissions: [] as string[],
 };
 function setup() {
   const records = new Map<string, Guide>();
@@ -31,7 +31,7 @@ function setup() {
         return true;
       },
     },
-    ["tasks:read"],
+    ["tasks:read", "tasks:create"],
     () => "2026-01-01T00:00:00.000Z"
   );
   return service;
@@ -87,17 +87,27 @@ test("guia exige conteúdo na publicação e respeita permissão da versão publ
   await expect(
     service.save({
       slug: "inicio",
-      draft: { ...fields, permission: "unknown" },
+      draft: { ...fields, permissions: ["unknown"] },
       action: "draft",
     })
   ).rejects.toThrow("Permissão");
   await service.save({
     slug: "inicio",
-    draft: { ...fields, permission: "tasks:read" },
+    draft: { ...fields, permissions: ["tasks:read", "tasks:create"] },
     action: "publish",
   });
   await expect(service.read("inicio", [])).rejects.toThrow("não encontrado");
-  expect((await service.read("inicio", ["tasks:read"])).title).toBe("Guia");
+  // Basta uma das permissões exigidas, e repetições não mudam a regra.
+  expect((await service.read("inicio", ["tasks:create"])).title).toBe("Guia");
+  expect(
+    (await service.read("inicio", ["tasks:read", "outra"])).permissions
+  ).toEqual(["tasks:read", "tasks:create"]);
+  const deduped = await service.save({
+    slug: "duplicadas",
+    draft: { ...fields, permissions: ["tasks:read", "tasks:read"] },
+    action: "publish",
+  });
+  expect(deduped.draft.permissions).toEqual(["tasks:read"]);
   expect(await service.importMissing("outro", fields)).toBe(true);
   await expect(service.read("outro", ["tasks:read"])).rejects.toThrow(
     "não encontrado"
@@ -124,8 +134,13 @@ test("Markdown preserva blocos básicos e textos literais sem executar HTML", ()
   );
   expect(guide).toMatchObject({
     slug: "inicio",
-    draft: { title: "Início", order: 2, permission: null },
+    draft: { title: "Início", order: 2, permissions: [] },
   });
+  expect(
+    parseGuideFile(
+      '---\nslug: inicio\ntitle: "Início"\nsection: Geral\npermissions: tasks:read, tasks:create\n---\nTexto'
+    ).draft.permissions
+  ).toEqual(["tasks:read", "tasks:create"]);
   expect(() =>
     parseGuideFile("---\nslug: inicio\nslug: outro\n---\nTexto")
   ).toThrow("duplicado");

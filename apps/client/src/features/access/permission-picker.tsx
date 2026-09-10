@@ -9,18 +9,13 @@ import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyTitle } from "@/components/ui/empty";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { normalizeText } from "@/lib/utils";
 
 type PermissionGroup = {
   resource: string;
   label: string;
   actions: readonly { id: string; label: string; description: string }[];
 };
-const normalize = (value: string) =>
-  value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim();
 
 export function PermissionPicker({
   catalog,
@@ -36,7 +31,7 @@ export function PermissionPicker({
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<string[]>([]);
   const groups = catalog.filter((group) =>
-    normalize(group.label).includes(normalize(search))
+    normalizeText(group.label).includes(normalizeText(search))
   );
 
   function selectGroup(group: PermissionGroup, selected: boolean) {

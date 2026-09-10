@@ -18,10 +18,7 @@ import {
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
-import {
-  NativeSelect,
-  NativeSelectOption,
-} from "@/components/ui/native-select";
+import { PermissionPicker } from "@/features/access/permission-picker";
 import { accessError } from "@/features/access/queries";
 import { catalog } from "@/lib/access";
 import { rpc } from "@/lib/rpc";
@@ -39,17 +36,20 @@ function EditorForm({
   const client = useQueryClient(),
     navigate = useNavigate();
   const [slug, setSlug] = useState(initial?.slug ?? "");
-  const [draft, setDraft] = useState(
+  const [draft, setDraft] = useState<Guide["draft"]>(
     initial?.draft ?? {
       title: "",
       section: "Geral",
       order: 0,
       markdown: "",
-      permission: null,
+      permissions: [],
     }
   );
   const [saved, setSaved] = useState(initial);
   const [preview, setPreview] = useState(false);
+  const [restricted, setRestricted] = useState(
+    (initial?.draft.permissions.length ?? 0) > 0
+  );
   const [dirty, setDirty] = useState(false);
   const unsaved = useRef(false);
   const markDirty = () => {
@@ -247,29 +247,52 @@ function EditorForm({
             apenas para quem administra os guias.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <Field>
-            <FieldLabel htmlFor="guide-permission">Quem pode ler</FieldLabel>
-            <NativeSelect
-              disabled={save.isPending}
-              id="guide-permission"
-              onChange={(event) =>
-                update("permission", event.target.value || null)
-              }
-              value={draft.permission ?? ""}
-            >
-              <NativeSelectOption value="">
-                Todos os usuários
-              </NativeSelectOption>
-              {catalog.flatMap((group) =>
-                group.actions.map((action) => (
-                  <NativeSelectOption key={action.id} value={action.id}>
-                    {group.label} — {action.label}
-                  </NativeSelectOption>
-                ))
+        <CardContent className="space-y-4">
+          <div className="space-y-1">
+            <label className="flex min-h-11 cursor-pointer items-center gap-3">
+              <input
+                checked={!restricted}
+                className="size-5 shrink-0 accent-foreground"
+                disabled={save.isPending}
+                name="guide-audience"
+                onChange={() => {
+                  setRestricted(false);
+                  update("permissions", []);
+                }}
+                type="radio"
+              />
+              <span className="font-medium text-sm">Todos os usuários</span>
+            </label>
+            <label className="flex min-h-11 cursor-pointer items-center gap-3">
+              <input
+                checked={restricted}
+                className="size-5 shrink-0 accent-foreground"
+                disabled={save.isPending}
+                name="guide-audience"
+                onChange={() => setRestricted(true)}
+                type="radio"
+              />
+              <span className="font-medium text-sm">
+                Somente quem tem uma destas permissões
+              </span>
+            </label>
+          </div>
+          {restricted && (
+            <>
+              {draft.permissions.length === 0 && (
+                <p className="text-muted-foreground text-xs">
+                  Marque ao menos uma permissão; sem nenhuma, o guia continua
+                  liberado para todos os usuários.
+                </p>
               )}
-            </NativeSelect>
-          </Field>
+              <PermissionPicker
+                catalog={catalog}
+                disabled={save.isPending}
+                grants={draft.permissions}
+                onChange={(next) => update("permissions", next)}
+              />
+            </>
+          )}
         </CardContent>
       </Card>
 

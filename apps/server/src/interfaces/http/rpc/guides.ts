@@ -14,13 +14,13 @@ import { protectedProcedure, requirePermission } from "./context";
 const string: JSONSchema = { type: "string" };
 const fieldsSchema = {
   type: "object",
-  required: ["title", "section", "order", "markdown", "permission"],
+  required: ["title", "section", "order", "markdown", "permissions"],
   properties: {
     title: string,
     section: string,
     order: { type: "integer" },
     markdown: string,
-    permission: { type: ["string", "null"] },
+    permissions: { type: "array", items: string },
   },
 } satisfies JSONSchema;
 const guideSchema: JSONSchema = {
@@ -74,7 +74,10 @@ const saveInput = documented(
       draft = object(data.draft);
     if (
       typeof draft.order !== "number" ||
-      (draft.permission !== null && typeof draft.permission !== "string") ||
+      !(
+        Array.isArray(draft.permissions) &&
+        draft.permissions.every((permission) => typeof permission === "string")
+      ) ||
       !["draft", "publish", "unpublish"].includes(String(data.action)) ||
       (data.version !== undefined &&
         (!Number.isSafeInteger(data.version) || Number(data.version) < 1))
@@ -97,7 +100,7 @@ const saveInput = documented(
         section: text(draft.section, 80),
         order: draft.order,
         markdown,
-        permission: draft.permission as string | null,
+        permissions: draft.permissions as string[],
       },
       ...(data.version === undefined
         ? {}
