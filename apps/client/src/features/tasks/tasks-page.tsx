@@ -36,14 +36,21 @@ import {
 } from "./queries";
 import { TaskForm } from "./task-form";
 import { TaskItem } from "./task-item";
+import { TaskPanel } from "./task-panel";
 import { TasksSkeleton } from "./tasks-skeleton";
 
 export function TasksPage({
   userId,
   filter,
   onFilter,
+  taskId,
+  onOpenTask,
+  onCloseTask,
 }: {
   userId: string;
+  taskId: string | undefined;
+  onOpenTask: (id: string) => void;
+  onCloseTask: () => void;
   filter: TaskFilter;
   onFilter: (filter: TaskFilter) => void;
 }) {
@@ -288,6 +295,7 @@ export function TasksPage({
                     setDeleting(item);
                   }}
                   onEdit={openEditor}
+                  onOpen={(item) => onOpenTask(item.id)}
                   onStatus={(item) => {
                     status.mutate({
                       id: item.id,
@@ -317,6 +325,15 @@ export function TasksPage({
           </>
         )}
       </section>
+
+      {taskId && (
+        <TaskPanel
+          key={taskId}
+          onClose={onCloseTask}
+          taskId={taskId}
+          userId={userId}
+        />
+      )}
 
       {editor !== null &&
         can(

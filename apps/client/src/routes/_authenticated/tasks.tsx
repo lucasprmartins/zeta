@@ -10,7 +10,13 @@ export const Route = createFileRoute("/_authenticated/tasks")({
   staticData: { crumbs: [{ label: "Workspace" }, { label: "Tarefas" }] },
   validateSearch: (
     search: Record<string, unknown>
-  ): { status: TaskFilter } => ({
+  ): { status: TaskFilter; task?: string | undefined } => ({
+    task:
+      typeof search.task === "string" &&
+      search.task.length > 0 &&
+      search.task.length <= 255
+        ? search.task
+        : undefined,
     status:
       search.status === "pending" || search.status === "completed"
         ? search.status
@@ -27,9 +33,25 @@ function TasksRoute() {
       <TasksPage
         filter={search.status}
         key={data.user.id}
-        onFilter={(status) => {
-          void navigate({ search: { status } });
+        onCloseTask={() => {
+          void navigate({
+            search: (previous) => ({ ...previous, task: undefined }),
+            resetScroll: false,
+          });
         }}
+        onFilter={(status) => {
+          void navigate({
+            search: (previous) => ({ ...previous, status }),
+            resetScroll: false,
+          });
+        }}
+        onOpenTask={(task) => {
+          void navigate({
+            search: (previous) => ({ ...previous, task }),
+            resetScroll: false,
+          });
+        }}
+        taskId={search.task}
         userId={data.user.id}
       />
     </PermissionBoundary>

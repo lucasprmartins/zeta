@@ -55,12 +55,14 @@ export function TaskItem({
   onStatus,
   onDelete,
   onEdit,
+  onOpen,
 }: {
   task: Task;
   pending: boolean;
   onStatus: (task: Task) => void;
   onDelete: (task: Task) => void;
   onEdit: (task: Task) => void;
+  onOpen: (task: Task) => void;
 }) {
   const { can } = usePermissions();
   const completed = task.status === "completed";
@@ -90,8 +92,7 @@ export function TaskItem({
       <button
         aria-label={`Abrir ${task.title}`}
         className="min-h-11 min-w-0 flex-1 rounded-sm py-1 text-left focus-visible:outline-2 focus-visible:outline-offset-4 sm:min-h-0"
-        disabled={pending || !can(permissions.tasks.update)}
-        onClick={() => onEdit(task)}
+        onClick={() => onOpen(task)}
         type="button"
       >
         <span

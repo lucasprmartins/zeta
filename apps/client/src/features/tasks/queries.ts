@@ -42,3 +42,10 @@ export const taskSummaryQuery = (userId: string) =>
     queryKey: [...taskKeys.all(userId), "summary"],
     queryFn: ({ signal }) => rpc.tasks.summary({}, { signal }),
   });
+
+export const taskQuery = (userId: string, id: string) =>
+  queryOptions({
+    queryKey: [...taskKeys.all(userId), "detail", id],
+    queryFn: ({ signal }) => rpc.tasks.get({ id }, { signal }),
+    retry: false,
+  });
