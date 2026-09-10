@@ -18,7 +18,7 @@ O plugin Admin permite consulta de contas e listagem/revogação de sessões par
 
 ## Console e aprovação de cadastro
 
-`/admin/console` permite configurar separadamente `allowSignUp` e `requireApproval`. Ambas são persistidas em `registration_settings`. O padrão é cadastro aberto, sem aprovação; fechar o cadastro não apaga a preferência de aprovação.
+`/admin/console` permite configurar separadamente `allowSignUp` e `requireApproval`. Ambas são persistidas em `console.registration_settings`. O padrão é cadastro aberto, sem aprovação; fechar o cadastro não apaga a preferência de aprovação.
 
 | Cadastro | Aprovação | Novas contas públicas |
 | --- | --- | --- |
@@ -26,7 +26,7 @@ O plugin Admin permite consulta de contas e listagem/revogação de sessões par
 | Aberto | Desativada | Podem entrar imediatamente |
 | Aberto | Ativada | Aguardam aprovação, sem sessão nem acesso |
 
-Contas existentes e contas criadas pelo administrador permanecem aprovadas. A migration acrescenta `auth_user.approval_pending` com valor inicial falso; esse estado é separado de bloqueio e papel. Desativar a exigência vale para novos cadastros e não aprova pendências automaticamente. A aba **Aprovação** (`/admin/users?view=approvals`) aparece com a exigência ativa ou enquanto houver pendências. A lista de usuários comuns exclui pendentes; ambas usam paginação incremental.
+Contas existentes e contas criadas pelo administrador permanecem aprovadas. A migration acrescenta `auth.auth_user.approval_pending` com valor inicial falso; esse estado é separado de bloqueio e papel. Desativar a exigência vale para novos cadastros e não aprova pendências automaticamente. A aba **Aprovação** (`/admin/users?view=approvals`) aparece com a exigência ativa ou enquanto houver pendências. A lista de usuários comuns exclui pendentes; ambas usam paginação incremental.
 
 `GET /api/registration-policy` publica somente os dois indicadores usados no login/cadastro. Configuração, contagem, listagem e aprovação exigem `access:manage` em `/api/access/registration` e `/api/access/approvals`. Os casos de uso revalidam o administrador dentro da transação; aprovação altera apenas a pendência e não remove bloqueios nem concede outro papel.
 

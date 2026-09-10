@@ -1,6 +1,7 @@
-import { boolean, pgTable, text } from "drizzle-orm/pg-core";
+import { consoleSchema } from "./namespaces";
+import { boolean, text } from "drizzle-orm/pg-core";
 
-export const registrationSettings = pgTable("registration_settings", {
+export const registrationSettings = consoleSchema.table("registration_settings", {
   id: text("id").primaryKey(),
   allowSignUp: boolean("allow_sign_up").notNull(),
   requireApproval: boolean("require_approval").notNull(),

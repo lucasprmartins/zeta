@@ -1,11 +1,12 @@
-import { boolean, index, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { authSchema } from "./namespaces";
+import { boolean, index, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 const timestamps = () => ({
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().$onUpdate(() => new Date()).notNull(),
 });
 
-export const user = pgTable("auth_user", {
+export const user = authSchema.table("auth_user", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   role: text("role").default("user").notNull(),
@@ -21,7 +22,7 @@ export const user = pgTable("auth_user", {
   ...timestamps(),
 });
 
-export const session = pgTable("auth_session", {
+export const session = authSchema.table("auth_session", {
   id: text("id").primaryKey(),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   token: text("token").notNull().unique(),
@@ -32,7 +33,7 @@ export const session = pgTable("auth_session", {
   ...timestamps(),
 }, (table) => [index("auth_session_user_idx").on(table.userId)]);
 
-export const account = pgTable("auth_account", {
+export const account = authSchema.table("auth_account", {
   id: text("id").primaryKey(),
   issuer: text("issuer").notNull(),
   accountId: text("account_id").notNull(),
@@ -51,7 +52,7 @@ export const account = pgTable("auth_account", {
   uniqueIndex("auth_account_issuer_account_idx").on(table.issuer, table.accountId),
 ]);
 
-export const verification = pgTable("auth_verification", {
+export const verification = authSchema.table("auth_verification", {
   id: text("id").primaryKey(),
   identifier: text("identifier").notNull(),
   value: text("value").notNull(),

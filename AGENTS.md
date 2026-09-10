@@ -66,6 +66,7 @@ O módulo `domain/authorization` administra papéis globais e atribuições; o p
 
 ## Banco
 
+- Schemas PostgreSQL: `auth` para Better Auth, `console` para configurações administrativas da aplicação, `public` para domínio e `drizzle` exclusivamente para o histórico de migrations. Use os namespaces de `schema/namespaces.ts`; preserve nomes qualificados em SQL manual e faça movimentações por migrations incrementais.
 - API e migrador usam Drizzle sobre Bun SQL. `postgres` é dependência de desenvolvimento para Drizzle Kit/Studio.
 - Todas as migrations, snapshots e metadados ficam em `apps/server/src/infrastructure/database/migrations`.
 - Altere o schema, execute `db:generate`, revise o SQL e aplique `db:migrate`. Preserve o histórico aplicado; não apague, renumere ou regenere migrations existentes.

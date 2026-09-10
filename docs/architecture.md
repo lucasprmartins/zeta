@@ -6,7 +6,7 @@ Este documento descreve a implementação e seus pontos de extensão. As conven�
 
 O monorepo usa workspaces Bun: `apps/server` contém a API e `apps/client`, a aplicação React e seu runtime de produção. A raiz concentra scripts, lockfile e configuração TypeScript compartilhada; cada app declara suas dependências.
 
-`packages/access` compartilha o catálogo público de ações. `domain/authorization` implementa papéis globais e atribuições por contratos independentes de frameworks; o repositório Drizzle persiste `access_role` e o vínculo em `auth_user.role`. A API resolve permissões atuais após validar a sessão Better Auth. O cliente consome `/api/access/me`, sem deduzir concessões pelo nome do papel. Política, transações e extensão estão em [authorization.md](authorization.md).
+`packages/access` compartilha o catálogo público de ações. `domain/authorization` implementa papéis globais e atribuições por contratos independentes de frameworks; o repositório Drizzle persiste `console.access_role` e o vínculo em `auth.auth_user.role`. A API resolve permissões atuais após validar a sessão Better Auth. O cliente consome `/api/access/me`, sem deduzir concessões pelo nome do papel. Política, transações e extensão estão em [authorization.md](authorization.md).
 
 ```text
 React → cliente oRPC → HTTP → aplicação → entidades
@@ -17,6 +17,12 @@ bootstrap.ts → composição das implementações
 ```
 
 O domínio usa apenas TypeScript. Entidades preservam estado e invariantes; contratos expressam necessidades de persistência; casos de uso recebem repositórios, relógio e geração de IDs. Não há container de DI, bus ou hierarquia de classes base.
+
+### Schemas PostgreSQL
+
+`schema/namespaces.ts` centraliza `auth` e `console`. As tabelas do Better Auth usam `auth`; configurações administrativas da aplicação usam `console`; tabelas de negócio permanecem em `public`. O schema `console` pode receber novas configurações administrativas conforme o projeto evoluir; papéis e política de cadastro são exemplos atuais. Drizzle qualifica as consultas e as referências entre schemas, sem alterar `search_path`. Os nomes das tabelas foram preservados.
+
+O histórico permanece em `drizzle.__drizzle_migrations`. `drizzle.config.ts` limita introspecção aos três schemas da aplicação e mantém o schema de migrations separado. A migration `0007_separate_schemas` move tabelas com `ALTER TABLE ... SET SCHEMA`, preservando dados, índices e chaves estrangeiras; migrations anteriores continuam intactas.
 
 ## Servidor
 
