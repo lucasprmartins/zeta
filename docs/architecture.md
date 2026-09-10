@@ -80,7 +80,8 @@ routes/
     dashboard.tsx
     tasks.tsx                # Filtro status na URL
     profile.tsx
-    admin/users.tsx           # Usuários e papéis; view/q na URL
+    admin/users.tsx           # Usuários, papéis e aprovações; view/q na URL
+    admin/console.tsx         # Política de cadastro e aprovação
 ```
 
 `tsr.config.json` centraliza geração e code splitting. O plugin TanStack no Vite e o script `routes:generate` produzem `routeTree.gen.ts`, importado por `app/router.tsx`; a árvore não é versionada.

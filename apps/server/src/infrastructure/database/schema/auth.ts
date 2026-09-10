@@ -9,6 +9,7 @@ export const user = pgTable("auth_user", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   role: text("role").default("user").notNull(),
+  approvalPending: boolean("approval_pending").default(false).notNull(),
   banned: boolean("banned").default(false).notNull(),
   banReason: text("ban_reason"),
   banExpires: timestamp("ban_expires", { withTimezone: true }),

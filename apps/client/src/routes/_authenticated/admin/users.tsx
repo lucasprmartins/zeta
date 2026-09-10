@@ -5,8 +5,8 @@ import { AdminUsersPage } from "@/features/access/admin-users-page";
 import { authClient } from "@/lib/auth";
 export const Route = createFileRoute("/_authenticated/admin/users")({
   component: Page,
-  validateSearch: (search: Record<string, unknown>): { q?: string; view?: "roles" } => ({
-    ...(search.view === "roles" ? { view: "roles" } : {}),
+  validateSearch: (search: Record<string, unknown>): { q?: string; view?: "roles" | "approvals" } => ({
+    ...(search.view === "roles" || search.view === "approvals" ? { view: search.view } : {}),
     ...(typeof search.q === "string" && search.q.trim() && search.q.length <= 254 ? { q: search.q.trim() } : {}),
   }),
 });

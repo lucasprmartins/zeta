@@ -1,5 +1,7 @@
+import type { RpcContext } from "./context";
+import type { RegistrationPolicy } from "@server/domain/authorization/entities/registration-policy";
 import type { UserFields, UserManagement } from "../user-management";
-import { ORPCError, type } from "@orpc/server";
+import { ORPCError, os, type } from "@orpc/server";
 import type { JSONSchema } from "@orpc/openapi";
 import type { manageAccess } from "@server/domain/authorization/application/manage-access";
 import { AccessError } from "@server/domain/authorization/entities/role";
@@ -41,6 +43,13 @@ function parseUser(input: unknown): UserFields {
   if (data.password !== undefined && typeof data.password !== "string") throw new ORPCError("BAD_REQUEST");
   return { name: text(data.name), username: text(data.username, 30), email: text(data.email, 254), roleId: text(data.roleId), ...(data.password === undefined ? {} : { password: data.password as string }) };
 }
+const policySchema = { type: "object", required: ["allowSignUp", "requireApproval"], properties: { allowSignUp: { type: "boolean" }, requireApproval: { type: "boolean" } } } satisfies JSONSchema;
+const policyOutput = documented(type<RegistrationPolicy>(), policySchema);
+const policyInput = documented(type<RegistrationPolicy>((input) => {
+  const data = object(input);
+  if (typeof data.allowSignUp !== "boolean" || typeof data.requireApproval !== "boolean") throw new ORPCError("BAD_REQUEST");
+  return { allowSignUp: data.allowSignUp, requireApproval: data.requireApproval };
+}), policySchema);
 const route = { tags: ["Controle de acesso"], spec: (operation: import("@orpc/openapi").OpenAPI.OperationObject) => ({ ...operation, security: [{ sessionCookie: [] }] }) };
 const procedure = protectedProcedure.errors({ BAD_REQUEST: {}, UNAUTHORIZED: {}, FORBIDDEN: {}, NOT_FOUND: {}, CONFLICT: {} }).use(async ({ next }) => {
   try { return await next(); } catch (error) {
@@ -53,6 +62,17 @@ export function createAccessRouter(service?: ReturnType<typeof manageAccess>, us
   const getUsers = () => { if (!users) throw new ORPCError("INTERNAL_SERVER_ERROR"); return users; };
   const admin = procedure.use(requirePermission(permissions.access.manage));
   return {
+    registrationPolicy: os.$context<RpcContext>().route({ method: "GET", path: "/registration-policy", tags: ["Cadastro"], summary: "Política pública de cadastro" }).output(policyOutput).handler(() => getService().registrationPolicy()),
+    registrationStatus: admin.route({ ...route, method: "GET", path: "/access/registration", summary: "Configuração de cadastro e pendências" })
+      .output(documented(type<RegistrationPolicy & { pendingCount: number }>(), { ...policySchema, required: [...policySchema.required, "pendingCount"], properties: { ...policySchema.properties, pendingCount: { type: "integer" } } })).handler(({ context }) => getService().registrationStatus(context.user.id)),
+    saveRegistrationPolicy: admin.route({ ...route, method: "PUT", path: "/access/registration", summary: "Configurar cadastro e aprovação" }).input(policyInput).output(policyOutput)
+      .handler(({ context, input }) => getService().saveRegistrationPolicy(context.user.id, input)),
+    pendingUsers: admin.route({ ...route, method: "GET", path: "/access/approvals", summary: "Listar cadastros pendentes" }).input(usersInput)
+      .output(documented(type<{ items: AccessUser[]; hasMore: boolean }>(), { type: "object", required: ["items", "hasMore"], properties: { items: { type: "array", items: userSchema }, hasMore: { type: "boolean" } } }))
+      .handler(({ context, input }) => getService().pendingUsers(context.user.id, input.page)),
+    approveUser: admin.route({ ...route, method: "POST", path: "/access/approvals/{id}", summary: "Aprovar cadastro" }).input(idInput)
+      .output(documented(type<{ userId: string }>(), { type: "object", required: ["userId"], properties: { userId: textSchema } }))
+      .handler(({ context, input }) => getService().approve(context.user.id, input.id)),
     me: procedure.route({ ...route, method: "GET", path: "/access/me", summary: "Minhas permissões atuais" })
       .output(documented(type<{ userId: string; roleId: string | null; grants: string[] }>(), { type: "object", required: ["userId", "roleId", "grants"], properties: { userId: textSchema, roleId: { type: ["string", "null"] }, grants: grantsSchema } }))
       .handler(({ context }) => ({ userId: context.user.id, roleId: context.user.role, grants: context.user.grants })),

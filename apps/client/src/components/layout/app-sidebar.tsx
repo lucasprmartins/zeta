@@ -1,19 +1,20 @@
 import { usePermissions } from "@/components/permission-boundary";
 import { permissions, type Permission } from "@/lib/access";
 import { Link } from "@tanstack/react-router";
-import { UsersIcon, LayoutIcon, CheckSquareIcon, SignOutIcon, type Icon as PhosphorIcon } from "@phosphor-icons/react";
+import { SlidersHorizontalIcon, UsersIcon, LayoutIcon, CheckSquareIcon, SignOutIcon, type Icon as PhosphorIcon } from "@phosphor-icons/react";
 import { BlockMark } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 // Grupos vazios não aparecem para contas sem as permissões correspondentes.
-type NavigationItem = { label: string; to: "/dashboard" | "/tasks" | "/admin/users"; icon: PhosphorIcon; permission: Permission };
+type NavigationItem = { label: string; to: "/dashboard" | "/tasks" | "/admin/users" | "/admin/console"; icon: PhosphorIcon; permission: Permission };
 const navigation: { label: string; items: NavigationItem[] }[] = [
   { label: "Workspace", items: [
     { label: "Dashboard", to: "/dashboard", icon: LayoutIcon, permission: permissions.tasks.read },
     { label: "Tarefas", to: "/tasks", icon: CheckSquareIcon, permission: permissions.tasks.read },
   ] },
   { label: "Administração", items: [
+    { label: "Console", to: "/admin/console", icon: SlidersHorizontalIcon, permission: permissions.access.manage },
     { label: "Usuários", to: "/admin/users", icon: UsersIcon, permission: permissions.access.manage },
   ] },
 ];

@@ -1,3 +1,4 @@
+import type { RegistrationPolicy } from "../entities/registration-policy";
 import type { AccessRepository, AccessStore } from "../contracts/access-repository";
 import { AccessError, roleFields, effectiveRoleGrants } from "../entities/role";
 
@@ -7,6 +8,26 @@ export function manageAccess(repository: AccessRepository, available: readonly s
     if (!actor || actor.banned || actor.role !== "admin") throw new AccessError("FORBIDDEN", "Você não tem permissão para administrar o acesso.");
   }
   return {
+    registrationPolicy: () => repository.registrationPolicy(),
+    async registrationStatus(actorId: string) {
+      await authorize(repository, actorId);
+      return { ...await repository.registrationPolicy(), pendingCount: await repository.pendingCount() };
+    },
+    saveRegistrationPolicy(actorId: string, policy: RegistrationPolicy) {
+      return repository.transaction(async (store) => {
+        await authorize(store, actorId);
+        await store.saveRegistrationPolicy(policy);
+        return policy;
+      });
+    },
+    async pendingUsers(actorId: string, page: number) { await authorize(repository, actorId); return repository.pendingUsers(page); },
+    approve(actorId: string, userId: string) {
+      return repository.transaction(async (store) => {
+        await authorize(store, actorId);
+        if (!await store.approve(userId)) throw new AccessError("NOT_FOUND", "Cadastro pendente não encontrado.");
+        return { userId };
+      });
+    },
     async listRoles(actorId: string) { await authorize(repository, actorId); return (await repository.roles()).map((role) => ({ ...role, grants: effectiveRoleGrants(role, available) })); },
     async listUsers(actorId: string, page: number, search: string) { await authorize(repository, actorId); return repository.users(page, search); },
     save(actorId: string, input: { id?: string; name: string; grants: string[]; color?: string }) {

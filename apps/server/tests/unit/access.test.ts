@@ -13,6 +13,8 @@ function setup() {
     ["u", { id: "u", name: "User", email: "u@test", username: null, role: "user", banned: false }],
   ]);
   const repository: AccessRepository = {
+    registrationPolicy: async () => ({ allowSignUp: true, requireApproval: false }),
+    saveRegistrationPolicy: async () => {}, pendingUsers: async () => ({ items: [], hasMore: false }), pendingCount: async () => 0, approve: async () => false,
     role: async (id) => roles.get(id) ?? null,
     roles: async () => [...roles.values()],
     user: async (id) => users.get(id) ?? null,

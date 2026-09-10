@@ -459,3 +459,65 @@ test("admin gerencia contas atomicamente e filtra contas por nome, nome de usuá
   expect((await (await lookup("rollback.admin")).json()).items).toEqual([]);
   expect((await request("/api/auth/sign-in/email", { email: manager.data.user.email, password: "test-password-long-enough-123" })).status).toBe(200);
 }, 30000);
+
+test("console separa cadastro público e aprovação, bloqueando sessões pendentes", async () => {
+  const manager = await signUp("console-admin@example.com");
+  const existing = await signUp("console-existing@example.com");
+  await database.db.execute(sql`update auth_user set role = 'admin' where id = ${manager.data.user.id}`);
+  const policyPath = "/api/access/registration";
+  const configure = (allowSignUp: boolean, requireApproval: boolean) => request(policyPath, { allowSignUp, requireApproval }, manager.cookie, "PUT");
+  const publicPolicy = () => request("/api/registration-policy");
+  expect(await (await publicPolicy()).json()).toEqual({ allowSignUp: true, requireApproval: false });
+  expect((await request(policyPath)).status).toBe(401);
+  expect((await request(policyPath, undefined, existing.cookie)).status).toBe(403);
+  expect((await request(policyPath, { allowSignUp: false, requireApproval: false }, existing.cookie, "PUT")).status).toBe(403);
+  expect((await request(policyPath, { allowSignUp: "false", requireApproval: false }, manager.cookie, "PUT")).status).toBe(400);
+  const signup = (email: string, username: string) => request("/api/auth/sign-up/email", { email, username, name: "Aguardando aprovação", password: "test-password-long-enough-123", approvalPending: false });
+  for (const requireApproval of [false, true]) {
+    expect((await configure(false, requireApproval)).status).toBe(200);
+    expect(await (await publicPolicy()).json()).toEqual({ allowSignUp: false, requireApproval });
+    const blocked = await signup(`closed-${requireApproval}@example.com`, `closed.${requireApproval}`);
+    expect(blocked.status).toBe(400);
+    expect((await blocked.json()).code).toBe("EMAIL_PASSWORD_SIGN_UP_DISABLED");
+  }
+  expect((await request("/api/access/me", undefined, existing.cookie)).status).toBe(200);
+  // O administrador continua criando contas aprovadas mesmo com cadastro fechado.
+  const createdByAdmin = await request("/api/access/users", { name: "Convidado", username: "admin.invited", email: "admin-invited@example.com", password: "test-password-long-enough-123", roleId: "user" }, manager.cookie);
+  expect(createdByAdmin.status).toBe(200);
+  expect((await request("/api/auth/sign-in/username", { username: "admin.invited", password: "test-password-long-enough-123" })).status).toBe(200);
+  expect((await configure(true, true)).status).toBe(200);
+  const pending = await signup("pending-console@example.com", "pending.console");
+  expect(pending.status).toBe(200);
+  expect(pending.headers.getSetCookie().join()).not.toContain("session_token");
+  const body = await pending.json();
+  expect(body.token).toBeNull();
+  expect(body.user.approvalPending).toBe(true);
+  const login = () => request("/api/auth/sign-in/email", { email: "pending-console@example.com", password: "test-password-long-enough-123" });
+  const denied = await login();
+  expect(denied.status).toBe(403);
+  expect((await denied.json()).code).toBe("ACCOUNT_PENDING_APPROVAL");
+  expect((await request("/api/auth/sign-in/username", { username: "pending.console", password: "test-password-long-enough-123" })).status).toBe(403);
+  expect(await database.db.execute(sql`select id from auth_session where user_id = ${body.user.id}`)).toHaveLength(0);
+  expect((await request("/api/access/approvals", undefined, existing.cookie)).status).toBe(403);
+  expect((await (await request("/api/access/approvals", undefined, manager.cookie)).json()).items.map((user: { id: string }) => user.id)).toContain(body.user.id);
+  expect((await (await request("/api/access/users?search=pending.console", undefined, manager.cookie)).json()).items).toEqual([]);
+  const approvePath = `/api/access/approvals/${body.user.id}`;
+  expect((await request(approvePath, {}, existing.cookie)).status).toBe(403);
+  expect((await request(approvePath, {})).status).toBe(401);
+  // Desativar a exigência não libera quem já aguardava aprovação.
+  expect((await configure(true, false)).status).toBe(200);
+  expect((await login()).status).toBe(403);
+  const status = await (await request(policyPath, undefined, manager.cookie)).json();
+  expect(status).toMatchObject({ requireApproval: false, pendingCount: 1 });
+  const immediate = await signup("immediate-console@example.com", "immediate.console");
+  expect(immediate.status).toBe(200);
+  expect((await immediate.json()).token).toBeString();
+  expect((await request(approvePath, {}, manager.cookie)).status).toBe(200);
+  expect((await request(approvePath, {}, manager.cookie)).status).toBe(404);
+  const accepted = await login();
+  expect(accepted.status).toBe(200);
+  const cookie = accepted.headers.getSetCookie().map((value) => value.split(";")[0]).join("; ");
+  expect((await request("/api/tasks", undefined, cookie)).status).toBe(200);
+  expect((await (await request(policyPath, undefined, manager.cookie)).json()).pendingCount).toBe(0);
+  expect((await (await request("/api/access/users?search=pending.console", undefined, manager.cookie)).json()).items).toHaveLength(1);
+}, 30000);

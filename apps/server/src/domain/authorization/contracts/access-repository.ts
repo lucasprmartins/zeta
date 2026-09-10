@@ -1,6 +1,12 @@
+import type { RegistrationPolicy } from "../entities/registration-policy";
 import type { AccessRole } from "../entities/role";
 export type AccessUser = { id: string; name: string; email: string; username: string | null; role: string; banned: boolean };
 export interface AccessStore {
+  registrationPolicy(): Promise<RegistrationPolicy>;
+  saveRegistrationPolicy(policy: RegistrationPolicy): Promise<void>;
+  pendingUsers(page: number): Promise<{ items: AccessUser[]; hasMore: boolean }>;
+  pendingCount(): Promise<number>;
+  approve(userId: string): Promise<boolean>;
   role(id: string): Promise<AccessRole | null>;
   roles(): Promise<AccessRole[]>;
   user(id: string): Promise<AccessUser | null>;
