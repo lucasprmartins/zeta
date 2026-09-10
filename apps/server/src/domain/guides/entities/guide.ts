@@ -13,6 +13,10 @@ export type Guide = {
   version: number;
   updatedAt: string;
 };
+// Invariante do domínio. O mesmo valor é publicado por `@zeta/guide-content`
+// para o transporte e o editor; o domínio não importa fora de `src/domain`.
+export const MAX_GUIDE_MARKDOWN = 50_000;
+
 export class GuideError extends Error {
   constructor(
     public readonly code: "BAD_REQUEST" | "NOT_FOUND" | "CONFLICT",
@@ -40,10 +44,10 @@ export function guideFields(input: GuideFields): GuideFields {
       "A ordem deve ser um número de 0 a 10000."
     );
   }
-  if (input.markdown.length > 50_000) {
+  if (input.markdown.length > MAX_GUIDE_MARKDOWN) {
     throw new GuideError(
       "BAD_REQUEST",
-      "O conteúdo deve ter até 50 mil caracteres."
+      `O conteúdo deve ter até ${MAX_GUIDE_MARKDOWN.toLocaleString("pt-BR")} caracteres.`
     );
   }
   const permissions = [...new Set(input.permissions)];

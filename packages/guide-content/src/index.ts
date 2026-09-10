@@ -4,11 +4,16 @@ export type GuideBlock = {
   text: string;
   level?: 1 | 2 | 3;
 };
+// Limite único do conteúdo, compartilhado pelo domínio, pelo transporte e pelo editor.
+export const MAX_GUIDE_MARKDOWN = 50_000;
+
 const unescapeText = (text: string) =>
   text.replace(/\\([\\!#>*+\-\d`~])/g, "$1");
 export function parseMarkdown(markdown: string): GuideBlock[] {
-  if (markdown.length > 50_000) {
-    throw new Error("O conteúdo deve ter até 50 mil caracteres.");
+  if (markdown.length > MAX_GUIDE_MARKDOWN) {
+    throw new Error(
+      `O conteúdo deve ter até ${MAX_GUIDE_MARKDOWN.toLocaleString("pt-BR")} caracteres.`
+    );
   }
   const blocks: GuideBlock[] = [];
   let paragraph: string[] = [];
