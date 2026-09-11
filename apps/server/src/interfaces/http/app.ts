@@ -12,6 +12,7 @@ export async function createApp(dependencies: {
   authentication: Authentication;
   checkDatabase: () => Promise<void>;
   reportError?: (error: unknown) => void;
+  helpChat?: (request: Request) => Promise<Response>;
 }) {
   const reportError =
     dependencies.reportError ?? ((error: unknown) => console.error(error));
@@ -72,6 +73,13 @@ export async function createApp(dependencies: {
           503: t.Object({ status: t.Literal("unavailable") }),
         },
       }
+    )
+    .post(
+      "/api/help/chat",
+      ({ request }) =>
+        dependencies.helpChat?.(request) ??
+        new Response("Ajuda indisponível.", { status: 503 }),
+      { parse: "none", detail: { hide: true } }
     )
     .all(
       "/api/auth/*",

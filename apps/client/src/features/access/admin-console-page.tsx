@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { actionErrorMessage } from "@/lib/query";
 import { rpc } from "@/lib/rpc";
+import { HelpSettings } from "./help-settings";
 import { accessKeys, registrationStatusQuery } from "./queries";
 
 export function AdminConsolePage() {
@@ -128,6 +129,7 @@ export function AdminConsolePage() {
           </Card>
         )
       )}
+      <HelpSettings />
     </PageContent>
   );
 }
