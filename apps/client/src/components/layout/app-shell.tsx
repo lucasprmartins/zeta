@@ -21,9 +21,18 @@ type Props = {
   leaving: boolean;
   onSignOut: () => void;
   children: ReactNode;
+  sidebarAction?: (collapsed: boolean, onNavigate?: () => void) => ReactNode;
+  sidebarPanel?: (collapsed: boolean) => ReactNode;
 };
 
-export function AppShell({ user, leaving, onSignOut, children }: Props) {
+export function AppShell({
+  user,
+  leaving,
+  onSignOut,
+  children,
+  sidebarAction,
+  sidebarPanel,
+}: Props) {
   const [collapsed, setCollapsed] = useState(readPreference);
   const [mobileOpen, setMobileOpen] = useState(false);
   const mobileDialog = useRef<HTMLDialogElement>(null);
@@ -86,7 +95,11 @@ export function AppShell({ user, leaving, onSignOut, children }: Props) {
           data-collapsed={collapsed}
           id="desktop-sidebar"
         >
-          <AppSidebar {...sidebarProps} collapsed={collapsed} />
+          <AppSidebar
+            {...sidebarProps}
+            action={sidebarAction?.(collapsed)}
+            collapsed={collapsed}
+          />
         </aside>
 
         <div
@@ -138,7 +151,10 @@ export function AppShell({ user, leaving, onSignOut, children }: Props) {
           {...dismissOnBackdrop(() => setMobileOpen(false))}
           onClose={() => {
             setMobileOpen(false);
-            if (window.matchMedia("(max-width: 1023px)").matches) {
+            if (
+              window.matchMedia("(max-width: 1023px)").matches &&
+              !document.querySelector("dialog[open]")
+            ) {
               menuTrigger.current?.focus();
             }
           }}
@@ -156,10 +172,12 @@ export function AppShell({ user, leaving, onSignOut, children }: Props) {
             </Button>
             <AppSidebar
               {...sidebarProps}
+              action={sidebarAction?.(false, () => setMobileOpen(false))}
               onNavigate={() => setMobileOpen(false)}
             />
           </div>
         </dialog>
+        {sidebarPanel?.(collapsed)}
       </div>
     </PageCrumbProvider>
   );

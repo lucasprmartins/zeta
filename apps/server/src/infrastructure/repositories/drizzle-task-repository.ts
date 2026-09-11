@@ -1,3 +1,4 @@
+import type { DomainEvent } from "@server/domain/events";
 import type {
   TaskFilter,
   TaskRepository,
@@ -36,7 +37,13 @@ function restore(row: Row, mentions: readonly string[]) {
 }
 
 export class DrizzleTaskRepository implements TaskRepository {
-  constructor(private readonly db: Database) {}
+  constructor(
+    private readonly db: Database,
+    private readonly publish: (
+      events: readonly DomainEvent[],
+      tx: Transaction
+    ) => Promise<void>
+  ) {}
 
   private async mentionsOf(
     tx: Database | Transaction,
@@ -84,7 +91,7 @@ export class DrizzleTaskRepository implements TaskRepository {
     }
   }
 
-  async save(task: Task): Promise<void> {
+  async save(task: Task, events: readonly DomainEvent[] = []): Promise<void> {
     const { mentions } = task.toJSON();
     await this.db.transaction(async (tx) => {
       await tx.insert(tasks).values(values(task));
@@ -95,6 +102,7 @@ export class DrizzleTaskRepository implements TaskRepository {
             mentions.map((userId) => ({ taskId: task.toJSON().id, userId }))
           );
       }
+      await this.publish(events, tx);
     });
   }
 

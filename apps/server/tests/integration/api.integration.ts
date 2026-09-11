@@ -3,8 +3,15 @@ import { copyFile, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { bootstrap } from "@server/bootstrap";
+import { eventPublisher } from "@server/domain/events";
+import { notificationsFor } from "@server/domain/notifications/notifications";
+import { Task } from "@server/domain/tasks/entities/task";
+import type { Transaction } from "@server/infrastructure/database/client";
 import { createDatabase } from "@server/infrastructure/database/client";
 import { migrateDatabase } from "@server/infrastructure/database/migrate";
+import { createHelpSettings } from "@server/infrastructure/repositories/drizzle-help-settings";
+import { deliverNotifications } from "@server/infrastructure/repositories/drizzle-notification-repository";
+import { DrizzleTaskRepository } from "@server/infrastructure/repositories/drizzle-task-repository";
 import { SQL } from "bun";
 import { sql } from "drizzle-orm";
 import { migrate } from "drizzle-orm/bun-sql/migrator";
@@ -27,6 +34,194 @@ const runtime = await bootstrap({
   authSecret: "integration-only-secret-with-more-than-32-characters",
   port: 3000,
   trustedOrigins: ["http://localhost:3000", "http://localhost:3001"],
+});
+
+test("notificações persistem por destinatário, deduplicam e revalidam permissões", async () => {
+  const author = await signUp("notification-author@example.com");
+  const recipient = await signUp("notification-recipient@example.com");
+  const stranger = await signUp("notification-stranger@example.com");
+  const recipientId: string = recipient.data.user.id;
+  const created = await request(
+    "/api/tasks",
+    { title: "Revisar entrega", mentions: [recipientId, recipientId] },
+    author.cookie
+  );
+  expect(created.status).toBe(200);
+  const task = await created.json();
+  expect((await request("/api/notifications")).status).toBe(401);
+  expect((await request("/api/notifications/unread-count")).status).toBe(401);
+  const list = async (cookie: string, query = "") =>
+    (await request(`/api/notifications${query}`, undefined, cookie)).json();
+  const count = async (cookie: string) =>
+    (
+      await request("/api/notifications/unread-count", undefined, cookie)
+    ).json();
+  const first = await list(recipient.cookie);
+  expect(first.items).toHaveLength(1);
+  const [notification] = first.items;
+  expect(notification).toMatchObject({
+    referenceId: task.id,
+    referenceType: "task",
+    title: "Revisar entrega",
+    readAt: null,
+  });
+  expect(await count(recipient.cookie)).toEqual({ count: 1 });
+  expect(
+    (await list(stranger.cookie, `?recipientId=${recipientId}`)).items
+  ).toEqual([]);
+  expect((await list(author.cookie)).items).toEqual([]);
+  const mark = (cookie?: string) =>
+    request(`/api/notifications/${notification.id}/read`, {}, cookie, "PATCH");
+  expect((await mark()).status).toBe(401);
+  expect((await mark(stranger.cookie)).status).toBe(404);
+  expect(
+    (await request("/api/notifications?page=0", undefined, recipient.cookie))
+      .status
+  ).toBe(400);
+  expect(
+    (
+      await request(
+        "/api/notifications?filter=invalid",
+        undefined,
+        recipient.cookie
+      )
+    ).status
+  ).toBe(400);
+  await database.db.transaction((tx) =>
+    deliverNotifications(
+      tx,
+      notificationsFor({
+        type: "task.created",
+        id: `task.created:${task.id}`,
+        occurredAt: task.createdAt,
+        taskId: task.id,
+        actorId: author.data.user.id,
+        title: task.title,
+        assigneeIds: [recipientId],
+      })
+    )
+  );
+  expect(await count(recipient.cookie)).toEqual({ count: 1 });
+  expect((await mark(recipient.cookie)).status).toBe(200);
+  const { readAt } = (await list(recipient.cookie)).items[0];
+  expect(readAt).toBeString();
+  expect((await mark(recipient.cookie)).status).toBe(200);
+  expect((await list(recipient.cookie)).items[0].readAt).toBe(readAt);
+  expect((await list(recipient.cookie, "?filter=unread")).items).toEqual([]);
+  expect(await count(recipient.cookie)).toEqual({ count: 0 });
+  await database.db.execute(
+    sql`insert into auth.access (id, name, grants) values ('notification-no-access', 'Sem tarefas para notificações', '[]')`
+  );
+  await database.db.execute(
+    sql`update auth.user set role = 'notification-no-access' where id = ${recipientId}`
+  );
+  expect((await list(recipient.cookie)).items).toEqual([]);
+  expect(await count(recipient.cookie)).toEqual({ count: 0 });
+  expect((await mark(recipient.cookie)).status).toBe(404);
+  await database.db.execute(
+    sql`update auth.user set role = 'user' where id = ${recipientId}`
+  );
+  await request(`/api/tasks/${task.id}`, undefined, author.cookie, "DELETE");
+  expect((await list(recipient.cookie)).items).toHaveLength(1);
+  expect(
+    (await request(`/api/tasks/${task.id}`, undefined, recipient.cookie)).status
+  ).toBe(404);
+}, 30_000);
+
+test("falha de assinante desfaz tarefa, responsáveis e notificações na mesma transação", async () => {
+  const account = await signUp("notification-rollback@example.com");
+  const task = Task.create({
+    id: crypto.randomUUID(),
+    authorId: account.data.user.id,
+    title: "Deve reverter",
+    description: "",
+    createdAt: new Date().toISOString(),
+    mentions: [account.data.user.id],
+  });
+  const data = task.toJSON();
+  const publish = eventPublisher<Transaction>([
+    (event, tx) => deliverNotifications(tx, notificationsFor(event)),
+    () => Promise.reject(new Error("assinante falhou")),
+  ]);
+  const repository = new DrizzleTaskRepository(database.db, publish);
+  await expect(
+    repository.save(task, [
+      {
+        type: "task.created",
+        id: `task.created:${data.id}`,
+        occurredAt: data.createdAt,
+        taskId: data.id,
+        actorId: account.data.user.id,
+        title: data.title,
+        assigneeIds: data.mentions,
+      },
+    ])
+  ).rejects.toThrow("assinante falhou");
+  expect(await repository.findById(data.id)).toBeNull();
+  expect(
+    await database.db.execute(
+      sql`select id from public.notifications where reference_id = ${data.id}`
+    )
+  ).toHaveLength(0);
+  expect(
+    await database.db.execute(
+      sql`select task_id from public.task_mentions where task_id = ${data.id}`
+    )
+  ).toHaveLength(0);
+});
+
+test("console salva chave criptografada, não revela segredo e revalida administração", async () => {
+  const manager = await signUp("help-admin@example.com");
+  const reader = await signUp("help-reader@example.com");
+  await database.db.execute(
+    sql`update auth.user set role = 'admin' where id = ${manager.data.user.id}`
+  );
+  const apiKey = "sk-integration-only-never-call-openai";
+  expect((await request("/api/help/status")).status).toBe(401);
+  expect(
+    (await request("/api/help/chat", { question: "Como uso?" })).status
+  ).toBe(401);
+  expect(
+    (await request("/api/admin/help", { apiKey }, reader.cookie, "PUT")).status
+  ).toBe(403);
+  expect(
+    (await request("/api/admin/help", { apiKey }, manager.cookie, "PUT")).status
+  ).toBe(200);
+  const status = await (
+    await request("/api/help/status", undefined, reader.cookie)
+  ).json();
+  expect(status).toEqual({ configured: true });
+  const rows = await database.db.execute<{ encrypted_api_key: string }>(
+    sql`select encrypted_api_key from console.help where id = 'openai'`
+  );
+  expect(rows[0]?.encrypted_api_key).not.toContain(apiKey);
+  const settings = createHelpSettings(
+    database.db,
+    "integration-only-secret-with-more-than-32-characters"
+  );
+  expect(await settings.apiKey()).toBe(apiKey);
+  await database.db.execute(
+    sql`update auth.user set role = 'user' where id = ${manager.data.user.id}`
+  );
+  await expect(settings.save(manager.data.user.id, null)).rejects.toThrow(
+    "permissão"
+  );
+  expect(
+    (await request("/api/admin/help", { apiKey: null }, manager.cookie, "PUT"))
+      .status
+  ).toBe(403);
+  await database.db.execute(
+    sql`update auth.user set role = 'admin' where id = ${manager.data.user.id}`
+  );
+  expect(
+    (await request("/api/admin/help", { apiKey: null }, manager.cookie, "PUT"))
+      .status
+  ).toBe(200);
+  expect(await settings.apiKey()).toBeNull();
+  expect(
+    (await request("/api/help/chat", { question: "Como uso?" }, reader.cookie))
+      .status
+  ).toBe(503);
 });
 
 beforeAll(async () => {
@@ -1565,9 +1760,11 @@ test("separa schemas preservando registros, constraints e histórico de migratio
     "auth.session",
     "auth.user",
     "auth.verification",
+    "console.help",
     "console.registration",
     "drizzle.migrations",
     "public.guides",
+    "public.notifications",
     "public.task_mentions",
     "public.tasks",
   ]);
@@ -1947,3 +2144,53 @@ test("guias separam publicação e rascunho, autorização, importação e pagin
       .status
   ).toBe(200);
 }, 30_000);
+
+test("atualiza banco existente até 0011 e cria configuração da ajuda", async () => {
+  const upgradeName = `test_${crypto.randomUUID().replaceAll("-", "")}`;
+  const upgradeUrl = new URL(url!);
+  upgradeUrl.pathname = `/${upgradeName}`;
+  const upgrade = createDatabase(upgradeUrl.toString());
+  const previousFolder = await mkdtemp(join(tmpdir(), "zeta-help-upgrade-"));
+  const migrationsFolder = new URL(
+    "../../src/infrastructure/database/migrations",
+    import.meta.url
+  ).pathname;
+  await admin.unsafe(`CREATE DATABASE "${upgradeName}"`);
+  try {
+    const journal = await Bun.file(
+      join(migrationsFolder, "meta/_journal.json")
+    ).json();
+    const previous = journal.entries.filter(
+      (entry: { idx: number }) => entry.idx <= 11
+    );
+    await mkdir(join(previousFolder, "meta"));
+    await writeFile(
+      join(previousFolder, "meta/_journal.json"),
+      JSON.stringify({ ...journal, entries: previous })
+    );
+    for (const entry of previous) {
+      await copyFile(
+        join(migrationsFolder, `${entry.tag}.sql`),
+        join(previousFolder, `${entry.tag}.sql`)
+      );
+    }
+    await migrateDatabase(upgrade.db, previousFolder);
+    const before = await upgrade.db.execute(
+      sql`select id, hash, created_at from drizzle.migrations order by id`
+    );
+    await migrateDatabase(upgrade.db, migrationsFolder);
+    const [table] = await upgrade.db.execute(
+      sql`select to_regclass('console.help') as name`
+    );
+    expect(table?.name).toBe("console.help");
+    const after = await upgrade.db.execute(
+      sql`select id, hash, created_at from drizzle.migrations order by id`
+    );
+    expect(after.slice(0, before.length)).toEqual(before);
+    expect(after).toHaveLength(journal.entries.length);
+  } finally {
+    await upgrade.close();
+    await admin.unsafe(`DROP DATABASE "${upgradeName}"`);
+    await rm(previousFolder, { recursive: true, force: true });
+  }
+});

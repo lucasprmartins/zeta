@@ -5,7 +5,7 @@ import {
   SignOutIcon,
 } from "@phosphor-icons/react";
 import { Link, useLocation } from "@tanstack/react-router";
-import { useCallback, useState } from "react";
+import { type ReactNode, useCallback, useState } from "react";
 import { administration, navigation } from "@/app/navigation";
 import { Brand } from "@/components/brand";
 import { usePermissions } from "@/components/permission-boundary";
@@ -30,6 +30,7 @@ export type SidebarUser = {
 };
 
 type Props = {
+  action?: ReactNode;
   collapsed?: boolean;
   user: SidebarUser;
   leaving: boolean;
@@ -38,6 +39,7 @@ type Props = {
 };
 
 export function AppSidebar({
+  action,
   collapsed = false,
   user,
   leaving,
@@ -83,6 +85,8 @@ export function AppSidebar({
           />
         </Link>
       </div>
+
+      {action && <div className="shrink-0 px-3 pt-4">{action}</div>}
 
       <nav
         aria-label="Navegação principal"

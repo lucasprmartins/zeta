@@ -38,3 +38,7 @@ Abrir passa o ID; fechar passa `undefined`. Preserve os demais parâmetros. A na
 `TaskPanel` consulta `rpc.tasks.get` (`GET /api/tasks/{id}`) com chave `['tasks', userId, 'detail', id]` — o `userId` vem de `useUserId` — e encaminha `signal`. Exige `tasks:read`, independentemente de edição, filtro ou página carregada. Mostra descrição, status, responsáveis, autor, datas, identificador e Copiar link.
 
 Carregamento, falha recuperável, acesso negado e tarefa inexistente têm estados próprios. Exclusão/revogação ocultam dados anteriormente em cache; mutations invalidam também detalhes e resumos pelo prefixo de tarefas. Criação/edição continuam no formulário existente.
+
+## Painel adjacente ao menu
+
+`SidebarPanel` é a superfície de largura fixa para a [caixa de entrada](notifications.md), posicionada à esquerda junto ao sidebar. Compartilha `useModalDialog` e `dismissOnBackdrop` com `SidePanel`; não substitui o painel ajustável de detalhes à direita. Quando a caixa está aberta, a rota de tarefas suspende seu painel de detalhe para manter apenas uma dessas superfícies ativa.

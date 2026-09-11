@@ -83,9 +83,13 @@ A lista usa páginas de 20 itens, por criação decrescente e ID. Edições segu
 
 O dashboard consulta um agregado calculado em transação `repeatable read`: totais por status, responsáveis com mais tarefas e recorte sem responsável. Os cards abrem filtros da lista. Uma tarefa com vários responsáveis conta uma vez por pessoa; a soma por responsável pode exceder o total.
 
+## Notificações
+
+A caixa de entrada pessoal usa eventos tipados e assinantes locais, gravados na mesma transação da funcionalidade produtora. Tarefas publicam `task.created` para notificar os responsáveis. Contratos, garantias de entrega, autorização, referências e extensão estão em [Notificações](notifications.md).
+
 ## Interface
 
-Reutilize `AppShell`, `AppSidebar`, `PageContent`, `PageHeader` e `AuthLayout`; medidas e paddings pertencem aos layouts. `PageContent` é obrigatório em páginas autenticadas. Os componentes adaptam shadcn/ui conforme `components.json`; confira suas props locais:
+Reutilize `AppShell`, `AppSidebar`, `PageContent`, `PageHeader` e `AuthLayout`; medidas e paddings pertencem aos layouts. `PageContent` é obrigatório em páginas autenticadas. O modo `viewport` limita o conteúdo à área visível restante e acompanha `visualViewport`, inclusive com teclado mobile; use-o em telas com rolagem interna, como o chat de ajuda. Os componentes adaptam shadcn/ui conforme `components.json`; confira suas props locais:
 
 - `Button` e `Badge` são nativos, sem `asChild`; links usam `buttonVariants`.
 - `Avatar` usa `<Avatar name image size />`, com fallback por `onError`, sem Radix. Toda `img` precisa de `width` e `height`; listas de responsáveis usam `AvatarStack`.

@@ -33,7 +33,17 @@ export function createTask({
     // Uma única leitura de contas atende à validação e à resposta.
     const known = await collectUsers([data], users);
     assertKnownMentions(data.mentions, known);
-    await tasks.save(task);
+    await tasks.save(task, [
+      {
+        type: "task.created",
+        id: `task.created:${data.id}`,
+        occurredAt: data.createdAt,
+        actorId: input.authorId,
+        taskId: data.id,
+        title: data.title,
+        assigneeIds: data.mentions,
+      },
+    ]);
     return hydrate(data, known);
   };
 }

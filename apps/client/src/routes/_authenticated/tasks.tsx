@@ -49,7 +49,7 @@ function TasksRoute() {
         onCloseTask={closeTask}
         onFilter={filterBy}
         onOpenTask={openTask}
-        taskId={search.task}
+        taskId={search.inbox ? undefined : search.task}
       />
     </PermissionBoundary>
   );
