@@ -41,10 +41,15 @@ export async function createDocumentation(
           "Cadastre-se ou entre com email ou nome de usuário e senha nos endpoints de autenticação. O cookie de sessão será usado nas chamadas de tarefas feitas nesta mesma origem. Os endpoints REST usam as mesmas procedures e regras do cliente oRPC.",
       },
       servers: [{ url: "/", description: "Mesma origem da documentação" }],
-      tags: [{ name: "Tarefas" }, { name: "Sistema" }, ...authSections.tags],
+      tags: [
+        { name: "Tarefas" },
+        { name: "Suporte técnico" },
+        { name: "Sistema" },
+        ...authSections.tags,
+      ],
       ...{
         "x-tagGroups": [
-          { name: "API", tags: ["Tarefas", "Sistema"] },
+          { name: "API", tags: ["Tarefas", "Suporte técnico", "Sistema"] },
           { name: "Auth", tags: authSections.tags.map((tag) => tag.name) },
         ],
       },

@@ -1,5 +1,7 @@
 # Guia de Uso
 
+O [suporte técnico](support.md) complementa os guias e o assistente com envio de tickets por webhook.
+
 ## Ajuda com IA
 
 `/help` responde dúvidas com AI SDK e `gpt-5.6-luna`. O servidor monta o contexto a cada pergunta com o Markdown das versões publicadas que a identidade atual pode ler. Rascunhos e publicações restritas não entram no contexto. O assistente recebe instruções para responder somente a partir dessas fontes e indicar quando a orientação não existe; não recebe ferramentas, acesso à web ou operações da aplicação.
@@ -8,7 +10,7 @@ As perguntas e respostas ficam apenas na tela e são descartadas ao sair da pág
 
 `POST /api/help/chat` exige sessão, valida origem e aceita apenas `{ question: string }`. Limita perguntas a 2000 caracteres, contexto a 250 mil caracteres, saída a 1600 tokens e geração a 60 segundos. O limite de cinco envios por minuto e usuário fica em memória por processo; instalações com múltiplas réplicas precisam considerar esse limite por réplica. Sem chave, `/help` exibe a tela tradicional de Ajuda, com o card de acesso aos guias, sem o chat. Sem guias permitidos ou com contexto acima do limite, o chat orienta a consulta ao guia. Falhas permitem nova tentativa e respostas em andamento podem ser interrompidas.
 
-Em `/admin/console`, a seção **Ajuda com IA** permite salvar, substituir ou remover a OpenAI API Key. Uma chave salva aparece como máscara de senha, acompanhada do badge **Ativada**; sem chave, o campo fica vazio com placeholder e o badge mostra **Desativada**. **Substituir chave** abre a edição, com opção de cancelar e preservar a chave anterior. O badge indica a presença da configuração, não uma validação de credenciais pela OpenAI. A gravação exige `access:manage`, revalidado dentro da transação com o lock do controle de acesso. `console.help` guarda somente a chave criptografada com AES-GCM; a chave de criptografia é derivada de `BETTER_AUTH_SECRET` por HKDF com finalidade própria. Alterar esse segredo exige cadastrar novamente a API Key. A leitura do estado retorna apenas `configured`, nunca a chave; mensagens não são persistidas no banco.
+Em `/admin/console`, a seção **Ajuda e suporte** permite salvar, substituir ou remover a OpenAI API Key. Uma chave salva aparece como máscara de senha, acompanhada do badge **IA ativada**; sem chave, o campo fica vazio com placeholder e o badge mostra **IA desativada**. **Substituir chave** abre a edição, com opção de cancelar e preservar a chave anterior. O badge indica a presença da configuração, não uma validação de credenciais pela OpenAI. A gravação exige `access:manage`, revalidado dentro da transação com o lock do controle de acesso. `console.help` guarda somente a chave criptografada com AES-GCM; a chave de criptografia é derivada de `BETTER_AUTH_SECRET` por HKDF com finalidade própria. Alterar esse segredo exige cadastrar novamente a API Key. A leitura do estado retorna apenas `configured`, nunca a chave; mensagens não são persistidas no banco.
 
 ## Edição e leitura
 

@@ -17,7 +17,7 @@
     "check": "bun run typecheck && bun run test",
     "typecheck": "bun run --bun tsc --noEmit && bun run --bun tsc -p tsconfig.domain.json",
     "test": "bun test tests/unit tests/http",
-    "test:integration": "bun test ./tests/integration/api.integration.ts",
+    "test:integration": "bun test ./tests/integration/api.integration.ts ./tests/integration/support.integration.ts",
 
     "db:generate": "bun run --bun drizzle-kit generate",
     "db:migrate": "bun scripts/migrate.ts",

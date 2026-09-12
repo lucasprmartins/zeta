@@ -18,6 +18,7 @@ import {
   MessageHeader,
 } from "@/components/ui/message";
 import { Textarea } from "@/components/ui/textarea";
+import { SupportRequest } from "@/features/support/support-request";
 import { HelpAnswer } from "./help-answer";
 
 export interface HelpChatViewProps {
@@ -70,8 +71,12 @@ export function HelpChatView({
       data-active={active}
     >
       <div aria-hidden={!active} className="help-chat-toolbar" inert={!active}>
-        <GuideLink />
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+          <GuideLink />
+          <SupportRequest presentation="button" />
+        </div>
         <Button
+          className="ml-auto"
           disabled={busy}
           onClick={() => {
             onClear();
@@ -225,8 +230,9 @@ export function HelpChatView({
         </form>
       </div>
       <div aria-hidden={active} className="help-chat-footer" inert={active}>
-        <div className="pt-2 text-center">
+        <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
           <GuideLink prominent />
+          <SupportRequest presentation="button" prominent />
         </div>
       </div>
     </section>

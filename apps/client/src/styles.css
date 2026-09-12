@@ -444,6 +444,11 @@
   padding-top: 0;
   opacity: 0;
 }
+@media (max-width: 639px) {
+  .help-chat-messages {
+    inset-block-start: 7rem;
+  }
+}
 @media (max-width: 420px) {
   .help-chat-toolbar {
     gap: 0;

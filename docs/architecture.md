@@ -116,4 +116,6 @@ Sonner aparece uma vez no provider e comunica resultados de ações; erros persi
 
 ## Guias e execução
 
+O envio de tickets, a configuração do webhook e o contrato de integração estão em [Suporte técnico](support.md).
+
 Autoria, leitura e formato compartilhado dos guias estão em [guides-authoring.md](guides-authoring.md). Setup e comandos ficam no [README](../README.md); build de produção, proxy e operação no [guia Railway](../.railway/README.md).

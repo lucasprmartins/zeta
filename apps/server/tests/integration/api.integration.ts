@@ -1763,6 +1763,7 @@ test("separa schemas preservando registros, constraints e histórico de migratio
     "auth.verification",
     "console.help",
     "console.registration",
+    "console.support",
     "drizzle.migrations",
     "public.guides",
     "public.notifications",

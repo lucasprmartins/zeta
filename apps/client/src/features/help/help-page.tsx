@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { ErrorNotice, Loading } from "@/components/feedback";
 import { PageContent } from "@/components/layout/page-content";
 import { usePermissions, useUserId } from "@/components/permission-boundary";
+import { SupportRequest } from "@/features/support/support-request";
 import { authClient } from "@/lib/auth";
 import { HelpChatView } from "./help-chat-view";
 import { HelpGuidesContent } from "./help-guides-content";
@@ -63,6 +64,7 @@ function HelpContent() {
           message="Não foi possível carregar a ajuda."
           retry={() => void availability.refetch()}
         />
+        <SupportRequest />
       </PageContent>
     );
   }
@@ -73,6 +75,7 @@ function HelpContent() {
   ) : (
     <PageContent>
       <HelpGuidesContent />
+      <SupportRequest />
     </PageContent>
   );
 }

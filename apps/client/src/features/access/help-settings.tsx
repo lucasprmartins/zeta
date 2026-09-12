@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { helpStatusQuery } from "@/features/help/queries";
+import { SupportSettings } from "@/features/support/support-settings";
 import { rpc } from "@/lib/rpc";
 
 export function HelpSettings() {
@@ -18,13 +19,13 @@ export function HelpSettings() {
     <Card className="overflow-hidden">
       <div className="border-b p-5 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="font-medium">Ajuda com IA</h2>
+          <h2 className="font-medium">Ajuda e suporte</h2>
           {status.isSuccess && (
             <Badge
               role="status"
               variant={status.data.configured ? "default" : "outline"}
             >
-              {status.data.configured ? "Ativada" : "Desativada"}
+              {status.data.configured ? "IA ativada" : "IA desativada"}
             </Badge>
           )}
         </div>
@@ -32,6 +33,7 @@ export function HelpSettings() {
           Respostas baseadas no Guia de Uso, com GPT-5.6 Luna.
         </p>
       </div>
+      <h3 className="px-5 pt-5 font-medium sm:px-6">Assistente com IA</h3>
       {status.isPending ? (
         <Loading />
       ) : status.isError ? (
@@ -44,6 +46,7 @@ export function HelpSettings() {
       ) : (
         <HelpKeyForm configured={status.data.configured} />
       )}
+      <SupportSettings />
     </Card>
   );
 }

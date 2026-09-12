@@ -3,6 +3,7 @@ import {
   inbox,
   notificationsFor,
 } from "@server/domain/notifications/notifications";
+import { supportService } from "@server/domain/support/support";
 import { deleteTask } from "@server/domain/tasks/application/delete-task";
 import { getTask } from "@server/domain/tasks/application/get-task";
 import { setTaskStatus } from "@server/domain/tasks/application/set-task-status";
@@ -12,6 +13,11 @@ import {
   createNotificationRepository,
   deliverNotifications,
 } from "@server/infrastructure/repositories/drizzle-notification-repository";
+import { createSupportSettings } from "@server/infrastructure/repositories/drizzle-support-settings";
+import {
+  createSupportWebhook,
+  supportTicketId,
+} from "@server/infrastructure/support/webhook";
 import { createLogger, type Logger } from "@zeta/logger";
 import { sql } from "drizzle-orm";
 import type { Env } from "./config/env";
@@ -77,6 +83,16 @@ export async function bootstrap(
     help,
     inbox(createNotificationRepository(database.db), () =>
       new Date().toISOString()
+    ),
+    supportService(
+      createSupportSettings(database.db, env.authSecret),
+      createSupportWebhook(),
+      {
+        origin: env.authUrl,
+        now: () => new Date(),
+        id: (actorId, requestId) =>
+          supportTicketId(env.authUrl, actorId, requestId),
+      }
     )
   );
   try {

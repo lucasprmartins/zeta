@@ -99,6 +99,13 @@
       "when": 1789230672094,
       "tag": "0013_omniscient_wind_dancer",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1789230672095,
+      "tag": "0014_lowly_cargill",
+      "breakpoints": true
     }
   ]
 }
