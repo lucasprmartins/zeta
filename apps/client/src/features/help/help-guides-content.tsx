@@ -1,6 +1,5 @@
 import { ArrowRightIcon, BookOpenIcon } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
-import { PageHeader } from "@/components/layout/page-header";
 import { buttonVariants } from "@/components/ui/button";
 import {
   Card,
@@ -12,36 +11,30 @@ import {
 
 export function HelpGuidesContent() {
   return (
-    <>
-      <PageHeader
-        description="Encontre orientações para usar o sistema."
-        title="Ajuda"
-      />
-      <Card className="max-w-xl">
-        <CardHeader>
-          <BookOpenIcon
-            aria-hidden="true"
-            className="mb-3 text-muted-foreground"
-            size={24}
-            weight="regular"
-          />
-          <CardTitle>Guias de uso</CardTitle>
-          <CardDescription>
-            Consulte as instruções das funcionalidades disponíveis para você.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Link
-            className={buttonVariants({
-              variant: "outline",
-              className: "w-full sm:w-auto",
-            })}
-            to="/help/guides"
-          >
-            Acessar guias <ArrowRightIcon aria-hidden="true" size={18} />
-          </Link>
-        </CardContent>
-      </Card>
-    </>
+    <Card className="max-w-xl">
+      <CardHeader>
+        <BookOpenIcon
+          aria-hidden="true"
+          className="mb-3 text-muted-foreground"
+          size={24}
+          weight="regular"
+        />
+        <CardTitle>Guias de uso</CardTitle>
+        <CardDescription>
+          Consulte as instruções das funcionalidades disponíveis para você.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Link
+          className={buttonVariants({
+            variant: "outline",
+            className: "w-full sm:w-auto",
+          })}
+          to="/help/guides"
+        >
+          Acessar guias <ArrowRightIcon aria-hidden="true" size={18} />
+        </Link>
+      </CardContent>
+    </Card>
   );
 }

@@ -44,29 +44,15 @@ export function SupportRequest({
 }) {
   const status = useQuery(supportStatusQuery(useUserId()));
   const [open, setOpen] = useState(false);
-  const statusId = useId();
   const unavailable = status.isSuccess && !status.data.configured;
   const feedback = status.isError ? (
     <ErrorNotice
       message="Não foi possível verificar a disponibilidade do suporte."
       retry={() => void status.refetch()}
     />
-  ) : unavailable ? (
-    <p
-      className={
-        presentation === "button"
-          ? "sr-only"
-          : "mt-3 text-muted-foreground text-sm"
-      }
-      id={statusId}
-    >
-      O envio de solicitações ainda não foi configurado. Entre em contato com o
-      administrador.
-    </p>
   ) : null;
   const action = (
     <Button
-      aria-describedby={unavailable ? statusId : undefined}
       className={
         presentation === "card"
           ? "w-full sm:w-auto"
@@ -103,7 +89,8 @@ export function SupportRequest({
             />
             <CardTitle>Suporte técnico</CardTitle>
             <CardDescription>
-              Se os Guias de Uso não resolveram, envie uma solicitação à equipe.
+              Relate problemas, tire dúvidas ou envie sugestões à equipe de
+              suporte.
             </CardDescription>
           </CardHeader>
           <CardContent>

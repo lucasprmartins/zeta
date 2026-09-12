@@ -4,6 +4,7 @@ import { DefaultChatTransport } from "ai";
 import { useEffect, useState } from "react";
 import { ErrorNotice, Loading } from "@/components/feedback";
 import { PageContent } from "@/components/layout/page-content";
+import { PageHeader } from "@/components/layout/page-header";
 import { usePermissions, useUserId } from "@/components/permission-boundary";
 import { SupportRequest } from "@/features/support/support-request";
 import { authClient } from "@/lib/auth";
@@ -74,8 +75,14 @@ function HelpContent() {
     </PageContent>
   ) : (
     <PageContent>
-      <HelpGuidesContent />
-      <SupportRequest />
+      <PageHeader
+        description="Encontre orientações para usar o sistema."
+        title="Ajuda"
+      />
+      <div className="grid max-w-5xl items-start gap-6 md:grid-cols-2">
+        <SupportRequest />
+        <HelpGuidesContent />
+      </div>
     </PageContent>
   );
 }

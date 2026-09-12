@@ -1,8 +1,8 @@
 # Suporte técnico
 
-`/help` apresenta o suporte em um card no mesmo padrão dos Guias de Uso quando o chat está desativado. Com o chat ativado, o acesso aparece como botão ao lado do Guia de Uso, tanto na abertura quanto durante a conversa.
+`/help` apresenta Suporte técnico e Guias de uso lado a lado quando o chat está desativado, com Suporte técnico primeiro. Em telas pequenas, os cards ficam empilhados nessa mesma ordem. Com o chat ativado, o acesso aparece como botão ao lado do Guia de Uso, tanto na abertura quanto durante a conversa.
 
-O suporte oferece o envio de solicitações quando o Guia de Uso e o assistente não resolvem a necessidade. Qualquer conta autenticada e ativa pode enviar; não é necessário conceder acesso às tarefas ou à administração. O suporte encaminha tickets para a gestão externa, sem consultar andamento ou manter uma caixa local de tickets.
+O suporte oferece o envio de problemas, dúvidas e sugestões à equipe de atendimento. Qualquer conta autenticada e ativa pode enviar; não é necessário conceder acesso às tarefas ou à administração. O suporte encaminha tickets para a gestão externa, sem consultar andamento ou manter uma caixa local de tickets.
 
 ## Configuração
 
