@@ -19,13 +19,13 @@ export function SidebarPanel({
   return (
     <dialog
       aria-label={title}
-      className="sidebar-panel border-r bg-background p-0 text-foreground shadow-xl backdrop:bg-black/10"
+      className="sidebar-panel border-r bg-background p-0 text-foreground shadow-lg backdrop:bg-black/10"
       data-collapsed={collapsed}
       ref={ref}
       {...dismissOnBackdrop(onClose)}
     >
       <div className="flex h-full flex-col">
-        <header className="side-panel-header flex min-h-16 shrink-0 items-center justify-between gap-3 border-b px-5 py-3">
+        <header className="sidebar-panel-header flex shrink-0 items-center justify-between gap-3 border-b">
           <h2 className="font-semibold text-base outline-none" tabIndex={-1}>
             {title}
           </h2>

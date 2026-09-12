@@ -31,6 +31,7 @@ Remover uma tarefa preserva sua notificação histórica, cujo link passa a most
 ## Interface e transporte
 
 - O acionador e contador ficam no sidebar; o painel abre adjacente ao menu no desktop e em tela inteira no mobile. `SidebarPanel` controla apenas apresentação e o comportamento de diálogo, reutilizando foco, Escape, backdrop, áreas seguras e viewport dos componentes locais.
+- As entregas aparecem em cards compactos com conteúdo e ações separados, sem cards aninhados. `features/notifications/presentation.tsx` resolve cada `kind` em ícone, origem, mensagem e ação contextual com destino interno tipado. A caixa e seus estados vazios são independentes das funcionalidades produtoras; o destaque de não lida e a ação de leitura são comuns a todas as entregas. Tipos desconhecidos exibem uma apresentação genérica sem link.
 - `inbox=unread` e `inbox=all` são parâmetros do layout autenticado. Voltar/Avançar restaura o painel e o filtro; fechar preserva os demais parâmetros. Abrir uma referência fecha a caixa e abre o detalhe da tarefa.
 - `features/notifications` concentra consultas e conteúdo; o shell recebe slots e não conhece regras de notificação.
 - As listas usam páginas de 20, `hasMore` e ordenação por criação e ID decrescentes. O contador é calculado no servidor. O histórico inclui lidas e não lidas; a leitura é marcada explicitamente pelo usuário.
@@ -42,7 +43,7 @@ Remover uma tarefa preserva sua notificação histórica, cujo link passa a most
 1. Defina o fato no domínio do módulo e acrescente seu tipo à união `DomainEvent`, com ID estável por ocorrência, ator, instante e dados mínimos.
 2. Emita o evento junto da gravação do módulo; implemente a transação com a mesma garantia de `TaskRepository.save`.
 3. Acrescente a política em `notificationsFor`: destinatários, tipo de entrega, referência e permissão. Para políticas maiores, extraia funções por módulo mantendo essa entrada pequena.
-4. Resolva o novo tipo de referência e seu texto na caixa de entrada. Use destinos internos tipados e revalide autorização no recurso.
+4. Acrescente a apresentação do novo `kind` em `features/notifications/presentation.tsx`: ícone, origem, mensagem e ação. Valide o tipo de referência antes de oferecer a ação, use destinos internos tipados e revalide autorização no recurso. O layout de `inbox.tsx` não precisa conhecer o novo módulo. Quando houver várias integrações, suas apresentações podem ser extraídas por funcionalidade, mantendo essa entrada como composição explícita.
 5. Teste ausência de destinatários, duplicatas, isolamento, revogação, referência removida e rollback. Não adicione dependências entre casos de uso e componentes da caixa.
 
 ## Evolução para processamento assíncrono
