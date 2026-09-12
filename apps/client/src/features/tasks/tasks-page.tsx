@@ -106,12 +106,12 @@ export function TasksPage({
 
       <section
         aria-label="Lista de tarefas"
-        className="overflow-hidden rounded-xl border"
+        className="@container/tasks min-w-0 overflow-hidden rounded-xl border"
       >
         <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
           <ToggleGroup
             aria-label="Filtrar tarefas"
-            className="grid w-full grid-cols-3 sm:flex sm:w-auto"
+            className="@min-[640px]/tasks:flex grid @min-[640px]/tasks:w-auto w-full grid-cols-3"
             onValueChange={(value) => {
               if (filters.some(([option]) => option === value)) {
                 onFilter(value as TaskFilter);
@@ -122,7 +122,7 @@ export function TasksPage({
           >
             {filters.map(([value, label]) => (
               <ToggleGroupItem
-                className="px-2 text-xs sm:px-3 sm:text-sm"
+                className="@min-[640px]/tasks:px-3 px-2 @min-[640px]/tasks:text-sm text-xs"
                 key={value}
                 value={value}
               >
@@ -130,7 +130,7 @@ export function TasksPage({
               </ToggleGroupItem>
             ))}
           </ToggleGroup>
-          <div className="flex w-full items-center justify-between gap-3 sm:w-auto">
+          <div className="flex @min-[640px]/tasks:w-auto w-full items-center justify-between gap-3">
             <span className="text-muted-foreground text-xs">
               {tasks.data
                 ? `${total} ${total === 1 ? "tarefa" : "tarefas"}`
@@ -184,21 +184,22 @@ export function TasksPage({
           <>
             <div
               aria-hidden="true"
-              className="hidden items-center gap-3 border-b bg-sidebar px-4 py-2.5 font-medium text-[11px] text-muted-foreground sm:flex"
+              className="@min-[640px]/tasks:flex hidden items-center gap-3 border-b bg-sidebar px-4 py-2.5 font-medium text-[11px] text-muted-foreground"
             >
               <span className="w-10 shrink-0" />
               <span className="flex-1">Tarefa</span>
-              <span className="w-32 shrink-0 lg:w-40">Responsável</span>
+              <span className="@min-[800px]/tasks:w-40 w-32 shrink-0">
+                Responsável
+              </span>
               <span className="w-24 shrink-0">Status</span>
-              <span className="hidden w-28 shrink-0 xl:block">Criada em</span>
-              <span className="w-[72px] shrink-0 text-right">Ações</span>
+              <span className="@min-[960px]/tasks:block hidden w-28 shrink-0">
+                Criada em
+              </span>
             </div>
             <ul>
               {items.map((task) => (
                 <TaskItem
                   key={task.id}
-                  onDelete={setDeleting}
-                  onEdit={openEditor}
                   onOpen={openTask}
                   onStatus={toggleStatus}
                   pending={status.isPending && status.variables?.id === task.id}
@@ -218,7 +219,13 @@ export function TasksPage({
       </section>
 
       {taskId && (
-        <TaskPanel key={taskId} onClose={onCloseTask} taskId={taskId} />
+        <TaskPanel
+          key={taskId}
+          onClose={onCloseTask}
+          onDelete={setDeleting}
+          onEdit={openEditor}
+          taskId={taskId}
+        />
       )}
       {editor !== null && (
         <TaskEditorModal
@@ -229,7 +236,11 @@ export function TasksPage({
         />
       )}
       {deleting && can(permissions.tasks.delete) && (
-        <DeleteTaskModal onClose={() => setDeleting(null)} task={deleting} />
+        <DeleteTaskModal
+          onClose={() => setDeleting(null)}
+          onDeleted={onCloseTask}
+          task={deleting}
+        />
       )}
     </PageContent>
   );

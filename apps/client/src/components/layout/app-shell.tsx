@@ -81,7 +81,7 @@ export function AppShell({
   const sidebarProps = { user, leaving, onSignOut };
   return (
     <PageCrumbProvider>
-      <div className="min-h-svh bg-background">
+      <div className="min-h-svh bg-background" data-panel-layout>
         <a
           className="sr-only z-50 rounded-md bg-primary px-4 py-2 text-primary-foreground focus:not-sr-only focus:fixed focus:top-4 focus:left-4"
           href="#main-content"
@@ -105,7 +105,10 @@ export function AppShell({
         <div
           className={`min-w-0 transition-[padding] duration-200 ${collapsed ? "lg:pl-[72px]" : "lg:pl-60"}`}
         >
-          <header className="app-topbar sticky top-0 z-20 flex min-h-topbar items-center gap-3 border-b bg-background/95 px-4 backdrop-blur-sm sm:px-6">
+          <header
+            className="app-topbar sticky top-0 z-20 flex min-h-topbar items-center gap-3 border-b bg-background/95 px-4 backdrop-blur-sm sm:px-6"
+            data-panel-header
+          >
             <Button
               aria-controls="desktop-sidebar"
               aria-expanded={!collapsed}
@@ -139,7 +142,12 @@ export function AppShell({
               <ModeToggle />
             </div>
           </header>
-          <main className="outline-none" id="main-content" tabIndex={-1}>
+          <main
+            className="outline-none"
+            data-panel-route
+            id="main-content"
+            tabIndex={-1}
+          >
             {children}
           </main>
         </div>

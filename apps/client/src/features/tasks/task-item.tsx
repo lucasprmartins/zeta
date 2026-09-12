@@ -1,13 +1,7 @@
-import {
-  CheckIcon,
-  PencilSimpleIcon,
-  SpinnerGapIcon,
-  TrashIcon,
-} from "@phosphor-icons/react";
+import { CheckIcon, SpinnerGapIcon } from "@phosphor-icons/react";
 import { memo } from "react";
-import { Can, usePermissions } from "@/components/permission-boundary";
+import { usePermissions } from "@/components/permission-boundary";
 import { AvatarStack } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
 import { permissions } from "@/lib/access";
 import type { Task } from "./queries";
 import { TaskStatusBadge } from "./task-status";
@@ -43,26 +37,22 @@ function TaskRow({
   task,
   pending,
   onStatus,
-  onDelete,
-  onEdit,
   onOpen,
 }: {
   task: Task;
   pending: boolean;
   onStatus: (task: Task) => void;
-  onDelete: (task: Task) => void;
-  onEdit: (task: Task) => void;
   onOpen: (task: Task) => void;
 }) {
   const { can } = usePermissions();
   const completed = task.status === "completed";
   return (
-    <li className="group grid grid-cols-[44px_minmax(0,1fr)] items-start gap-2 border-b px-3 py-3 last:border-b-0 hover:bg-sidebar/70 sm:flex sm:items-center sm:gap-3 sm:px-4">
+    <li className="group @min-[640px]/tasks:flex grid grid-cols-[44px_minmax(0,1fr)] items-start @min-[640px]/tasks:items-center @min-[640px]/tasks:gap-3 gap-2 border-b @min-[640px]/tasks:px-4 px-3 py-3 last:border-b-0 hover:bg-sidebar/70">
       {/* biome-ignore lint/a11y/useSemanticElements: alternar status é uma ação, não um campo de formulário. */}
       <button
         aria-checked={completed}
         aria-label={`${completed ? "Reabrir" : "Concluir"} ${task.title}`}
-        className="flex size-11 shrink-0 items-center justify-center rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50 sm:size-10"
+        className="flex @min-[640px]/tasks:size-10 size-11 shrink-0 items-center justify-center rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50"
         disabled={pending || !can(permissions.tasks.setStatus)}
         onClick={() => onStatus(task)}
         role="checkbox"
@@ -80,7 +70,7 @@ function TaskRow({
       </button>
       <button
         aria-label={`Abrir ${task.title}`}
-        className="min-h-11 min-w-0 flex-1 rounded-sm py-1 text-left focus-visible:outline-2 focus-visible:outline-offset-4 sm:min-h-0"
+        className="@min-[640px]/tasks:min-h-0 min-h-11 min-w-0 flex-1 rounded-sm py-1 text-left focus-visible:outline-2 focus-visible:outline-offset-4"
         onClick={() => onOpen(task)}
         type="button"
       >
@@ -89,8 +79,8 @@ function TaskRow({
         >
           {task.title}
         </span>
-        {/* No celular não há colunas: status, data e responsáveis vêm aqui. */}
-        <span className="mt-2 flex flex-wrap items-center gap-2 sm:hidden">
+        {/* Em espaços estreitos, status, data e responsáveis acompanham o título. */}
+        <span className="mt-2 flex @min-[640px]/tasks:hidden flex-wrap items-center gap-2">
           <TaskStatusBadge status={task.status} />
           <span className="text-[11px] text-muted-foreground">
             {dateFormat.format(new Date(task.createdAt))}
@@ -100,48 +90,18 @@ function TaskRow({
           )}
         </span>
       </button>
-      <span className="hidden w-32 shrink-0 sm:block lg:w-40">
+      <span className="@min-[640px]/tasks:block hidden @min-[800px]/tasks:w-40 w-32 shrink-0">
         <Assignees people={task.mentions} />
       </span>
-      <span className="hidden w-24 shrink-0 sm:block">
+      <span className="@min-[640px]/tasks:block hidden w-24 shrink-0">
         <TaskStatusBadge status={task.status} />
       </span>
       <time
-        className="hidden w-28 shrink-0 text-muted-foreground text-xs xl:block"
+        className="@min-[960px]/tasks:block hidden w-28 shrink-0 text-muted-foreground text-xs"
         dateTime={task.createdAt}
       >
         {dateFormat.format(new Date(task.createdAt))}
       </time>
-      <div className="col-start-2 flex shrink-0 justify-end gap-1 sm:gap-0">
-        <Can permission={permissions.tasks.update}>
-          <Button
-            aria-label={`Editar ${task.title}`}
-            className="w-auto gap-2 px-3 text-muted-foreground sm:size-9 sm:px-0"
-            disabled={pending}
-            onClick={() => onEdit(task)}
-            size="icon"
-            title="Editar tarefa"
-            variant="ghost"
-          >
-            <PencilSimpleIcon />
-            <span className="sm:hidden">Editar</span>
-          </Button>
-        </Can>
-        <Can permission={permissions.tasks.delete}>
-          <Button
-            aria-label={`Excluir ${task.title}`}
-            className="w-auto gap-2 px-3 text-muted-foreground sm:size-9 sm:px-0"
-            disabled={pending}
-            onClick={() => onDelete(task)}
-            size="icon"
-            title="Excluir tarefa"
-            variant="ghost"
-          >
-            <TrashIcon />
-            <span className="sm:hidden">Excluir</span>
-          </Button>
-        </Can>
-      </div>
     </li>
   );
 }

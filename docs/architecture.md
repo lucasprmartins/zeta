@@ -108,6 +108,8 @@ Na sidebar desktop, preserve posições dos ícones/avatar e mantenha rótulos m
 
 Mantenha alvos de 44 px, campos de 16 px no mobile, foco visível, nomes acessíveis, `aria-current`, link para pular navegação e movimento reduzido, sem rolagem horizontal.
 
+Conteúdos que dividem espaço com painéis devem adaptar sua composição à largura do contêiner, não apenas à viewport. A lista de tarefas usa um contêiner nomeado: abaixo de 640 px, cada item reúne título, status, data, responsáveis e ações em uma composição compacta; acima desse limite, exibe colunas, acrescentando espaço e data conforme a largura disponível. Cabeçalho, linhas, filtros e skeletons seguem os mesmos limites. Novas listas devem definir seus limites conforme o espaço necessário às colunas, preservando títulos legíveis e ações acessíveis quando a rota encolhe.
+
 ### Tema e feedback
 
 `styles.css` centraliza tokens semânticos, inclusive as dimensões do sistema (`--spacing-icon`, `--spacing-topbar`). Sem escolha salva, o tema segue o sistema; escolha manual prevalece e sincroniza entre abas. Preserve a mesma chave e resolução no `ThemeProvider` e no script inicial de `index.html`. Textos de autenticação tratam do acesso à conta, sem acoplamento ao domínio.

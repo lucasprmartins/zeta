@@ -1,12 +1,13 @@
-import { LinkIcon } from "@phosphor-icons/react";
+import { LinkIcon, PencilSimpleIcon, TrashIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ErrorNotice } from "@/components/feedback";
-import { useUserId } from "@/components/permission-boundary";
+import { Can, useUserId } from "@/components/permission-boundary";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { SidePanel } from "@/components/ui/side-panel";
+import { SidePanel, SidePanelActions } from "@/components/ui/side-panel";
 import { Skeleton } from "@/components/ui/skeleton";
+import { permissions } from "@/lib/access";
 import { hasStatus } from "@/lib/query";
 import { type Task, type TaskUser, taskQuery } from "./queries";
 import { TaskStatusBadge } from "./task-status";
@@ -95,9 +96,13 @@ function TaskDetails({ task }: { task: Task }) {
 export function TaskPanel({
   taskId,
   onClose,
+  onEdit,
+  onDelete,
 }: {
   taskId: string;
   onClose: () => void;
+  onEdit: (task: Task) => void;
+  onDelete: (task: Task) => void;
 }) {
   const query = useQuery(taskQuery(useUserId(), taskId));
   const unavailable = hasStatus(query.error, 400, 404);
@@ -116,20 +121,48 @@ export function TaskPanel({
   }
   return (
     <SidePanel
-      description="Informações da tarefa compartilhada com a equipe."
       footer={
-        <Button
-          className="w-full sm:w-auto"
-          onClick={() => void copyLink()}
-          variant="outline"
-        >
-          <LinkIcon />
-          Copiar link
-        </Button>
+        <SidePanelActions>
+          {task && (
+            <Can permission={permissions.tasks.update}>
+              <Button onClick={() => onEdit(task)}>
+                <PencilSimpleIcon aria-hidden="true" />
+                Editar tarefa
+              </Button>
+            </Can>
+          )}
+          <Button onClick={() => void copyLink()} variant="outline">
+            <LinkIcon />
+            Copiar link
+          </Button>
+          {task && (
+            <Can permission={permissions.tasks.delete}>
+              <Button
+                className="@min-[480px]/panel:ml-auto"
+                onClick={() => onDelete(task)}
+                variant="ghost"
+              >
+                <TrashIcon aria-hidden="true" />
+                Excluir tarefa
+              </Button>
+            </Can>
+          )}
+        </SidePanelActions>
       }
+      label="Detalhes da tarefa"
       onClose={onClose}
-      title={task?.title ?? "Detalhes da tarefa"}
     >
+      <header className="mb-6 space-y-2">
+        <h2
+          className="break-words font-semibold text-xl outline-none"
+          tabIndex={-1}
+        >
+          {task?.title ?? "Detalhes da tarefa"}
+        </h2>
+        <p className="text-muted-foreground text-sm">
+          Informações da tarefa compartilhada com a equipe.
+        </p>
+      </header>
       {query.isPending ? (
         <div
           aria-busy="true"

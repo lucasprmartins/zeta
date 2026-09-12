@@ -8,15 +8,18 @@ import { type Task, useTasksRefresh } from "./queries";
 export function DeleteTaskModal({
   task,
   onClose,
+  onDeleted,
 }: {
   task: Task;
   onClose: () => void;
+  onDeleted: () => void;
 }) {
   const refresh = useTasksRefresh();
   const remove = useMutation({
     mutationFn: () => rpc.tasks.delete({ id: task.id }),
     onSuccess: async () => {
       onClose();
+      onDeleted();
       await refresh();
     },
   });

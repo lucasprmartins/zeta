@@ -325,14 +325,18 @@
   line-height: 1.8;
 }
 
-/* SidePanel: Sheet com largura ajustável no desktop e viewport completa no mobile. */
+/* SidePanel: limita a superfície à área visível da rota, abaixo do cabeçalho. */
+[data-panel-route] {
+  padding-right: max(env(safe-area-inset-right), var(--route-panel-space, 0px));
+}
+
 .side-panel {
   position: fixed;
-  inset: var(--dialog-top, 0px) 0 auto auto;
-  width: 100%;
-  max-width: 100%;
-  height: var(--dialog-height, 100dvh);
-  max-height: var(--dialog-height, 100dvh);
+  inset: var(--route-top, var(--dialog-top, 0px)) 0 auto auto;
+  width: var(--route-width, 100%);
+  max-width: var(--route-width, 100%);
+  height: var(--route-height, var(--dialog-height, 100dvh));
+  max-height: var(--route-height, var(--dialog-height, 100dvh));
   margin: 0;
   overflow: hidden;
   transition: transform 180ms ease-out;
@@ -340,6 +344,10 @@
 .side-panel-header {
   padding-top: max(1rem, env(safe-area-inset-top));
   padding-right: max(1.25rem, env(safe-area-inset-right));
+}
+.side-panel-controls > button {
+  height: 2.75rem;
+  min-height: 2.75rem;
 }
 .side-panel-body,
 .side-panel-footer {
@@ -349,13 +357,20 @@
 }
 @media (min-width: 640px) {
   .side-panel {
-    width: min(var(--panel-width, 560px), calc(100vw - 3rem));
+    width: min(
+      var(--panel-available-width, var(--panel-width, 560px)),
+      var(--route-width, 100vw)
+    );
   }
 }
 @starting-style {
   .side-panel[open] {
     transform: translateX(100%);
   }
+}
+.side-panel[data-expanded="true"] {
+  width: var(--route-width, 100%);
+  border-left: 0;
 }
 
 /* Ajuda: o mesmo composer permanece montado enquanto a conversa ocupa a tela. */
@@ -531,6 +546,17 @@
   max-height: var(--dialog-height, 100dvh);
   margin: 0;
   overflow: hidden;
+}
+.sidebar-panel-header {
+  height: calc(4rem + env(safe-area-inset-top));
+  padding-top: env(safe-area-inset-top);
+  padding-right: max(1.25rem, env(safe-area-inset-right));
+  padding-left: max(1.25rem, env(safe-area-inset-left));
+}
+.sidebar-panel-body {
+  padding-right: env(safe-area-inset-right);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
 }
 @media (min-width: 1024px) {
   .sidebar-panel {

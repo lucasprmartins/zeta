@@ -1,8 +1,14 @@
-import { ArrowsHorizontalIcon, XIcon } from "@phosphor-icons/react";
+import {
+  ArrowLeftIcon,
+  ArrowsHorizontalIcon,
+  ArrowsOutIcon,
+  XIcon,
+} from "@phosphor-icons/react";
 import {
   type CSSProperties,
   type ReactNode,
   useId,
+  useLayoutEffect,
   useRef,
   useState,
 } from "react";
@@ -12,38 +18,95 @@ import { dismissOnBackdrop, useModalDialog } from "./use-modal-dialog";
 const DEFAULT_WIDTH = 560;
 const MIN_WIDTH = 360;
 const MAX_WIDTH = 960;
+const MIN_ROUTE_WIDTH = 480;
 
 const clamp = (value: number) =>
   Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, value));
 
+export interface SidePanelProps {
+  children: ReactNode;
+  footer?: ReactNode;
+  label: string;
+  onClose: () => void;
+  pending?: boolean;
+}
+
 // Sheet do shadcn/ui sobre o dialog nativo. Não há prop `open`: montar abre e
 // desmontar fecha; a rota consumidora guarda esse estado na URL.
 export function SidePanel({
-  title,
-  description,
+  label,
   children,
   footer,
   onClose,
   pending = false,
-}: {
-  children: ReactNode;
-  description?: string;
-  footer?: ReactNode;
-  onClose: () => void;
-  pending?: boolean;
-  title: string;
-}) {
+}: SidePanelProps) {
   const ref = useModalDialog();
   const id = useId();
   const [width, setWidth] = useState(DEFAULT_WIDTH);
+  const [expanded, setExpanded] = useState(false);
   const drag = useRef<{ x: number; width: number } | null>(null);
   const actualWidth = clamp(width);
 
+  useLayoutEffect(() => {
+    const dialog = ref.current;
+    const route = dialog?.closest<HTMLElement>("[data-panel-route]");
+    const header = route
+      ?.closest("[data-panel-layout]")
+      ?.querySelector<HTMLElement>("[data-panel-header]");
+    if (!(dialog && route && header)) {
+      return;
+    }
+    const previousSpace = route.style.getPropertyValue("--route-panel-space");
+    const viewport = window.visualViewport;
+    const fitRoute = () => {
+      const bounds = route.getBoundingClientRect();
+      const viewportTop = viewport?.offsetTop ?? 0;
+      const top = Math.max(viewportTop, header.getBoundingClientRect().bottom);
+      const bottom = viewportTop + (viewport?.height ?? window.innerHeight);
+      dialog.style.setProperty("--route-top", `${top}px`);
+      dialog.style.setProperty("--route-width", `${bounds.width}px`);
+      const alongside =
+        !expanded && bounds.width >= MIN_WIDTH + MIN_ROUTE_WIDTH;
+      const panelWidth = alongside
+        ? Math.min(actualWidth, bounds.width - MIN_ROUTE_WIDTH)
+        : actualWidth;
+      dialog.style.setProperty("--panel-available-width", `${panelWidth}px`);
+      route.style.setProperty(
+        "--route-panel-space",
+        `${alongside ? panelWidth : 0}px`
+      );
+      dialog.style.setProperty(
+        "--route-height",
+        `${Math.max(0, bottom - top)}px`
+      );
+    };
+    const observer = new ResizeObserver(fitRoute);
+    observer.observe(route);
+    observer.observe(header);
+    fitRoute();
+    window.addEventListener("resize", fitRoute);
+    window.addEventListener("scroll", fitRoute);
+    viewport?.addEventListener("resize", fitRoute);
+    viewport?.addEventListener("scroll", fitRoute);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", fitRoute);
+      window.removeEventListener("scroll", fitRoute);
+      viewport?.removeEventListener("resize", fitRoute);
+      viewport?.removeEventListener("scroll", fitRoute);
+      if (previousSpace) {
+        route.style.setProperty("--route-panel-space", previousSpace);
+      } else {
+        route.style.removeProperty("--route-panel-space");
+      }
+    };
+  }, [actualWidth, expanded, ref]);
+
   return (
     <dialog
-      aria-describedby={description ? `${id}-description` : undefined}
-      aria-labelledby={`${id}-title`}
-      className="side-panel border-l bg-background p-0 text-foreground shadow-xl backdrop:bg-black/35"
+      aria-label={label}
+      className="side-panel @container/panel border-l bg-background p-0 text-foreground shadow-xl backdrop:bg-transparent"
+      data-expanded={expanded}
       ref={ref}
       style={{ "--panel-width": `${actualWidth}px` } as CSSProperties}
       {...dismissOnBackdrop(onClose, pending)}
@@ -57,7 +120,7 @@ export function SidePanel({
         aria-valuemin={MIN_WIDTH}
         aria-valuenow={actualWidth}
         aria-valuetext={`${actualWidth} pixels`}
-        className="absolute inset-y-0 left-0 z-10 hidden w-3 cursor-col-resize touch-none items-center justify-center hover:bg-primary/10 focus-visible:bg-primary/10 focus-visible:outline-2 focus-visible:outline-primary sm:flex"
+        className={`absolute inset-y-0 left-0 z-10 hidden w-3 cursor-col-resize touch-none items-center justify-center hover:bg-primary/10 focus-visible:bg-primary/10 focus-visible:outline-2 focus-visible:outline-primary ${expanded ? "" : "sm:flex"}`}
         onDoubleClick={() => setWidth(DEFAULT_WIDTH)}
         onKeyDown={(event) => {
           const next = {
@@ -105,53 +168,68 @@ export function SidePanel({
       >
         <span className="h-10 w-1 rounded-full bg-border" />
       </div>
-      <div className="flex h-full min-w-0 flex-col sm:pl-3">
-        <header className="side-panel-header flex shrink-0 items-start gap-3 border-b px-5 py-4 sm:px-6">
-          <div className="min-w-0 flex-1">
-            <h2
-              className="break-words font-semibold text-lg outline-none"
-              id={`${id}-title`}
-              tabIndex={-1}
-            >
-              {title}
-            </h2>
-            {description && (
-              <p
-                className="mt-1.5 text-muted-foreground text-sm"
-                id={`${id}-description`}
+      <div
+        className={`flex h-full min-w-0 flex-col ${expanded ? "" : "sm:pl-3"}`}
+      >
+        <div className="side-panel-header flex shrink-0 px-5 pt-3 pb-1 sm:px-6">
+          <div className="side-panel-controls flex w-full items-center gap-1">
+            {!expanded && (
+              <Button
+                aria-label={
+                  actualWidth === MAX_WIDTH
+                    ? "Restaurar largura do painel"
+                    : "Ampliar painel"
+                }
+                className="hidden size-11 shrink-0 sm:inline-flex"
+                onClick={() =>
+                  setWidth(
+                    actualWidth === MAX_WIDTH ? DEFAULT_WIDTH : MAX_WIDTH
+                  )
+                }
+                size="icon"
+                title={
+                  actualWidth === MAX_WIDTH
+                    ? "Restaurar largura do painel"
+                    : "Ampliar painel"
+                }
+                variant="ghost"
               >
-                {description}
-              </p>
+                <ArrowsHorizontalIcon aria-hidden="true" />
+              </Button>
             )}
+            <Button
+              aria-expanded={expanded}
+              aria-label={
+                expanded ? "Voltar ao painel" : "Expandir na área da página"
+              }
+              className="hidden size-11 shrink-0 sm:inline-flex"
+              onClick={() => setExpanded((value) => !value)}
+              size="icon"
+              title={
+                expanded ? "Voltar ao painel" : "Expandir na área da página"
+              }
+              variant="ghost"
+            >
+              {expanded ? (
+                <ArrowLeftIcon aria-hidden="true" />
+              ) : (
+                <ArrowsOutIcon aria-hidden="true" />
+              )}
+            </Button>
+            <Button
+              aria-label="Fechar painel"
+              className="ml-auto size-11 shrink-0"
+              disabled={pending}
+              onClick={onClose}
+              size="icon"
+              variant="ghost"
+            >
+              <XIcon aria-hidden="true" />
+            </Button>
           </div>
-          <Button
-            aria-label={
-              actualWidth === MAX_WIDTH
-                ? "Restaurar largura do painel"
-                : "Ampliar painel"
-            }
-            className="hidden size-11 shrink-0 sm:inline-flex"
-            onClick={() =>
-              setWidth(actualWidth === MAX_WIDTH ? DEFAULT_WIDTH : MAX_WIDTH)
-            }
-            size="icon"
-            variant="ghost"
-          >
-            <ArrowsHorizontalIcon />
-          </Button>
-          <Button
-            aria-label="Fechar painel"
-            className="size-11 shrink-0"
-            disabled={pending}
-            onClick={onClose}
-            size="icon"
-            variant="ghost"
-          >
-            <XIcon />
-          </Button>
-        </header>
+        </div>
         <div
-          className="side-panel-body min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain p-5 [overflow-wrap:anywhere] sm:p-6"
+          className="side-panel-body min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-2 pb-5 [overflow-wrap:anywhere] sm:px-6 sm:pb-6"
           id={`${id}-content`}
         >
           {children}
@@ -163,5 +241,14 @@ export function SidePanel({
         )}
       </div>
     </dialog>
+  );
+}
+
+// O layout das ações é compartilhado; permissões e efeitos ficam na funcionalidade.
+export function SidePanelActions({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex flex-wrap items-center gap-2 @min-[480px]/panel:[&>a]:w-auto [&>a]:w-full @min-[480px]/panel:[&>button]:w-auto [&>button]:w-full">
+      {children}
+    </div>
   );
 }

@@ -9,7 +9,7 @@ export function TasksSkeleton() {
       <span className="sr-only">Buscando tarefas…</span>
       <div
         aria-hidden="true"
-        className="hidden border-b bg-sidebar px-6 py-3 sm:block"
+        className="@min-[640px]/tasks:block hidden border-b bg-sidebar px-6 py-3"
       >
         <Skeleton className="h-3 w-20" />
       </div>
@@ -24,11 +24,11 @@ export function TasksSkeleton() {
             <Skeleton className="h-4 w-2/3 max-w-64" />
             <Skeleton className="h-3 w-1/2 max-w-48" />
           </div>
-          <div className="hidden w-32 shrink-0 items-center gap-2 sm:flex lg:w-40">
+          <div className="@min-[640px]/tasks:flex hidden @min-[800px]/tasks:w-40 w-32 shrink-0 items-center gap-2">
             <Skeleton className="size-6 shrink-0 rounded-full" />
             <Skeleton className="h-3 w-16" />
           </div>
-          <Skeleton className="hidden h-5 w-20 shrink-0 rounded-full sm:block" />
+          <Skeleton className="@min-[640px]/tasks:block hidden h-5 w-20 shrink-0 rounded-full" />
         </div>
       ))}
     </div>
