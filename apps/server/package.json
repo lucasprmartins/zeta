@@ -36,6 +36,7 @@
     "@orpc/server": "1.15.0",
     "@zeta/access": "workspace:*",
     "@zeta/guide-content": "workspace:*",
+    "@zeta/logger": "workspace:*",
     "ai": "7.0.97",
     "better-auth": "1.7.2",
     "drizzle-orm": "0.45.2",

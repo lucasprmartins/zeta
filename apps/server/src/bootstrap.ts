@@ -12,6 +12,7 @@ import {
   createNotificationRepository,
   deliverNotifications,
 } from "@server/infrastructure/repositories/drizzle-notification-repository";
+import { createLogger, type Logger } from "@zeta/logger";
 import { sql } from "drizzle-orm";
 import type { Env } from "./config/env";
 import { manageAccess } from "./domain/authorization/application/manage-access";
@@ -36,7 +37,10 @@ import { createApp } from "./interfaces/http/app";
 import { createHelpChat } from "./interfaces/http/help-chat";
 import { createRouter } from "./interfaces/http/rpc/router";
 
-export async function bootstrap(env: Env) {
+export async function bootstrap(
+  env: Env,
+  logger: Logger = createLogger({ service: "zeta-api", level: env.logLevel })
+) {
   const database = createDatabase(env.databaseUrl);
   const access = createAccessRepository(database.db);
   const publish = eventPublisher<Transaction>([
@@ -85,6 +89,7 @@ export async function bootstrap(env: Env) {
       }
     );
     const app = await createApp({
+      logger,
       router,
       authentication,
       helpChat: createHelpChat({

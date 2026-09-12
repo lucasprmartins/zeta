@@ -1,8 +1,14 @@
+import { createLogger } from "@zeta/logger";
 import { bootstrap } from "./bootstrap";
 import { readEnv } from "./config/env";
 
 const env = readEnv(process.env);
-const { app, closeDatabase } = await bootstrap(env);
+const logger = createLogger({
+  service: "zeta-api",
+  level: env.logLevel,
+  pretty: process.env.NODE_ENV !== "production",
+});
+const { app, closeDatabase } = await bootstrap(env, logger);
 
 try {
   app.listen({ port: env.port, hostname: "::" });
@@ -10,7 +16,7 @@ try {
   await closeDatabase();
   throw error;
 }
-console.info(`API disponível em http://localhost:${env.port}`);
+logger.info({ port: env.port }, "API disponível");
 
 let stopping = false;
 async function shutdown() {
@@ -21,11 +27,12 @@ async function shutdown() {
   const timeout = setTimeout(() => process.exit(1), 10_000);
   timeout.unref();
   try {
+    logger.info("Encerrando API");
     await app.stop();
     await closeDatabase();
     clearTimeout(timeout);
   } catch (error) {
-    console.error("Falha ao encerrar a API", error);
+    logger.error({ err: error }, "Falha ao encerrar a API");
     process.exit(1);
   }
 }

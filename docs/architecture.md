@@ -39,6 +39,8 @@ Uma funcionalidade atravessa domínio e testes → persistência/migration → p
 
 `moduleProcedure({ tag, translate })` monta a base de cada módulo RPC: sessão exigida, catálogo de erros comum, tradução dos erros de domínio e a marcação de segurança da documentação. As entradas usam os validadores de `rpc/input.ts` (`object`, `text`, `uuid`, `page`); `documented()` mantém validação e JSON Schema coerentes. Altere schemas e agrupamento em `interfaces/http/openapi`, não documentos gerados. `createApp` e `bootstrap` são assíncronos; aguarde ambos e preserve o fechamento do pool em falhas de inicialização e encerramento.
 
+Os processos da API e do cliente emitem logs estruturados por `@zeta/logger`, com Pino, identificação do serviço e credenciais conhecidas ocultadas. Em desenvolvimento, `pino-pretty` torna a saída legível no terminal; com `NODE_ENV=production`, a saída permanece em JSON para ingestão pela plataforma. `LOG_LEVEL` aceita `fatal`, `error`, `warn`, `info`, `debug`, `trace` ou `silent` e usa `info` por padrão. A API registra conclusão de requisições com ID de correlação, método, caminho, status e duração; o mesmo ID segue no header `x-request-id` da resposta. Registre exceções no campo `err` para preservar a serialização de tipo, mensagem e stack.
+
 Drizzle usa Bun SQL na API e no migrador; `postgres` atende às ferramentas de desenvolvimento. Namespaces de `schema/namespaces.ts` organizam tabelas com nomes simples:
 
 - `auth`: Better Auth e controle de acesso, como `auth.user` e `auth.access`.

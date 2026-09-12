@@ -8,7 +8,8 @@ const valid = {
 };
 
 test("carrega configuração e porta padrão", () => {
-  expect(readEnv(valid).port).toBe(3000);
+  expect(readEnv(valid)).toMatchObject({ port: 3000, logLevel: "info" });
+  expect(readEnv({ ...valid, LOG_LEVEL: "DEBUG" }).logLevel).toBe("debug");
 });
 
 test("rejeita configuração incompleta, segredo fraco e porta inválida", () => {
@@ -17,6 +18,9 @@ test("rejeita configuração incompleta, segredo fraco e porta inválida", () =>
     "BETTER_AUTH_SECRET"
   );
   expect(() => readEnv({ ...valid, PORT: "0" })).toThrow("PORT");
+  expect(() => readEnv({ ...valid, LOG_LEVEL: "verbose" })).toThrow(
+    "LOG_LEVEL"
+  );
   expect(() =>
     readEnv({ ...valid, DATABASE_URL: "https://example.com" })
   ).toThrow("PostgreSQL");

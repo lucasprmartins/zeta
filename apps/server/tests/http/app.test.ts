@@ -10,6 +10,7 @@ import { updateTask } from "@server/domain/tasks/application/update-task";
 import { Task } from "@server/domain/tasks/entities/task";
 import { createApp } from "@server/interfaces/http/app";
 import { createRouter } from "@server/interfaces/http/rpc/router";
+import { createLogger } from "@zeta/logger";
 import {
   InMemoryTaskRepository,
   InMemoryUserDirectory,
@@ -34,6 +35,7 @@ async function setup(
     };
   }
   const app = await createApp({
+    logger: createLogger({ service: "test", level: "silent" }),
     router: createRouter({
       create: createTask({
         tasks,
@@ -83,9 +85,6 @@ async function setup(
         throw new Error("db down");
       }
     },
-    reportError: () => {
-      // Silencia o relatório de erros durante os testes.
-    },
   });
   const rpc = (procedure: string, input?: unknown, user?: string) =>
     app.handle(
@@ -110,6 +109,14 @@ describe("HTTP e RPC", () => {
     expect(
       (await app.handle(new Request("http://localhost/ready"))).status
     ).toBe(503);
+  });
+
+  test("inclui um ID de correlação nas respostas", async () => {
+    const { app } = await setup();
+    const response = await app.handle(new Request("http://localhost/health"));
+    expect(response.headers.get("x-request-id")).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+    );
   });
 
   test("encaminha o corpo bruto ao handler de autenticação", async () => {

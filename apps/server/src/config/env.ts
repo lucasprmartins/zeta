@@ -1,3 +1,5 @@
+import { readLogLevel } from "@zeta/logger";
+
 export function readEnv(env: Record<string, string | undefined>) {
   const required = (key: string) => {
     const value = env[key]?.trim();
@@ -28,6 +30,7 @@ export function readEnv(env: Record<string, string | undefined>) {
   if (!Number.isInteger(port) || port < 1 || port > 65_535) {
     throw new Error("PORT deve ser um inteiro entre 1 e 65535.");
   }
+  const logLevel = readLogLevel(env.LOG_LEVEL);
   const trustedOrigins = (env.TRUSTED_ORIGINS ?? authUrl.origin)
     .split(",")
     .map((value) => {
@@ -48,6 +51,7 @@ export function readEnv(env: Record<string, string | undefined>) {
     databaseUrl,
     authUrl: authUrl.origin,
     authSecret,
+    logLevel,
     port,
     trustedOrigins,
   };

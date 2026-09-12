@@ -1,6 +1,7 @@
 import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { onError } from "@orpc/server";
 import { RPCHandler, type RPCHandlerOptions } from "@orpc/server/fetch";
+import type { Logger } from "@zeta/logger";
 import { Elysia, t } from "elysia";
 import type { Authentication } from "./authentication";
 import { createDocumentation } from "./openapi/documentation";
@@ -11,11 +12,13 @@ export async function createApp(dependencies: {
   router: AppRouter;
   authentication: Authentication;
   checkDatabase: () => Promise<void>;
-  reportError?: (error: unknown) => void;
+  logger: Logger;
   helpChat?: (request: Request) => Promise<Response>;
 }) {
-  const reportError =
-    dependencies.reportError ?? ((error: unknown) => console.error(error));
+  const reportError = (error: unknown) => {
+    dependencies.logger.error({ err: error }, "Erro ao processar requisição");
+  };
+  const requests = new WeakMap<Request, { id: string; startedAt: number }>();
   const handlerOptions: RPCHandlerOptions<RpcContext> = {
     interceptors: [
       onError((error) => {
@@ -41,6 +44,32 @@ export async function createApp(dependencies: {
 
   return new Elysia()
     .use(documentation)
+    .onRequest(({ request, set }) => {
+      const id = crypto.randomUUID();
+      requests.set(request, { id, startedAt: performance.now() });
+      set.headers["x-request-id"] = id;
+    })
+    .onAfterResponse(({ request, responseValue, set }) => {
+      const current = requests.get(request);
+      const status =
+        responseValue instanceof Response
+          ? responseValue.status
+          : typeof set.status === "number"
+            ? set.status
+            : 200;
+      dependencies.logger.info(
+        {
+          requestId: current?.id,
+          method: request.method,
+          path: new URL(request.url).pathname,
+          status,
+          durationMs: current
+            ? Math.round((performance.now() - current.startedAt) * 100) / 100
+            : undefined,
+        },
+        "Requisição concluída"
+      );
+    })
     .onError(({ code, error, set }) => {
       if (code === "NOT_FOUND") {
         set.status = 404;

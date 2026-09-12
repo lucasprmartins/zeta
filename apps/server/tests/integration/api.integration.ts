@@ -32,6 +32,7 @@ const runtime = await bootstrap({
   databaseUrl: scopedUrl.toString(),
   authUrl: "http://localhost:3000",
   authSecret: "integration-only-secret-with-more-than-32-characters",
+  logLevel: "silent",
   port: 3000,
   trustedOrigins: ["http://localhost:3000", "http://localhost:3001"],
 });

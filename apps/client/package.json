@@ -28,6 +28,7 @@
     "@tiptap/starter-kit": "3.31.3",
     "@zeta/access": "workspace:*",
     "@zeta/guide-content": "workspace:*",
+    "@zeta/logger": "workspace:*",
     "@zeta/server": "workspace:*",
     "ai": "7.0.97",
     "better-auth": "1.7.2",

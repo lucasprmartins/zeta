@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import type { Logger } from "@zeta/logger";
 
 const apiPaths = ["/api", "/rpc", "/openapi", "/health", "/ready"];
 const hopHeaders = [
@@ -29,6 +30,7 @@ export async function createClientHandler(options: {
   directory: string;
   apiOrigin: string;
   publicOrigin: string;
+  logger?: Pick<Logger, "error">;
 }) {
   const apiOrigin = new URL(options.apiOrigin);
   const publicOrigin = new URL(options.publicOrigin);
@@ -104,7 +106,11 @@ export async function createClientHandler(options: {
           statusText: response.statusText,
           headers: responseHeaders,
         });
-      } catch {
+      } catch (error) {
+        options.logger?.error(
+          { err: error, method: request.method, path: url.pathname },
+          "Falha ao encaminhar requisição para a API"
+        );
         return Response.json(
           { message: "API indisponível." },
           { status: 502, headers: { "cache-control": "no-store" } }
