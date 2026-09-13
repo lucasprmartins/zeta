@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCallback } from "react";
 import { PermissionBoundary } from "@/components/permission-boundary";
 import type { TaskFilter } from "@/features/tasks/queries";
+import { type TaskCriteria, taskCriteria } from "@/features/tasks/task-filters";
 import { TasksPage } from "@/features/tasks/tasks-page";
 import { permissions } from "@/lib/access";
 
@@ -10,7 +11,14 @@ export const Route = createFileRoute("/_authenticated/tasks")({
   staticData: { crumbs: [{ label: "Workspace" }, { label: "Tarefas" }] },
   validateSearch: (
     search: Record<string, unknown>
-  ): { status: TaskFilter; task?: string | undefined } => ({
+  ): {
+    status: TaskFilter;
+    task?: string | undefined;
+    q?: string;
+    assignees?: string[];
+    unassigned?: boolean;
+  } => ({
+    ...taskCriteria(search),
     task:
       typeof search.task === "string" &&
       search.task.length > 0 &&
@@ -38,16 +46,27 @@ function TasksRoute() {
   );
   const closeTask = useCallback(() => update({ task: undefined }), [update]);
   const filterBy = useCallback(
-    (status: TaskFilter) => update({ status }),
-    [update]
+    (criteria: TaskCriteria) => {
+      void navigate({
+        search: (previous) => ({ ...previous, ...criteria }),
+        replace:
+          criteria.q !== (search.q ?? "") &&
+          criteria.status === search.status &&
+          JSON.stringify(criteria.assignees) ===
+            JSON.stringify(search.assignees ?? []) &&
+          criteria.unassigned === (search.unassigned ?? false),
+        resetScroll: false,
+      });
+    },
+    [navigate, search]
   );
   const openTask = useCallback((task: string) => update({ task }), [update]);
   return (
     <PermissionBoundary permission={permissions.tasks.read}>
       <TasksPage
-        filter={search.status}
+        criteria={taskCriteria(search)}
         onCloseTask={closeTask}
-        onFilter={filterBy}
+        onCriteria={filterBy}
         onOpenTask={openTask}
         taskId={search.inbox ? undefined : search.task}
       />

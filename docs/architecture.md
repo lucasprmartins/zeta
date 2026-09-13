@@ -81,7 +81,7 @@ Tarefas são compartilhadas: cada ação autorizada alcança qualquer tarefa, se
 
 `tasks:mention` protege busca de contas e gravação de responsáveis. Criar/editar sem menções não exige essa ação; enviá-las sem permissão retorna 403. Aceite apenas contas existentes e respeite `MAX_MENTIONS`, também declarado no cliente.
 
-A lista usa páginas de 20 itens, por criação decrescente e ID. Edições seguem a última gravação, sem versionamento. `/tasks` mantém `status` e `task` na URL; o [painel lateral](side-panel.md) consulta detalhes independentemente da lista. `TaskForm` serve criação/edição e inclui `MentionPicker` conforme permissão, com busca adiada em 250 ms e termo na chave da consulta.
+A lista usa páginas de 20 itens, por criação decrescente e ID. Edições seguem a última gravação, sem versionamento. `/tasks` mantém `status`, `q`, `assignees`, `unassigned` e `task` na URL; o [painel lateral](side-panel.md) consulta detalhes independentemente da lista. Busca e filtros são aplicados pelo banco antes da paginação, conforme [Busca e filtros](list-filters.md). `TaskForm` serve criação/edição e inclui `MentionPicker` conforme permissão, com busca adiada em 250 ms e termo na chave da consulta.
 
 O dashboard consulta um agregado calculado em transação `repeatable read`: totais por status, responsáveis com mais tarefas e recorte sem responsável. Os cards abrem filtros da lista. Uma tarefa com vários responsáveis conta uma vez por pessoa; a soma por responsável pode exceder o total.
 
@@ -108,7 +108,15 @@ Na sidebar desktop, preserve posições dos ícones/avatar e mantenha rótulos m
 
 Mantenha alvos de 44 px, campos de 16 px no mobile, foco visível, nomes acessíveis, `aria-current`, link para pular navegação e movimento reduzido, sem rolagem horizontal.
 
-Conteúdos que dividem espaço com painéis devem adaptar sua composição à largura do contêiner, não apenas à viewport. A lista de tarefas usa um contêiner nomeado: abaixo de 640 px, cada item reúne título, status, data, responsáveis e ações em uma composição compacta; acima desse limite, exibe colunas, acrescentando espaço e data conforme a largura disponível. Cabeçalho, linhas, filtros e skeletons seguem os mesmos limites. Novas listas devem definir seus limites conforme o espaço necessário às colunas, preservando títulos legíveis e ações acessíveis quando a rota encolhe.
+Conteúdos que dividem espaço com painéis devem adaptar sua composição à largura do contêiner, não apenas à viewport. A tabela de tarefas mantém conclusão e título em todos os tamanhos; status ganha coluna a partir de 480 px, responsáveis a partir de 800 px e criação a partir de 960 px. Abaixo desses limites, as informações acompanham o título na mesma célula, em uma faixa de metadados com quebra conforme o espaço disponível; o checkbox alinha ao título, não ao centro do conjunto. Cabeçalhos, células e skeletons compartilham as larguras; os filtros se reorganizam a partir de 640 px. O título continua legível quando a rota encolhe, sem rolagem horizontal.
+
+### Tabelas de dados
+
+`components/ui/table.tsx` fornece as primitivas semânticas adaptadas do shadcn/ui. `DataTable`, em `components/ui/data-table.tsx`, compõe essas primitivas com TanStack Table: recebe `columns`, `data`, `getRowId` estável e `label` acessível. `empty` personaliza o vazio; `activeRowId` destaca o recurso aberto sem criar seleção em lote. `columnClassNames` aplica as mesmas classes aos cabeçalhos e células, permitindo que cada funcionalidade defina larguras e limites responsivos. A superfície usa layout fixo; a funcionalidade deve garantir que suas células caibam ou reorganizem informações em contêineres estreitos.
+
+Colunas tipadas usam `DataTableColumn<T>` e pertencem à feature, assim como filtros, consultas, permissões e callbacks. Tarefas definem essa composição em `task-columns.tsx`: o título abre o painel, o checkbox altera conclusão e editar/excluir continuam exclusivamente no painel. A barra de filtros fica fora da borda da tabela. A paginação incremental, os totais e a ordem continuam vindo da API; o módulo compartilhado não aplica busca, ordenação ou paginação local a um subconjunto carregado. Carregamento, falhas iniciais, atualização e continuação permanecem sob controle da feature e dos componentes de feedback existentes.
+
+Busca e filtros combináveis usam `ListFilterBar`, `ListSearch`, `ListFilterPanel` e `ListFacet`, independentes de `DataTable`. A barra reúne resumo e ações da listagem; os filtros ficam em um painel único de condições e a busca começa recolhida. A composição shadcn/ui, o contrato de integração e as garantias de consulta estão em [Busca e filtros](list-filters.md).
 
 ### Tema e feedback
 

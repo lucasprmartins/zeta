@@ -1,6 +1,6 @@
-import { ArrowClockwiseIcon, PlusIcon } from "@phosphor-icons/react";
+import { PlusIcon } from "@phosphor-icons/react";
 import { useInfiniteQuery, useMutation } from "@tanstack/react-query";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { ErrorNotice } from "@/components/feedback";
 import { InfiniteScroll } from "@/components/infinite-scroll";
 import { PageContent } from "@/components/layout/page-content";
@@ -12,33 +12,27 @@ import {
   useUserId,
 } from "@/components/permission-boundary";
 import { Button } from "@/components/ui/button";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { DataTable } from "@/components/ui/data-table";
 import { permissions } from "@/lib/access";
 import { actionErrorMessage, byId, useInfiniteList } from "@/lib/query";
 import { rpc } from "@/lib/rpc";
 import { DeleteTaskModal } from "./delete-task-modal";
-import {
-  infiniteTasksQuery,
-  type Task,
-  type TaskFilter,
-  useTasksRefresh,
-} from "./queries";
+import { infiniteTasksQuery, type Task, useTasksRefresh } from "./queries";
+import { taskColumnClassNames, taskColumns } from "./task-columns";
 import { TaskEditorModal } from "./task-editor-modal";
-import { TaskItem } from "./task-item";
+import {
+  emptyTaskCriteria,
+  hasTaskCriteria,
+  type TaskCriteria,
+} from "./task-filters";
 import { TaskPanel } from "./task-panel";
-import { statusLabels } from "./task-status";
 import { TasksEmpty } from "./tasks-empty";
 import { TasksSkeleton } from "./tasks-skeleton";
-
-const filters = [
-  ["all", "Todas"],
-  ["pending", `${statusLabels.pending}s`],
-  ["completed", `${statusLabels.completed}s`],
-] as const;
+import { TasksToolbar } from "./tasks-toolbar";
 
 export function TasksPage({
-  filter,
-  onFilter,
+  criteria,
+  onCriteria,
   taskId,
   onOpenTask,
   onCloseTask,
@@ -46,14 +40,14 @@ export function TasksPage({
   taskId: string | undefined;
   onOpenTask: (id: string) => void;
   onCloseTask: () => void;
-  filter: TaskFilter;
-  onFilter: (filter: TaskFilter) => void;
+  criteria: TaskCriteria;
+  onCriteria: (criteria: TaskCriteria) => void;
 }) {
   const { can } = usePermissions();
   const refresh = useTasksRefresh();
   const [editor, setEditor] = useState<Task | "new" | null>(null);
   const [deleting, setDeleting] = useState<Task | null>(null);
-  const tasks = useInfiniteQuery(infiniteTasksQuery(useUserId(), filter));
+  const tasks = useInfiniteQuery(infiniteTasksQuery(useUserId(), criteria));
   const status = useMutation({
     mutationFn: (input: Parameters<typeof rpc.tasks.setStatus>[0]) =>
       rpc.tasks.setStatus(input),
@@ -88,6 +82,18 @@ export function TasksPage({
   );
   const { items, loadMore } = useInfiniteList(tasks, byId);
   const total = tasks.data?.pages.at(-1)?.total ?? 0;
+  const canSetStatus = can(permissions.tasks.setStatus);
+  const pendingId = pendingTaskId(status);
+  const columns = useMemo(
+    () =>
+      taskColumns({
+        canSetStatus,
+        pendingId,
+        onStatus: toggleStatus,
+        onOpen: openTask,
+      }),
+    [canSetStatus, pendingId, toggleStatus, openTask]
+  );
 
   return (
     <PageContent>
@@ -106,51 +112,15 @@ export function TasksPage({
 
       <section
         aria-label="Lista de tarefas"
-        className="@container/tasks min-w-0 overflow-hidden rounded-xl border"
+        className="@container/tasks min-w-0 space-y-4"
       >
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
-          <ToggleGroup
-            aria-label="Filtrar tarefas"
-            className="@min-[640px]/tasks:flex grid @min-[640px]/tasks:w-auto w-full grid-cols-3"
-            onValueChange={(value) => {
-              if (filters.some(([option]) => option === value)) {
-                onFilter(value as TaskFilter);
-              }
-            }}
-            type="single"
-            value={filter}
-          >
-            {filters.map(([value, label]) => (
-              <ToggleGroupItem
-                className="@min-[640px]/tasks:px-3 px-2 @min-[640px]/tasks:text-sm text-xs"
-                key={value}
-                value={value}
-              >
-                {label}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
-          <div className="flex @min-[640px]/tasks:w-auto w-full items-center justify-between gap-3">
-            <span className="text-muted-foreground text-xs">
-              {tasks.data
-                ? `${total} ${total === 1 ? "tarefa" : "tarefas"}`
-                : ""}
-            </span>
-            <Button
-              aria-label="Atualizar tarefas"
-              className="size-8"
-              disabled={tasks.isFetching}
-              onClick={() => void tasks.refetch()}
-              size="icon"
-              title="Atualizar tarefas"
-              variant="ghost"
-            >
-              <ArrowClockwiseIcon
-                className={tasks.isFetching ? "animate-spin" : ""}
-              />
-            </Button>
-          </div>
-        </div>
+        <TasksToolbar
+          criteria={criteria}
+          onChange={onCriteria}
+          onRefresh={() => void tasks.refetch()}
+          refreshing={tasks.isFetching}
+          total={tasks.data ? total : undefined}
+        />
         {status.error && (
           <div className="border-b p-4">
             <ErrorNotice message={actionErrorMessage(status.error)} />
@@ -176,41 +146,25 @@ export function TasksPage({
         ) : items.length === 0 ? (
           <TasksEmpty
             canCreate={can(permissions.tasks.create)}
-            filter={filter}
-            onClearFilter={() => onFilter("all")}
+            filter={criteria.status}
+            onClearFilter={() => onCriteria(emptyTaskCriteria)}
             onCreate={() => openEditor("new")}
+            searched={hasTaskCriteria(criteria)}
           />
         ) : (
           <>
-            <div
-              aria-hidden="true"
-              className="@min-[640px]/tasks:flex hidden items-center gap-3 border-b bg-sidebar px-4 py-2.5 font-medium text-[11px] text-muted-foreground"
-            >
-              <span className="w-10 shrink-0" />
-              <span className="flex-1">Tarefa</span>
-              <span className="@min-[800px]/tasks:w-40 w-32 shrink-0">
-                Responsável
-              </span>
-              <span className="w-24 shrink-0">Status</span>
-              <span className="@min-[960px]/tasks:block hidden w-28 shrink-0">
-                Criada em
-              </span>
-            </div>
-            <ul>
-              {items.map((task) => (
-                <TaskItem
-                  key={task.id}
-                  onOpen={openTask}
-                  onStatus={toggleStatus}
-                  pending={status.isPending && status.variables?.id === task.id}
-                  task={task}
-                />
-              ))}
-            </ul>
+            <DataTable
+              activeRowId={taskId}
+              columnClassNames={taskColumnClassNames}
+              columns={columns}
+              data={items}
+              getRowId={taskRowId}
+              label="Tarefas da equipe"
+            />
             {(tasks.hasNextPage ||
               tasks.isFetchingNextPage ||
               tasks.isFetchNextPageError) && (
-              <footer className="border-t px-4 py-4">
+              <footer className="py-2">
                 <InfiniteScroll onLoadMore={loadMore} query={tasks} />
               </footer>
             )}
@@ -231,7 +185,7 @@ export function TasksPage({
         <TaskEditorModal
           key={editor === "new" ? "new" : editor.id}
           onClose={() => setEditor(null)}
-          onCreated={() => onFilter("all")}
+          onCreated={() => onCriteria(emptyTaskCriteria)}
           task={editor}
         />
       )}
@@ -244,4 +198,13 @@ export function TasksPage({
       )}
     </PageContent>
   );
+}
+
+const taskRowId = (task: Task) => task.id;
+
+function pendingTaskId(status: {
+  isPending: boolean;
+  variables: { id: string } | undefined;
+}) {
+  return status.isPending ? status.variables?.id : undefined;
 }

@@ -1,36 +1,57 @@
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { taskColumnClassNames } from "./task-columns";
 
-// Linhas fixas do esqueleto: identidade estável, sem depender do índice.
 const rows = ["first", "second", "third", "fourth", "fifth"];
+const columns = Object.entries(taskColumnClassNames);
 
 export function TasksSkeleton() {
   return (
-    <div aria-label="Buscando tarefas…" className="divide-y" role="status">
+    <div
+      aria-label="Buscando tarefas…"
+      className="overflow-hidden rounded-lg border"
+      role="status"
+    >
       <span className="sr-only">Buscando tarefas…</span>
-      <div
-        aria-hidden="true"
-        className="@min-[640px]/tasks:block hidden border-b bg-sidebar px-6 py-3"
-      >
-        <Skeleton className="h-3 w-20" />
-      </div>
-      {rows.map((row) => (
-        <div
-          aria-hidden="true"
-          className="flex items-center gap-4 px-5 py-5"
-          key={row}
-        >
-          <Skeleton className="size-5 shrink-0" />
-          <div className="min-w-0 flex-1 space-y-2">
-            <Skeleton className="h-4 w-2/3 max-w-64" />
-            <Skeleton className="h-3 w-1/2 max-w-48" />
-          </div>
-          <div className="@min-[640px]/tasks:flex hidden @min-[800px]/tasks:w-40 w-32 shrink-0 items-center gap-2">
-            <Skeleton className="size-6 shrink-0 rounded-full" />
-            <Skeleton className="h-3 w-16" />
-          </div>
-          <Skeleton className="@min-[640px]/tasks:block hidden h-5 w-20 shrink-0 rounded-full" />
-        </div>
-      ))}
+      <Table aria-hidden="true" className="table-fixed">
+        <TableHeader>
+          <TableRow>
+            {columns.map(([id, className]) => (
+              <TableHead className={className} key={id}>
+                <Skeleton className="h-3 w-3/4" />
+              </TableHead>
+            ))}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((row) => (
+            <TableRow key={row}>
+              {columns.map(([id, className]) => (
+                <TableCell className={className} key={id}>
+                  <Skeleton
+                    className={
+                      id === "completion" ? "mx-auto size-4" : "my-3 h-4 w-3/4"
+                    }
+                  />
+                  {id === "title" && (
+                    <div className="flex @min-[960px]/tasks:hidden flex-wrap items-center gap-3 pb-1">
+                      <Skeleton className="h-4 w-16 rounded-full" />
+                      <Skeleton className="h-3 w-24" />
+                    </div>
+                  )}
+                </TableCell>
+              ))}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
     </div>
   );
 }

@@ -27,25 +27,33 @@ export function TasksEmpty({
   canCreate,
   onCreate,
   onClearFilter,
+  searched = false,
 }: {
   filter: TaskFilter;
   canCreate: boolean;
   onCreate: () => void;
   onClearFilter: () => void;
+  searched?: boolean;
 }) {
-  const filtered = filter !== "all";
-  const { title, description } = filtered
-    ? messages[filter]
-    : canCreate
-      ? {
-          title: "O primeiro passo começa aqui",
-          description:
-            "Crie a primeira tarefa. Todas as contas veem o que está aqui, e você pode indicar o responsável por cada uma.",
-        }
-      : {
-          title: "Nenhuma tarefa encontrada",
-          description: "As tarefas da equipe aparecerão neste espaço.",
-        };
+  const filtered = searched || filter !== "all";
+  const { title, description } = searched
+    ? {
+        title: "Nenhuma tarefa encontrada",
+        description:
+          "Tente outro título ou ajuste os filtros para encontrar tarefas.",
+      }
+    : filter === "all"
+      ? canCreate
+        ? {
+            title: "O primeiro passo começa aqui",
+            description:
+              "Crie a primeira tarefa. Todas as contas veem o que está aqui, e você pode indicar o responsável por cada uma.",
+          }
+        : {
+            title: "Nenhuma tarefa encontrada",
+            description: "As tarefas da equipe aparecerão neste espaço.",
+          }
+      : messages[filter];
   return (
     <Empty className="min-h-80">
       <EmptyMedia>

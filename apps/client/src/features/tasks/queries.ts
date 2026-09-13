@@ -6,23 +6,30 @@ import {
 import { useUserId } from "@/components/permission-boundary";
 import { nextPageIfMore } from "@/lib/query";
 import { rpc } from "@/lib/rpc";
+import type { TaskCriteria } from "./task-filters";
 
 export type Task = Awaited<ReturnType<typeof rpc.tasks.create>>;
 export type TaskUser = Task["mentions"][number];
-export type TaskFilter = "all" | Task["status"];
+export type { TaskFilter } from "./task-filters";
 
 // O mesmo limite do domínio; o servidor recusa o que passar disso.
 export const MAX_MENTIONS = 20;
 
 export const taskKeys = { all: (userId: string) => ["tasks", userId] as const };
 // Chave distinta: uma consulta comum e uma infinita têm formatos de cache diferentes.
-export const infiniteTasksQuery = (userId: string, filter: TaskFilter) =>
+export const infiniteTasksQuery = (userId: string, criteria: TaskCriteria) =>
   infiniteQueryOptions({
-    queryKey: [...taskKeys.all(userId), "infinite", filter],
+    queryKey: [...taskKeys.all(userId), "infinite", criteria],
     initialPageParam: 1,
     queryFn: ({ pageParam, signal }) =>
       rpc.tasks.list(
-        { page: pageParam, ...(filter === "all" ? {} : { status: filter }) },
+        {
+          page: pageParam,
+          ...(criteria.status === "all" ? {} : { status: criteria.status }),
+          search: criteria.q,
+          assignees: criteria.assignees,
+          unassigned: criteria.unassigned,
+        },
         { signal }
       ),
     getNextPageParam: nextPageIfMore,
