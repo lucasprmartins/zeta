@@ -9,6 +9,25 @@ import type {
 import type { Task } from "@server/domain/tasks/entities/task";
 
 export class InMemoryTaskRepository implements TaskRepository {
+  readonly people: TaskUser[] = [];
+  async assigneeOptions(search: string, selected: string[]) {
+    const assigned = this.people.filter((person) =>
+      this.items.some((task) => task.toJSON().mentions.includes(person.id))
+    );
+    const chosen = assigned.filter((person) => selected.includes(person.id));
+    const matches = assigned
+      .filter((person) =>
+        `${person.name} ${person.username ?? ""}`
+          .toLowerCase()
+          .includes(search.toLowerCase())
+      )
+      .slice(0, 20);
+    return [
+      ...new Map(
+        [...chosen, ...matches].map((person) => [person.id, person])
+      ).values(),
+    ];
+  }
   readonly items: Task[] = [];
   async save(task: Task) {
     this.items.push(task);
@@ -16,9 +35,27 @@ export class InMemoryTaskRepository implements TaskRepository {
   async findById(id: string) {
     return this.items.find((task) => task.toJSON().id === id) ?? null;
   }
-  async list({ status, limit, offset }: TaskFilter) {
+  async list({
+    status,
+    search,
+    assignees,
+    unassigned,
+    limit,
+    offset,
+  }: TaskFilter) {
     const items = this.items
       .filter((task) => !status || task.toJSON().status === status)
+      .filter(
+        (task) =>
+          !search ||
+          task.toJSON().title.toLowerCase().includes(search.toLowerCase())
+      )
+      .filter(
+        (task) =>
+          !(assignees?.length || unassigned) ||
+          task.toJSON().mentions.some((id) => assignees?.includes(id)) ||
+          (unassigned && task.toJSON().mentions.length === 0)
+      )
       .sort(
         (a, b) =>
           b.toJSON().createdAt.localeCompare(a.toJSON().createdAt) ||

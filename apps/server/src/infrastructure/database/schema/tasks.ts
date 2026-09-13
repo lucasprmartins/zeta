@@ -29,6 +29,10 @@ export const tasks = pgTable(
     completedAt: timestamp("completed_at", { withTimezone: true }),
   },
   (table) => [
+    index("tasks_title_search_idx").using(
+      "gin",
+      sql`${table.title} gin_trgm_ops`
+    ),
     index("tasks_created_idx").on(table.createdAt, table.id),
     index("tasks_status_created_idx").on(
       table.status,

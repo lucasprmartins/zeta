@@ -460,6 +460,81 @@ test("migra, autentica, persiste e compartilha tarefas usando a stack real", asy
   );
 }, 30_000);
 
+test("filtros SQL combinam responsáveis sem duplicar linhas e escapam curingas", async () => {
+  const author = await signUp("filters-author@example.com");
+  const helper = await signUp("filters-helper@example.com");
+  const authorId: string = author.data.user.id;
+  const helperId: string = helper.data.user.id;
+  const prefix = `filters-${crypto.randomUUID()}`;
+  for (let i = 0; i < 22; i++) {
+    const response = await request(
+      "/api/tasks",
+      {
+        title: `${prefix} API ${i}`,
+        mentions: i % 2 ? [authorId, helperId] : [],
+      },
+      author.cookie
+    );
+    expect(response.status).toBe(200);
+  }
+  const literal = await request(
+    "/api/tasks",
+    { title: `${prefix} 100%_\\literal` },
+    author.cookie
+  );
+  expect(literal.status).toBe(200);
+  const list = async (input: Record<string, unknown>) =>
+    (
+      await (
+        await request("/rpc/tasks/list", { json: input }, author.cookie)
+      ).json()
+    ).json;
+  expect(
+    await list({
+      search: prefix,
+      assignees: [authorId, helperId],
+      unassigned: true,
+    })
+  ).toMatchObject({ total: 23, hasMore: true });
+  expect(
+    await list({ search: prefix, assignees: [authorId, helperId] })
+  ).toMatchObject({ total: 11, hasMore: false });
+  expect(await list({ search: prefix, unassigned: true })).toMatchObject({
+    total: 12,
+  });
+  expect(
+    await list({ search: prefix, assignees: [helperId], status: "completed" })
+  ).toMatchObject({ total: 0 });
+  expect(
+    (
+      await list({
+        search: prefix,
+        assignees: [authorId, helperId],
+        unassigned: true,
+        page: 2,
+      })
+    ).items
+  ).toHaveLength(3);
+  expect(await list({ search: "100%_\\literal" })).toMatchObject({ total: 1 });
+  expect(await list({ search: prefix.toUpperCase() })).toMatchObject({
+    total: 23,
+  });
+  const options = await (
+    await request(
+      "/rpc/tasks/assignees",
+      { json: { selected: [helperId], search: "no-match" } },
+      author.cookie
+    )
+  ).json();
+  expect(options.json.items.map((person: { id: string }) => person.id)).toEqual(
+    [helperId]
+  );
+  const index = await database.db.execute(
+    sql`select indexname from pg_indexes where schemaname='public' and indexname='tasks_title_search_idx'`
+  );
+  expect(index).toHaveLength(1);
+}, 30_000);
+
 test("o resumo agrega no banco por status e por responsável", async () => {
   const author = await signUp("summary-author@example.com");
   const helper = await signUp("summary-helper@example.com");

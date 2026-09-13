@@ -3,6 +3,7 @@ import type { createTask } from "@server/domain/tasks/application/create-task";
 import type { deleteTask } from "@server/domain/tasks/application/delete-task";
 import type { getTask } from "@server/domain/tasks/application/get-task";
 import type { listMentionableUsers } from "@server/domain/tasks/application/list-mentionable-users";
+import type { listTaskAssignees } from "@server/domain/tasks/application/list-task-assignees";
 import type { listTasks } from "@server/domain/tasks/application/list-tasks";
 import type { setTaskStatus } from "@server/domain/tasks/application/set-task-status";
 import type { summarizeTasks } from "@server/domain/tasks/application/summarize-tasks";
@@ -12,6 +13,7 @@ import { InvalidTaskError } from "@server/domain/tasks/entities/task";
 import { can, permissions } from "@server/infrastructure/auth/access";
 import { moduleProcedure, requirePermission } from "./context";
 import {
+  assigneeSearchInput,
   createInput,
   deleteOutput,
   idInput,
@@ -26,6 +28,7 @@ import {
 } from "./task-schemas";
 
 export type TaskUseCases = {
+  assignees: ReturnType<typeof listTaskAssignees>;
   create: ReturnType<typeof createTask>;
   list: ReturnType<typeof listTasks>;
   get: ReturnType<typeof getTask>;
@@ -59,6 +62,17 @@ function ensureMayMention(grants: string[], mentions: readonly string[]) {
 
 export function createTasksRouter(useCases: TaskUseCases) {
   return {
+    assignees: procedure
+      .use(requirePermission(permissions.tasks.read))
+      .route({
+        ...route,
+        method: "GET",
+        path: "/tasks/assignees",
+        summary: "Buscar responsáveis presentes em tarefas",
+      })
+      .input(assigneeSearchInput)
+      .output(mentionListOutput)
+      .handler(({ input }) => useCases.assignees(input)),
     create: procedure
       .use(requirePermission(permissions.tasks.create))
       .route({

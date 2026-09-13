@@ -3,6 +3,7 @@ import { createTask } from "@server/domain/tasks/application/create-task";
 import { deleteTask } from "@server/domain/tasks/application/delete-task";
 import { getTask } from "@server/domain/tasks/application/get-task";
 import { listMentionableUsers } from "@server/domain/tasks/application/list-mentionable-users";
+import { listTaskAssignees } from "@server/domain/tasks/application/list-task-assignees";
 import { listTasks } from "@server/domain/tasks/application/list-tasks";
 import { setTaskStatus } from "@server/domain/tasks/application/set-task-status";
 import { summarizeTasks } from "@server/domain/tasks/application/summarize-tasks";
@@ -44,6 +45,7 @@ async function setup(
         now: () => new Date().toISOString(),
       }),
       list: listTasks(tasks, directory),
+      assignees: listTaskAssignees(tasks),
       get: getTask(tasks, directory),
       update: updateTask(tasks, directory, () => new Date().toISOString()),
       setStatus: setTaskStatus(tasks, directory, () =>
@@ -101,6 +103,44 @@ async function setup(
 }
 
 describe("HTTP e RPC", () => {
+  test("busca e filtros têm validação HTTP; opções exigem leitura, não atribuição", async () => {
+    const { rpc, tasks } = await setup({ role: "reader" });
+    tasks.people.push({
+      id: "user-2",
+      name: "Bruno",
+      username: "bruno",
+      image: null,
+    });
+    await tasks.save(
+      Task.create({
+        id: "00000000-0000-4000-8000-000000000099",
+        description: "",
+        authorId: "user-1",
+        title: "Revisar API",
+        mentions: ["user-2"],
+        createdAt: "2026-09-12T12:00:00Z",
+      })
+    );
+    expect((await rpc("assignees", {}, "user-1")).status).toBe(200);
+    expect((await rpc("assignees", {})).status).toBe(401);
+    expect((await rpc("mentionableUsers", {}, "user-1")).status).toBe(403);
+    for (const input of [
+      { search: "x".repeat(121) },
+      { assignees: "user-2" },
+      { unassigned: "yes" },
+      { assignees: Array.from({ length: 21 }, () => "x") },
+    ]) {
+      expect((await rpc("list", input, "user-1")).status).toBe(400);
+    }
+    const result = await (
+      await rpc(
+        "list",
+        { search: "api", assignees: ["user-2"], status: "pending" },
+        "user-1"
+      )
+    ).json();
+    expect(result.json.total).toBe(1);
+  });
   test("health não depende do banco; readiness sinaliza indisponibilidade", async () => {
     const { app } = await setup({ databaseDown: true });
     expect(
@@ -145,6 +185,7 @@ describe("HTTP e RPC", () => {
     const id = "00000000-0000-4000-8000-000000000001";
     for (const [operation, input] of [
       ["list", {}],
+      ["assignees", {}],
       ["get", { id }],
       ["create", { title: "Denied" }],
       ["update", { id, title: "Denied" }],

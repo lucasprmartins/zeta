@@ -1,9 +1,10 @@
 import type { DomainEvent } from "../../events";
-import type { Task, TaskStatus } from "../entities/task";
+import type { Task } from "../entities/task";
+import type { TaskListFilters } from "./task-list-filters";
+import type { TaskUser } from "./user-directory";
 
 // A lista alcança todas as tarefas: a autoria não restringe a consulta.
-export type TaskFilter = {
-  status?: TaskStatus;
+export type TaskFilter = TaskListFilters & {
   limit: number;
   offset: number;
 };
@@ -18,6 +19,7 @@ export type TaskSummaryRows = {
 };
 
 export interface TaskRepository {
+  assigneeOptions(search: string, selected: string[]): Promise<TaskUser[]>;
   delete(id: string): Promise<boolean>;
   findById(id: string): Promise<Task | null>;
   list(filter: TaskFilter): Promise<{ items: Task[]; total: number }>;

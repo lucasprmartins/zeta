@@ -27,6 +27,7 @@ import { manageGuides } from "./domain/guides/application/manage-guides";
 import { helpService } from "./domain/help/help";
 import { createTask } from "./domain/tasks/application/create-task";
 import { listMentionableUsers } from "./domain/tasks/application/list-mentionable-users";
+import { listTaskAssignees } from "./domain/tasks/application/list-task-assignees";
 import { listTasks } from "./domain/tasks/application/list-tasks";
 import { summarizeTasks } from "./domain/tasks/application/summarize-tasks";
 import { streamHelp } from "./infrastructure/ai/help-model";
@@ -68,6 +69,7 @@ export async function bootstrap(
         now: () => new Date().toISOString(),
       }),
       list: listTasks(tasks, directory),
+      assignees: listTaskAssignees(tasks),
       get: getTask(tasks, directory),
       update: updateTask(tasks, directory, () => new Date().toISOString()),
       setStatus: setTaskStatus(tasks, directory, () =>

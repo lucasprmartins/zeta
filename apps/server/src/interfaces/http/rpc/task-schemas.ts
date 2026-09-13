@@ -4,6 +4,7 @@ import type { listMentionableUsers } from "@server/domain/tasks/application/list
 import type { listTasks } from "@server/domain/tasks/application/list-tasks";
 import type { TaskSummary } from "@server/domain/tasks/application/summarize-tasks";
 import type { TaskView } from "@server/domain/tasks/application/task-view";
+import type { TaskListFilters } from "@server/domain/tasks/contracts/task-list-filters";
 import {
   MAX_MENTIONS,
   type TaskStatus,
@@ -137,18 +138,70 @@ export const idInput = documented(
 );
 export const listInput = documented(
   type<
-    { status?: TaskStatus; page?: number } | undefined,
-    { status?: TaskStatus; page: number }
+    (TaskListFilters & { page?: number }) | undefined,
+    TaskListFilters & { page: number }
   >((input) => {
     const data = object(input ?? {});
     return {
       page: page(data.page),
+      ...(data.search === undefined
+        ? {}
+        : {
+            search: text(data.search, {
+              field: "a busca",
+              max: 120,
+              required: false,
+            }),
+          }),
+      ...(data.assignees === undefined
+        ? {}
+        : { assignees: parseMentions(data.assignees) }),
+      ...(data.unassigned === undefined
+        ? {}
+        : {
+            unassigned:
+              typeof data.unassigned === "boolean"
+                ? data.unassigned
+                : invalid("Filtro de responsáveis inválido."),
+          }),
       ...(data.status === undefined
         ? {}
         : { status: parseStatus(data.status) }),
     };
   }),
-  { type: "object", properties: { status, page: pageSchema } }
+  {
+    type: "object",
+    properties: {
+      status,
+      page: pageSchema,
+      search: { type: "string", maxLength: 120 },
+      assignees: mentions,
+      unassigned: { type: "boolean" },
+    },
+  }
+);
+
+export const assigneeSearchInput = documented(
+  type<
+    { search?: string; selected?: string[] } | undefined,
+    { search: string; selected: string[] }
+  >((input) => {
+    const data = object(input ?? {});
+    return {
+      search:
+        data.search === undefined
+          ? ""
+          : text(data.search, { field: "a busca", max: 120, required: false }),
+      selected: parseMentions(data.selected),
+    };
+  }),
+  {
+    type: "object",
+    properties: {
+      search: { type: "string", maxLength: 120 },
+      selected: mentions,
+    },
+  }
 );
 export const taskOutput = documented(type<TaskView>(), task);
 export const taskListOutput = documented(

@@ -9,13 +9,30 @@ import type {
   Database,
   Transaction,
 } from "@server/infrastructure/database/client";
+import { user } from "@server/infrastructure/database/schema/auth";
 import {
   taskMentions,
   tasks,
 } from "@server/infrastructure/database/schema/tasks";
-import { asc, count, desc, eq, inArray, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  exists,
+  ilike,
+  inArray,
+  notExists,
+  or,
+  sql,
+} from "drizzle-orm";
 
 type Row = typeof tasks.$inferSelect;
+
+function literalPattern(value: string) {
+  return `%${value.replace(/[\\%_]/g, "\\$&")}%`;
+}
 
 function values(task: Task) {
   const { mentions, ...data } = task.toJSON();
@@ -119,8 +136,77 @@ export class DrizzleTaskRepository implements TaskRepository {
     return restore(row, mentions.get(row.id) ?? []);
   }
 
-  async list({ status, limit, offset }: TaskFilter) {
-    const where = status ? eq(tasks.status, status) : undefined;
+  async assigneeOptions(search: string, selected: string[]) {
+    const assigned = exists(
+      this.db
+        .select({ id: taskMentions.taskId })
+        .from(taskMentions)
+        .where(eq(taskMentions.userId, user.id))
+    );
+    const fields = {
+      id: user.id,
+      name: user.name,
+      username: user.username,
+      image: user.image,
+    };
+    const matching = await this.db
+      .select(fields)
+      .from(user)
+      .where(
+        and(
+          assigned,
+          or(
+            ilike(user.name, literalPattern(search)),
+            ilike(user.username, literalPattern(search))
+          )
+        )
+      )
+      .orderBy(asc(user.name), asc(user.id))
+      .limit(20);
+    const chosen = selected.length
+      ? await this.db
+          .select(fields)
+          .from(user)
+          .where(and(assigned, inArray(user.id, selected)))
+          .orderBy(asc(user.name), asc(user.id))
+      : [];
+    return [
+      ...new Map(
+        [...chosen, ...matching].map((person) => [person.id, person])
+      ).values(),
+    ];
+  }
+
+  async list({
+    status,
+    search,
+    assignees,
+    unassigned,
+    limit,
+    offset,
+  }: TaskFilter) {
+    const assignedToTask = this.db
+      .select({ id: taskMentions.taskId })
+      .from(taskMentions)
+      .where(eq(taskMentions.taskId, tasks.id));
+    const selected = assignees?.length
+      ? exists(
+          this.db
+            .select({ id: taskMentions.taskId })
+            .from(taskMentions)
+            .where(
+              and(
+                eq(taskMentions.taskId, tasks.id),
+                inArray(taskMentions.userId, assignees)
+              )
+            )
+        )
+      : undefined;
+    const where = and(
+      status ? eq(tasks.status, status) : undefined,
+      search ? ilike(tasks.title, literalPattern(search)) : undefined,
+      or(selected, unassigned ? notExists(assignedToTask) : undefined)
+    );
     // A mesma fotografia do banco mantém total, página e menções consistentes.
     return this.db.transaction(
       async (tx) => {
