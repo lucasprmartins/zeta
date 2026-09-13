@@ -168,10 +168,8 @@ export function SidePanel({
       >
         <span className="h-10 w-1 rounded-full bg-border" />
       </div>
-      <div
-        className={`flex h-full min-w-0 flex-col ${expanded ? "" : "sm:pl-3"}`}
-      >
-        <div className="side-panel-header flex shrink-0 px-5 pt-3 pb-1 sm:px-6">
+      <div className="flex h-full min-w-0 flex-col">
+        <div className="side-panel-header flex shrink-0 pb-1">
           <div className="side-panel-controls flex w-full items-center gap-1">
             {!expanded && (
               <Button

@@ -342,8 +342,12 @@
   transition: transform 180ms ease-out;
 }
 .side-panel-header {
+  padding-inline: max(
+    1.25rem,
+    env(safe-area-inset-left),
+    env(safe-area-inset-right)
+  );
   padding-top: max(1rem, env(safe-area-inset-top));
-  padding-right: max(1.25rem, env(safe-area-inset-right));
 }
 .side-panel-controls > button {
   height: 2.75rem;
@@ -352,8 +356,11 @@
 .side-panel-body,
 .side-panel-footer {
   padding-right: max(1.25rem, env(safe-area-inset-right));
-  padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
   padding-left: max(1.25rem, env(safe-area-inset-left));
+}
+.side-panel-body,
+.side-panel-footer {
+  padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
 }
 @media (min-width: 640px) {
   .side-panel {
